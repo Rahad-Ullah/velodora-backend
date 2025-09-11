@@ -7,7 +7,7 @@ import handleZodError from '../../errors/handleZodError';
 import { errorLogger } from '../../shared/logger';
 import { IErrorMessage } from '../../types/errors.types';
 import { getMultipleFilesPath } from '../../shared/getFilePath';
-import {unlinkFile, unlinkFiles} from '../../shared/unlinkFile';
+import { unlinkFiles} from '../../shared/unlinkFile';
 
 const globalErrorHandler: ErrorRequestHandler = (error, req, res, next) => {
   config.node_env === 'development'

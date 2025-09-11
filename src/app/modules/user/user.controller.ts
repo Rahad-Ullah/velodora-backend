@@ -22,6 +22,31 @@ const createUser = catchAsync(
   }
 );
 
+const createUsers = catchAsync(
+  async (req: Request, res: Response, next: NextFunction) => {
+    const result = await UserService.createUserToDB(req.body);
+
+    sendResponse(res, {
+      success: true,
+      statusCode: StatusCodes.OK,
+      message: result,
+      data: ""
+    });
+  }
+);
+
+const getUser = catchAsync(async (req: Request, res: Response) => {
+  
+  const result = await UserService.getUserFromDB(req.params?.id as string);
+
+  sendResponse(res, {
+    success: true,
+    statusCode: StatusCodes.OK,
+    message: 'Profile data retrieved successfully',
+    data: result,
+  });
+});
+
 const getUserProfile = catchAsync(async (req: Request, res: Response) => {
   const user = req.user;
   const result = await UserService.getUserProfileFromDB(user);
@@ -33,7 +58,6 @@ const getUserProfile = catchAsync(async (req: Request, res: Response) => {
     data: result,
   });
 });
-
 
 const getUsers = catchAsync(async (req: Request, res: Response) => {
   // 1. Define which query fields are filters
@@ -108,4 +132,53 @@ const updateProfile = catchAsync(
   }
 );
 
-export const UserController = { createUser, getUserProfile, getUsers, updateProfile, getUsersAggregation };
+
+//delete user
+const updateUserStatus = catchAsync(
+  async (req: Request, res: Response, next: NextFunction) => {
+    console.log("controller - user: ", req.params?.id);
+
+    const result = await UserService.updateUserStatusToDB(req.params?.id, req.body.status);
+
+    sendResponse(res, {
+      success: true,
+      statusCode: StatusCodes.OK,
+      message: 'User status updated successfully',
+      data: result,
+    });
+  }
+);
+
+//delete profile
+const deleteProfile = catchAsync(
+  async (req: Request, res: Response, next: NextFunction) => {
+    // console.log("controller- user: ", req.user);
+
+    const result = await UserService.deleteUserFromDB(req.user.id  as string);
+
+    sendResponse(res, {
+      success: true,
+      statusCode: StatusCodes.OK,
+      message: 'Profile deleted successfully',
+      data: result,
+    });
+  }
+);
+
+//delete user
+const deleteUser = catchAsync(
+  async (req: Request, res: Response, next: NextFunction) => {
+    console.log("controller - user: ", req.params?.id);
+
+    const result = await UserService.deleteUserFromDB(req.params?.id  as string);
+
+    sendResponse(res, {
+      success: true,
+      statusCode: StatusCodes.OK,
+      message: 'User deleted successfully',
+      data: result,
+    });
+  }
+);
+
+export const UserController = { createUser, createUsers, getUserProfile, getUser, getUsers, updateProfile, deleteProfile, updateUserStatus, deleteUser, getUsersAggregation };

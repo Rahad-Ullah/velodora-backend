@@ -4,9 +4,9 @@ import { model, Schema } from 'mongoose';
 import config from '../../../config';
 import { USER_ROLES, USER_STATUS } from '../../../enums/user';
 import ApiError from '../../../errors/ApiError';
-import { IUser, UserModal } from './user.interface';
+import { IUser, TUserModal } from './user.interface';
 
-const userSchema = new Schema<IUser, UserModal>(
+const userSchema = new Schema<IUser, TUserModal>(
   {
     role: {
       type: String,
@@ -28,12 +28,11 @@ const userSchema = new Schema<IUser, UserModal>(
       type: String,
       required: true,
       select: 0,
-      minlength: 8,
+      minlength: 6,
     },
     contact: {
       type: String,
       required: true,
-      unique: true,
     },
     location: {
       type: String,
@@ -79,12 +78,12 @@ const userSchema = new Schema<IUser, UserModal>(
 
 //exist user check
 userSchema.statics.isExistUserById = async (id: string) => {
-  const isExist = await User.findById(id);
+  const isExist = await UserModel.findById(id);
   return isExist;
 };
 
 userSchema.statics.isExistUserByEmail = async (email: string) => {
-  const isExist = await User.findOne({ email });
+  const isExist = await UserModel.findOne({ email });
   return isExist;
 };
 
@@ -99,7 +98,7 @@ userSchema.statics.isMatchPassword = async (
 // check user
 userSchema.pre('save', async function (next) {
   // check user
-  const isExist = await User.findOne({ email: this.email });
+  const isExist = await UserModel.findOne({ email: this.email });
   if (isExist) {
     throw new ApiError(StatusCodes.BAD_REQUEST, 'Email already exist!');
   }
@@ -112,4 +111,4 @@ userSchema.pre('save', async function (next) {
   next();
 });
 
-export const User = model<IUser, UserModal>('User', userSchema);
+export const UserModel = model<IUser, TUserModal>('User', userSchema);

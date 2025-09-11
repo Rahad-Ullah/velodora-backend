@@ -46,7 +46,7 @@ const getService = catchAsync(async (req: Request, res: Response) => {
 //get all categories controller
 const getServices = catchAsync(async (req: Request, res: Response) => {
   // Define which query fields are filters
-  const filterableFields = ['searchTerm'];
+  const filterableFields = ['searchTerm', 'categoryId', 'minPrice', 'maxPrice', 'date', 'time'];
 
   // Pick only allowed filters from req.query
   const filterOptions = pick(req.query, filterableFields);
@@ -68,8 +68,8 @@ const updateService = catchAsync(
   async (req: Request, res: Response, next: NextFunction) => {
     const id = req.params?.id;
     const providerId = req.user.id;
-    
-     const newData = {
+
+    const newData = {
       ...req.body.data,
       serviceImages: req.body.serviceImages,
     }

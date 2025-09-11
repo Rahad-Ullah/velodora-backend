@@ -7,7 +7,7 @@ import { emailTemplate } from '../../../shared/emailTemplate';
 import {unlinkFile} from '../../../shared/unlinkFile';
 import generateOTP from '../../../util/generateOTP';
 import { IUser, PartialUserWithRequiredEmail } from './user.interface';
-import { User } from './user.model';
+import { UserModel } from './user.model';
 import { IPaginationOptions } from '../../../types/pagination';
 import QueryBuilder from '../../builder/QueryBuilder';
 
@@ -17,7 +17,7 @@ const createUserToDB = async (payload: PartialUserWithRequiredEmail): Promise<st
   let message = '';
   let createUser: IUser = {} as IUser;
 
-  const isExistUser = await User.isExistUserByEmail(payload?.email);
+  const isExistUser = await UserModel.isExistUserByEmail(payload?.email);
 
   if (isExistUser?.verified) {
     return "User already exist! Please Login";
@@ -28,7 +28,7 @@ const createUserToDB = async (payload: PartialUserWithRequiredEmail): Promise<st
     message = "User already exist! Please verify your account";
 
   } else if (!isExistUser) {
-    const res = await User.create(payload);
+    const res = await UserModel.create(payload);
     if (res) {
       createUser = res;
       message = 'User created successfully! Please verify your account';
@@ -53,7 +53,7 @@ const createUserToDB = async (payload: PartialUserWithRequiredEmail): Promise<st
     oneTimeCode: otp,
     expireAt: new Date(Date.now() + 3 * 60 * 1000),
   };
-  await User.findOneAndUpdate(
+  await UserModel.findOneAndUpdate(
     { email: createUser.email },
     { $set: { authentication } }
   );
@@ -74,15 +74,15 @@ const createUsersToDB = async (
       continue;
     }
 
-    payload.role = USER_ROLES.USER;
+    // payload.role = USER_ROLES.USER;
 
-    const isExistUser = await User.isExistUserByEmail(payload.email);
+    const isExistUser = await UserModel.isExistUserByEmail(payload.email);
 
     if (isExistUser) {
       messages.push(`User with ${payload.email} already exists!`);
     } else {
       try {
-        const res = await User.create(payload);
+        const res = await UserModel.create(payload);
         if (res) {
           messages.push(`User with ${payload.email} created successfully!`);
         } else {
@@ -102,7 +102,20 @@ const getUserProfileFromDB = async (
   user: JwtPayload
 ): Promise<Partial<IUser>> => {
   const { id } = user;
-  const isExistUser = await User.isExistUserById(id);
+  const isExistUser = await UserModel.isExistUserById(id);
+  if (!isExistUser) {
+    throw new ApiError(StatusCodes.BAD_REQUEST, "User doesn't exist!");
+  }
+
+  return isExistUser;
+};
+
+//get user profile
+const getUserFromDB = async (
+  id: string
+): Promise<Partial<IUser>> => {
+  
+  const isExistUser = await UserModel.isExistUserById(id);
   if (!isExistUser) {
     throw new ApiError(StatusCodes.BAD_REQUEST, "User doesn't exist!");
   }
@@ -126,7 +139,7 @@ const getUsersFromDB = async (
 
   const searchableFields = ['name', 'email', 'location', 'contact'];
 
-  const builder = new QueryBuilder<IUser>(User.find(), query);
+  const builder = new QueryBuilder<IUser>(UserModel.find(), query);
 
   const usersQuery = builder
     .search(searchableFields)
@@ -165,7 +178,7 @@ const getUsersAggregationFromDB = async (
     }));
   }
 
-  const [result] = await User.aggregate([
+  const [result] = await UserModel.aggregate([
     {
       $match: {
         // status: "active",
@@ -230,13 +243,12 @@ const getUsersAggregationFromDB = async (
   };
 };
 
-
 const updateProfileToDB = async (
   user: JwtPayload,
   payload: Partial<IUser>
 ): Promise<Partial<IUser | null>> => {
   const { id } = user;
-  const isExistUser = await User.isExistUserById(id);
+  const isExistUser = await UserModel.isExistUserById(id);
   if (!isExistUser) {
     throw new ApiError(StatusCodes.BAD_REQUEST, "User doesn't exist!");
   }
@@ -250,18 +262,66 @@ const updateProfileToDB = async (
 
   const { email, password, role, ...newPayload } = payload; //email, role, password can't be updated here.
 
-  const updateDoc = await User.findOneAndUpdate({ _id: id }, newPayload, {
+  const updateDoc = await UserModel.findOneAndUpdate({ _id: id }, newPayload, {
     new: true,
   });
 
   return updateDoc;
 };
 
+const updateUserStatusToDB = async (
+  id: string,
+  status: USER_STATUS
+): Promise<Partial<IUser | null>> => {
+  // Check if user exists
+  const isExistUser = await UserModel.isExistUserById(id);
+  if (!isExistUser) {
+    throw new ApiError(StatusCodes.BAD_REQUEST, "User doesn't exist!");
+  }
+
+  // Check if status is valid
+  if (!Object.values(USER_STATUS).includes(status)) {
+    throw new ApiError(StatusCodes.BAD_REQUEST, 'Invalid status!');
+  }
+
+  // Update user status
+  const result = await UserModel.findByIdAndUpdate(
+    id,
+    { status },
+    { new: true }
+  );
+
+  return result;
+};
+
+const deleteUserFromDB = async (id: string): Promise<Partial<IUser | null>> => {
+  // console.log("user id: ", id);
+  const isExistUser = await UserModel.isExistUserById(id);
+  if (!isExistUser) {
+    throw new ApiError(StatusCodes.BAD_REQUEST, "User doesn't exist!");
+  }
+
+  // Delete user image if exists
+  if (isExistUser?.image) {
+    unlinkFile(isExistUser.image);
+  }
+
+  try {
+    const result = await UserModel.findByIdAndDelete(id);
+    return result;
+  } catch (error) {
+    throw new ApiError(StatusCodes.BAD_REQUEST, "Oops! Failed to delete user.");
+  }
+};
+
 export const UserService = {
   createUserToDB,
   createUsersToDB,
   getUserProfileFromDB,
+  getUserFromDB,
   getUsersFromDB,
   updateProfileToDB,
+  updateUserStatusToDB,
+  deleteUserFromDB,
   getUsersAggregationFromDB
 };

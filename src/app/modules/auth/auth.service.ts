@@ -14,14 +14,14 @@ import {
 } from '../../../types/auth';
 import generateOTP from '../../../util/generateOTP';
 import { ResetTokenModel } from '../resetToken/resetToken.model';
-import { User } from '../user/user.model';
+import { UserModel } from '../user/user.model';
 import cryptoToken from '../../../util/cryptoToken';
 
 //login
 const loginUserFromDB = async (payload: ILoginData) => {
   const { email, password } = payload;
 
-  const isExistUser = await User.findOne({ email }).select('+password');
+  const isExistUser = await UserModel.findOne({ email }).select('+password');
 
   if (!isExistUser) {
     throw new ApiError(StatusCodes.BAD_REQUEST, "User doesn't exist!");
@@ -29,7 +29,7 @@ const loginUserFromDB = async (payload: ILoginData) => {
 
   //check match password
   if (
-    password && !(await User.isMatchPassword(password, isExistUser.password))
+    password && !(await UserModel.isMatchPassword(password, isExistUser.password))
   ) {
     throw new ApiError(StatusCodes.BAD_REQUEST, 'Password is incorrect!');
   }
@@ -46,7 +46,7 @@ const loginUserFromDB = async (payload: ILoginData) => {
 
 //send otp
 const sendOtpToDB = async (email: string) => {
-  const isExistUser = await User.findOne({ email }).select('+authentication');
+  const isExistUser = await UserModel.findOne({ email }).select('+authentication');
   // console.log(isExistUser);
 
   if (!isExistUser) {
@@ -79,7 +79,7 @@ const sendOtpToDB = async (email: string) => {
     expireAt: new Date(Date.now() + 3 * 60 * 1000),
   };
 
-  await User.updateOne(
+  await UserModel.updateOne(
     { email },
     { $set: { authentication } }
   );
@@ -93,7 +93,7 @@ const verifyOtpToDB = async (payload: IVerifyEmail) => {
   const email = payload?.email;
   const oneTimeCode = Number(payload?.oneTimeCode);
 
-  const isExistUser = await User.findOne({ email }).select('+authentication');
+  const isExistUser = await UserModel.findOne({ email }).select('+authentication');
 
   if (!isExistUser) {
     throw new ApiError(StatusCodes.BAD_REQUEST, "User doesn't exist!");
@@ -118,7 +118,7 @@ const verifyOtpToDB = async (payload: IVerifyEmail) => {
     );
   }
 
-  await User.findOneAndUpdate(
+  await UserModel.findOneAndUpdate(
     { _id: isExistUser._id },
     {
       authentication: {
@@ -150,7 +150,7 @@ const verifyAccountToDB = async (payload: IVerifyEmail) => {
   const email = payload?.email;
   const oneTimeCode = Number(payload?.oneTimeCode);
 
-  const isExistUser = await User.findOne({ email }).select('+authentication');
+  const isExistUser = await UserModel.findOne({ email }).select('+authentication');
   if (!isExistUser) {
     throw new ApiError(StatusCodes.BAD_REQUEST, "User doesn't exist!");
   }
@@ -176,12 +176,12 @@ const verifyAccountToDB = async (payload: IVerifyEmail) => {
 
 
   if (!isExistUser.verified) {
-    await User.findOneAndUpdate(
+    await UserModel.findOneAndUpdate(
       { _id: isExistUser._id },
       { verified: true, authentication: { oneTimeCode: null, expireAt: null } }
     );
   } else {
-    await User.findOneAndUpdate(
+    await UserModel.findOneAndUpdate(
       { _id: isExistUser._id },
       {
         authentication: {
@@ -219,7 +219,7 @@ const resetPasswordToDB = async (
   }
 
   //user permission check
-  const isExistUser = await User.findById(isExistToken.user).select(
+  const isExistUser = await UserModel.findById(isExistToken.user).select(
     '+authentication'
   );
 
@@ -259,7 +259,7 @@ const resetPasswordToDB = async (
     },
   };
 
-  await User.findOneAndUpdate({ _id: isExistToken.user }, updateData);
+  await UserModel.findOneAndUpdate({ _id: isExistToken.user }, updateData);
 };
 
 //change password
@@ -268,7 +268,7 @@ const changePasswordToDB = async (
   payload: IChangePassword
 ) => {
   const { currentPassword, newPassword, confirmPassword } = payload;
-  const isExistUser = await User.findById(user.id).select('+password');
+  const isExistUser = await UserModel.findById(user.id).select('+password');
   if (!isExistUser) {
     throw new ApiError(StatusCodes.BAD_REQUEST, "User doesn't exist!");
   }
@@ -276,7 +276,7 @@ const changePasswordToDB = async (
   //current password match
   if (
     currentPassword &&
-    !(await User.isMatchPassword(currentPassword, isExistUser.password))
+    !(await UserModel.isMatchPassword(currentPassword, isExistUser.password))
   ) {
     throw new ApiError(StatusCodes.BAD_REQUEST, 'Password is incorrect');
   }
@@ -305,7 +305,7 @@ const changePasswordToDB = async (
   const updateData = {
     password: hashPassword,
   };
-  await User.findOneAndUpdate({ _id: user.id }, updateData, { new: true });
+  await UserModel.findOneAndUpdate({ _id: user.id }, updateData, { new: true });
 };
 
 export const AuthService = {

@@ -12,7 +12,7 @@ const addSettings = async (data: Partial<ISettings>): Promise<ISettings> => {
     const result = await Settings.create(data);
 
     if (!result) {
-      throw new ApiError(StatusCodes.BAD_REQUEST, 'Failed to add music');
+      throw new ApiError(StatusCodes.BAD_REQUEST, 'Failed to add Settings');
     }
     return result;
   }
@@ -20,24 +20,22 @@ const addSettings = async (data: Partial<ISettings>): Promise<ISettings> => {
 
 const getSettings = async (
   title?: string,
-): Promise<any> => {
+): Promise<Partial<ISettings>> => {
   console.log(title);
   const settings = await Settings.findOne().select(title ? title : '');
-  console.log(settings)
+  // console.log(settings)
 
-  return settings;
+  return settings!;
 };
 
 // Function to update settings without needing an ID
 const updateSettings = async (
-  settingsBody: Partial<ISettings>,
-): Promise<ISettings | null> => {
-  console.log('settingsBody,', settingsBody);
-  const settings = await Settings.findOneAndUpdate({}, settingsBody, {
-    new: true,
-  });
+  settingsBody: Partial<ISettings>
+): Promise<string> => {
+  console.log('settingsBody,', Object.keys(settingsBody));
+  await Settings.findOneAndUpdate({}, settingsBody,);
 
-  return settings;
+  return `${Object.keys(settingsBody).join(', ').toString()} updated successfully`;
 };
 
 export const settingsService = {

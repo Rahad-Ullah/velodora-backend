@@ -10,6 +10,7 @@ const router = express.Router();
 router
   .route('/profile')
   .get(auth(USER_ROLES.SUPER_ADMIN, USER_ROLES.ADMIN, USER_ROLES.USER, USER_ROLES.PROVIDER), UserController.getUserProfile)
+  .delete(auth(USER_ROLES.SUPER_ADMIN, USER_ROLES.ADMIN, USER_ROLES.USER, USER_ROLES.PROVIDER), UserController.deleteProfile)
   .patch(
     auth(USER_ROLES.SUPER_ADMIN, USER_ROLES.ADMIN, USER_ROLES.USER, USER_ROLES.PROVIDER),
     fileUploadHandler(),
@@ -23,19 +24,26 @@ router
     }
   );
 
-router
-  .route('/')
-  .post(
-    validateRequest(UserValidation.createUserZodSchema),
-    UserController.createUser
-  );
 
 router
   .route('/users')
+  .post(
+    auth(USER_ROLES.SUPER_ADMIN, USER_ROLES.ADMIN),
+    UserController.createUsers
+  )
   .get(
     auth(USER_ROLES.SUPER_ADMIN, USER_ROLES.ADMIN),
     UserController.getUsers
   );
+  
+router
+  .route('/users/:id')
+  .delete(auth(USER_ROLES.SUPER_ADMIN, USER_ROLES.ADMIN), UserController.deleteUser)
+  .get(auth(USER_ROLES.SUPER_ADMIN, USER_ROLES.ADMIN), UserController.getUser);
+
+router
+  .route('/users/change-status/:id')
+  .patch(auth(USER_ROLES.SUPER_ADMIN, USER_ROLES.ADMIN), UserController.updateUserStatus);
   
 router
   .route('/users-aggregation')
@@ -43,6 +51,8 @@ router
     auth(USER_ROLES.SUPER_ADMIN, USER_ROLES.ADMIN),
     UserController.getUsersAggregation
   );
+
+
 
 
 

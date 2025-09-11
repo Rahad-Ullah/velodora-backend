@@ -8,9 +8,7 @@ import { StatusCodes } from 'http-status-codes';
 const addSetting = catchAsync(async (req, res) => {
   const settingData = {
     privacyPolicy: '',
-    aboutUs: '',
-    support: '',
-    termsOfService: '',
+    termsAndConditions: '',
   };
 
   const result = await settingsService.addSettings(settingData);
@@ -23,40 +21,32 @@ const addSetting = catchAsync(async (req, res) => {
   });
 });
 
-// const getSettings = catchAsync(
-//   async (req: Request, res: Response): Promise<void> => {
-//     const result = await settingsService.getSettings();
-//     sendResponse(res, {
-//       statusCode: StatusCodes.OK,
-//       success: true,
-//       message: 'Settings get successfully',
-//       data: result,
-//     });
-//   },
-// );
-
-const getSpecipicSetting = catchAsync(async (req: Request, res: Response): Promise<void> => {
+const getSettings = catchAsync(async (req: Request, res: Response): Promise<void> => {
   const { title } = req.params;
-    res.send(settingsService.getSettings(title));
-  },
-);
-
-
-const updateSetting = catchAsync(async (req, res) => {
-  //   const { id } = req.params;
-  const settingData = { ...req.body };
-  const result = await settingsService.updateSettings(settingData);
+  const result = await settingsService.getSettings(title)
   sendResponse(res, {
     statusCode: StatusCodes.OK,
     success: true,
     message: 'Setting update successfully',
     data: result,
   });
+},
+);
+
+
+const updateSetting = catchAsync(async (req, res) => {
+  
+  const result = await settingsService.updateSettings(req.body);
+
+  sendResponse(res, {
+    statusCode: StatusCodes.OK,
+    success: true,
+    message:  result,
+  });
 });
 
 export const settingsController = {
   addSetting,
-  // getSettings,
-  getSpecipicSetting,
+  getSettings,
   updateSetting,
 };

@@ -7,11 +7,7 @@ const settingsSchema = new Schema<ISettings>(
       type: String,
       default: '',
     },
-    aboutUs: {
-      type: String,
-      default: '',
-    },
-    termsOfService: {
+    termsAndConditions: {
       type: String,
       default: '',
     },

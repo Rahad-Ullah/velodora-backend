@@ -1,4 +1,4 @@
-import { Model, Types } from 'mongoose';
+import { Model } from 'mongoose';
 import { USER_ROLES, USER_STATUS } from '../../../enums/user';
 
 export type IUser = {
@@ -22,7 +22,7 @@ export type IUser = {
 export type PartialUserWithRequiredEmail = Partial<Omit<IUser, 'email'>> & Pick<IUser, 'email'>;
 
 
-export type UserModal = {
+export type TUserModal = {
   isExistUserById(id: string): any;
   isExistUserByEmail(email: string): any;
   isMatchPassword(password: string, hashPassword: string): boolean;
