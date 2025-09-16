@@ -1,5 +1,5 @@
 import { JwtPayload } from 'jsonwebtoken';
-import { Chat } from '../chat/chat.model';
+import { ChatModel } from '../chat/chat.model';
 import { IMessage } from './message.interface';
 import { MessageModel } from './message.model';
 import ApiError from '../../../errors/ApiError';
@@ -12,12 +12,12 @@ import { sendNotifications } from '../../../helpers/notificationHelper';
 // ----------------- create message service ---------------
 const createMessage = async (payload: IMessage): Promise<IMessage> => {
   // check if the chat exists and the sender is a participant
-  const isChatExist = await Chat.findOne({
+  const isChatExist = await ChatModel.findOne({
     _id: payload.chat,
     isDeleted: false,
     participants: { $in: [payload.sender] },
   });
-  if (!isChatExist) throw new Error('Chat not found or deleted');
+  if (!isChatExist) throw new Error('ChatModel not found or deleted');
 
   const result = await MessageModel.create(payload);
 
@@ -34,6 +34,9 @@ const createMessage = async (payload: IMessage): Promise<IMessage> => {
       participantId.toString() !== payload.sender.toString()
   );
 
+  console.log(payload, "payload in message service");
+  console.log(receivers, "receivers in message service");
+
   // notify the receiver(s) for attachment
   if (payload.type === MESSAGE_TYPE.IMAGE) {
     await Promise.all(
@@ -49,7 +52,7 @@ const createMessage = async (payload: IMessage): Promise<IMessage> => {
   }
 
   // update the chat to sort it to the top
-  await Chat.findByIdAndUpdate(payload.chat, {});
+  await ChatModel.findByIdAndUpdate(payload.chat, {});
 
   return result;
 };
@@ -61,7 +64,7 @@ export const getChatMessages = async (
   user: JwtPayload
 ) => {
   // check if the chat exists
-  const existingChat = await Chat.findById(chatId);
+  const existingChat = await ChatModel.findById(chatId);
   if (!existingChat) throw new ApiError(401, 'Chat not found');
 
   // get another participant

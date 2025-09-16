@@ -144,7 +144,7 @@ const getUsersFromDB = async (
   const usersQuery = builder
     .search(searchableFields)
     .filter()
-    .sort()
+    .sort(['-createdAt'])
     .paginate()
     .fields();
 

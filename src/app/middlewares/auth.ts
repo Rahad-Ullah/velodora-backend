@@ -24,8 +24,8 @@ const auth = (...roles: string[]) =>
         //set user to header
         req.user = verifyUser;
 
-        console.log("User role", verifyUser.role);
-        console.log("roles", roles);
+        // console.log("User role", verifyUser.role);
+        // console.log("roles", roles);
 
         //guard user
         if (roles.length && !roles.includes(verifyUser.role)) {

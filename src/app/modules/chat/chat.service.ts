@@ -3,6 +3,8 @@ import { IChat } from './chat.interface';
 import { ChatModel } from './chat.model';
 import { IMessage } from '../message/message.interface';
 import { MessageModel } from '../message/message.model';
+import { unlinkFile } from '../../../shared/unlinkFile';
+import { MESSAGE_TYPE } from '../message/message.constants';
 
 // ---------------- create chat service ---------------
 const createChatIntoDB = async (
@@ -35,11 +37,17 @@ const deleteChatFromDB = async (chatId: string) => {
     throw new Error('ChatModel not found');
   }
 
-  const result = await ChatModel.findByIdAndUpdate(
-    chatId,
-    { isDeleted: true },
-    { new: true }
-  );
+  const messages = await MessageModel.find({ chat: chatId });
+  if (messages.length > 0) {
+    messages.forEach((message: IMessage) => {
+      message.type === MESSAGE_TYPE.IMAGE && message?.image && unlinkFile(message?.image);
+    });
+    await MessageModel.deleteMany({ chat: chatId });
+  }
+
+  // console.log("Chat : ",isExist);
+
+  const result = await ChatModel.findByIdAndDelete(chatId);
   return result;
 };
 
@@ -48,23 +56,25 @@ const getChatsByIdFromDB = async (
   userId: string,
   query: Record<string, any>
 ) => {
+  console.log(query.searchTerm, "SearchTerm")
   const chats = await ChatModel.find({ participants: { $in: [userId] } })
     .populate({
       path: 'participants',
-      select: 'firstName lastName email image isOnline',
+      // select: 'name',
       match: {
-        isDeleted: false,
+        // isDeleted: false,
         _id: { $ne: userId }, // Exclude userId in the populated participants
         ...(query?.searchTerm && {
           $or: [
-            { firstName: { $regex: query.searchTerm, $options: 'i' } },
-            { lastName: { $regex: query.searchTerm, $options: 'i' } },
+            { name: { $regex: query.searchTerm, $options: 'i' } },
           ],
         }),
       }, // Apply $regex only if search is valid },
     })
     .select('participants updatedAt')
     .sort('-updatedAt');
+
+    console.log(chats)
 
   // Filter out chats where no participants match the search (empty participants)
   const filteredChats = chats?.filter(
@@ -81,7 +91,7 @@ const getChatsByIdFromDB = async (
       })
         .sort({ createdAt: -1 })
         .select('text image type sender')
-        .populate('sender', 'firstName lastName image');
+        .populate('sender', 'name role');
 
       // find unread messages count
       const unreadCount = await MessageModel.countDocuments({

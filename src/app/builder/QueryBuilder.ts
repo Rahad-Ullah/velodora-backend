@@ -39,12 +39,12 @@ class QueryBuilder<T> {
 
 
   //sorting
-  sort(sortableFields: string[]) {
+  sort(sortableFields?: string[]) {
     // console.log("sort : ", this?.query?.sort);
 
     let newSort: string[] = [];
 
-    if (sortableFields.length > 0) {
+    if (sortableFields && sortableFields?.length > 0 ) {
       newSort = sortableFields;
     } else {
       ["-createdAt"];
