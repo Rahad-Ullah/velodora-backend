@@ -1,72 +1,71 @@
-import colors from 'colors';
+import { createServer, Server } from 'http';
 import mongoose from 'mongoose';
-import { Server } from 'socket.io';
 import app from './app';
+import { Server as SocketIOServer } from 'socket.io';
+import colors from 'colors';
 import config from './config';
-import { seedSuperAdmin } from './DB/seedAdmin';
 import { socketHelper } from './helpers/socketHelper';
-import { errorLogger, logger } from './shared/logger';
+ 
+let server: Server;
 
-//uncaught exception
-process.on('uncaughtException', error => {
-  errorLogger.error('UnhandleException Detected', error);
-  process.exit(1);
-});
-
-let server: any;
 async function main() {
   try {
+    // Connect to MongoDB
     await mongoose.connect(config.database_url as string);
-    logger.info(colors.green('🚀 Database connected successfully'));
-
-
-
-    const port = typeof config.port === 'number' ? config.port : Number(config.port);
-
-    server = app.listen(port, config.ip_address as string, async () => {
-      // Seed Super Admin after database connection is successful
-      await seedSuperAdmin();
-      // console.log(`🚀 Server listening on  http://${config.ip_address}:${port}`);
-      logger.info(
-        colors.yellow(`♻️  Application listening on port:${config.port}`)
-      );
-    });
-
-    //socket
-    const io = new Server(server, {
-      pingTimeout: 60000,
+ 
+ 
+    // Create a single HTTP server from the Express app
+    server = createServer(app);
+ 
+    // Attach Socket.IO to the same HTTP server
+    const io: SocketIOServer = new SocketIOServer(server, {
       cors: {
         origin: '*',
       },
     });
+ 
+    // Start listening on the same port for both HTTP and WebSocket
+    server.listen(Number(config.port), () => {
+      console.log(
+        colors.green(
+          `Server (HTTP + Socket.IO) is running on ${config.ip_address}:${config.port}`,
+        ).bold,
+      );
+    });
+ 
+    // await createSuperAdmin();
+    // Initialize your Socket.IO handlerssu
     socketHelper.socket(io);
-    //@ts-ignore
+ 
+    // Optionally make the socket server globally accessible
     global.io = io;
-  } catch (error) {
-    console.log(error);
-
-    errorLogger.error(colors.red('🤢 Failed to connect Database'));
+  } catch (err) {
+    console.error('Error starting the server:', err);
+    process.exit(1);
   }
-
-  //handle unhandleRejection
-  process.on('unhandledRejection', error => {
-    if (server) {
-      server.close(() => {
-        errorLogger.error('UnhandleRejection Detected', error);
-        process.exit(1);
-      });
-    } else {
-      process.exit(1);
-    }
-  });
 }
-
+ 
 main();
-
-//SIGTERM
-process.on('SIGTERM', () => {
-  logger.info('SIGTERM IS RECEIVE');
+ 
+// Graceful shutdown for unhandled rejections
+process.on('unhandledRejection', (err) => {
+  console.error(`Unhandled rejection detected: ${err}`);
   if (server) {
-    server.close();
+    server.close(() => {
+      process.exit(1);
+    });
+  }
+  process.exit(1);
+});
+ 
+// Graceful shutdown for uncaught exceptions
+process.on('uncaughtException', (err) => {
+  console.error(`Uncaught exception detected: ${err}`);
+  if (server) {
+    server.close(() => {
+      process.exit(1);
+    });
   }
 });
+ 
+ 

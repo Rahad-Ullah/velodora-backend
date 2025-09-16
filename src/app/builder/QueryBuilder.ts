@@ -39,34 +39,30 @@ class QueryBuilder<T> {
 
 
   //sorting
-sort() {
-  console.log("sort : ", this?.query?.sort);
+  sort(sortableFields: string[]) {
+    // console.log("sort : ", this?.query?.sort);
 
-  let sort = this?.query?.sort;
-  let newSort: string[] = [];
+    let newSort: string[] = [];
 
-  // ✅ Normalize to array
-  if (typeof sort === "string") {
-    newSort = sort.split(",");
-  } else if (Array.isArray(sort)) {
-    newSort = this?.query?.sort as string[];
-  } else {
-     ["-createdAt"];
+    if (sortableFields.length > 0) {
+      newSort = sortableFields;
+    } else {
+      ["-createdAt"];
+    }
+
+    const sortArray: [string, SortOrder][] = [];
+
+    newSort.forEach(field => {
+      const isDescending = field.trim().startsWith("-");
+      const fieldName = isDescending ? field.slice(1) : field;
+
+      sortArray.push([fieldName, isDescending ? "desc" : "asc"]);
+    });
+
+    this.modelQuery = this.modelQuery.sort(sortArray);
+
+    return this;
   }
-
-  const sortArray: [string, SortOrder][] = [];
-
-  newSort.forEach(field => {
-    const isDescending = field.trim().startsWith("-");
-    const fieldName = isDescending ? field.slice(1) : field;
-
-    sortArray.push([fieldName, isDescending ? "desc" : "asc"]);
-  });
-
-  this.modelQuery = this.modelQuery.sort(sortArray);
-
-  return this;
-}
 
 
   //pagination
