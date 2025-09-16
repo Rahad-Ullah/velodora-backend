@@ -29,27 +29,27 @@ const createMessage = async (payload: IMessage): Promise<IMessage> => {
   }
 
   // ✅ Find the receiver(s): all participants except the sender
-  const receivers = isChatExist.participants.filter(
-    (participantId: Types.ObjectId) =>
-      participantId.toString() !== payload.sender.toString()
-  );
+  // const receivers = isChatExist.participants.filter(
+  //   (participantId: Types.ObjectId) =>
+  //     participantId.toString() !== payload.sender.toString()
+  // );
 
-  console.log(payload, "payload in message service");
-  console.log(receivers, "receivers in message service");
+  // console.log(payload, "payload in message service");
+  // console.log(receivers, "receivers in message service");
 
-  // notify the receiver(s) for attachment
-  if (payload.type === MESSAGE_TYPE.IMAGE) {
-    await Promise.all(
-      receivers.map((receiverId: Types.ObjectId) =>
-        sendNotifications({
-          type: NOTIFICATION_TYPE.ATTACHMENT,
-          title: 'Attachment',
-          receiver: receiverId,
-          referenceId: result._id.toString(),
-        })
-      )
-    );
-  }
+  // notify the receiver(s) for attachment //
+  // if (payload.type === MESSAGE_TYPE.IMAGE) {
+  //   await Promise.all(
+  //     receivers.map((receiverId: Types.ObjectId) =>
+  //       sendNotifications({
+  //         type: NOTIFICATION_TYPE.ATTACHMENT,
+  //         title: 'Attachment',
+  //         receiver: receiverId,
+  //         referenceId: result._id.toString(),
+  //       })
+  //     )
+  //   );
+  // }
 
   // update the chat to sort it to the top
   await ChatModel.findByIdAndUpdate(payload.chat, {});
