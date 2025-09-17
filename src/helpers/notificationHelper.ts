@@ -7,10 +7,10 @@ export const sendNotifications = async (
   const result = await NotificationModel.create(payload);
 
   //@ts-ignore
-  const socketIo = global.io;
-
-  if (socketIo) {
-    socketIo.emit(`getNotification::${payload?.receiver}`, result);
+  const io = global.io;
+  
+  if (io) {
+    io.emit(`getNotification::${payload?.receiver}`, result);
   }
 
   return result;

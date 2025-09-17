@@ -11,7 +11,9 @@ const createChatIntoDB = async (
   userId: string,
   payload: any
 ): Promise<IChat> => {
+
   const participants = [...payload.participants];
+
   // push the user id to participants if not already included
   if (!participants.includes(userId)) {
     participants.push(userId);
@@ -22,6 +24,7 @@ const createChatIntoDB = async (
     participants: { $all: participants },
     isDeleted: false,
   });
+
   if (isExist) {
     return isExist;
   }
@@ -56,11 +59,11 @@ const getChatsByIdFromDB = async (
   userId: string,
   query: Record<string, any>
 ) => {
-  console.log(query.searchTerm, "SearchTerm")
+  // console.log(query.searchTerm, "SearchTerm")
   const chats = await ChatModel.find({ participants: { $in: [userId] } })
     .populate({
       path: 'participants',
-      // select: 'name',
+      select: 'name email role image',
       match: {
         // isDeleted: false,
         _id: { $ne: userId }, // Exclude userId in the populated participants
@@ -74,7 +77,7 @@ const getChatsByIdFromDB = async (
     .select('participants updatedAt')
     .sort('-updatedAt');
 
-    console.log(chats)
+    // console.log(chats)
 
   // Filter out chats where no participants match the search (empty participants)
   const filteredChats = chats?.filter(
@@ -91,7 +94,7 @@ const getChatsByIdFromDB = async (
       })
         .sort({ createdAt: -1 })
         .select('text image type sender')
-        .populate('sender', 'name role');
+        .populate('sender', 'name role image');
 
       // find unread messages count
       const unreadCount = await MessageModel.countDocuments({

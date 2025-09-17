@@ -258,7 +258,7 @@ const updateProfileToDB = async (
     unlinkFile(isExistUser.image);
   }
 
-  console.log("Update Profile : ", payload);
+  // console.log("Update Profile : ", payload);
 
   const { email, password, role, ...newPayload } = payload; //email, role, password can't be updated here.
 

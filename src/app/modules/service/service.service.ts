@@ -167,7 +167,7 @@ const updateServiceToDB = async (
 
 
   const res = await ServiceModel.findByIdAndUpdate(id, payload, { new: true });
-  console.log("update result : ", res);
+  // console.log("update result : ", res);
   if (!res?.serviceImages) {
     unlinkFiles(payload?.serviceImages || []);
     throw new ApiError(StatusCodes.BAD_REQUEST, "Service doesn't exist!");

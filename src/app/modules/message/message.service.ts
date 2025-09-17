@@ -22,34 +22,30 @@ const createMessage = async (payload: IMessage): Promise<IMessage> => {
   const result = await MessageModel.create(payload);
 
   // emit socket event for new message
-  //@ts-ignore
   const io = global.io;
   if (io) {
     io.emit(`getMessage::${payload.chat}`, result);
   }
 
-  // ✅ Find the receiver(s): all participants except the sender
-  // const receivers = isChatExist.participants.filter(
-  //   (participantId: Types.ObjectId) =>
-  //     participantId.toString() !== payload.sender.toString()
-  // );
-
-  // console.log(payload, "payload in message service");
-  // console.log(receivers, "receivers in message service");
+  // Find the receiver(s): all participants except the sender
+  const receivers = isChatExist.participants.filter(
+    (participantId: Types.ObjectId) =>
+      participantId.toString() !== payload.sender.toString()
+  );
 
   // notify the receiver(s) for attachment //
-  // if (payload.type === MESSAGE_TYPE.IMAGE) {
-  //   await Promise.all(
-  //     receivers.map((receiverId: Types.ObjectId) =>
-  //       sendNotifications({
-  //         type: NOTIFICATION_TYPE.ATTACHMENT,
-  //         title: 'Attachment',
-  //         receiver: receiverId,
-  //         referenceId: result._id.toString(),
-  //       })
-  //     )
-  //   );
-  // }
+  if (payload.type === MESSAGE_TYPE.IMAGE) {
+    await Promise.all(
+      receivers.map((receiverId: Types.ObjectId) =>
+        sendNotifications({
+          type: NOTIFICATION_TYPE.ATTACHMENT,
+          title: 'Attachment',
+          receiver: receiverId,
+          referenceId: result._id.toString(),
+        })
+      )
+    );
+  }
 
   // update the chat to sort it to the top
   await ChatModel.findByIdAndUpdate(payload.chat, {});
@@ -72,7 +68,7 @@ export const getChatMessages = async (
     participant => participant.toString() !== user?.id
   )[0];
 
-  // update seen status those are not seen by the user
+  // update seen status those are seen by the user right now
   await MessageModel.updateMany(
     { chat: chatId, seenBy: { $nin: [user?.id] } },
     { $addToSet: { seenBy: user?.id } }

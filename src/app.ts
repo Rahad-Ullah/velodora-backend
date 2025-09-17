@@ -25,8 +25,11 @@ app.use('/api/v1', router);
 app.get('/', (req: Request, res: Response) => {
   const date = new Date(Date.now());
   res.send(
-    `<h1 style="text-align:center; color:#173616; font-family:Verdana;">Beep-beep! The server is alive and kicking.</h1>
-    <p style="text-align:center; color:#173616; font-family:Verdana;">${date}</p>
+    `
+    <div style="width: 100%; height: 80vh; display: flex; flex-direction: column; align-items: center; justify-content: center;">
+      <h1 style=" color:#173616;">The server is alive</h1>
+      <p style="color:#173616;">${date}</p>
+    </div>
     `
   );
 });
