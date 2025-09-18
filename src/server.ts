@@ -12,65 +12,44 @@ let server: Server;
 
 async function main() {
   try {
-    // Connect to MongoDB
     await mongoose.connect(config.database_url as string);
-    logger.info(colors.green('🚀 Database connected successfully'));
+    logger.info(colors.green('🚀 Database connected'));
 
-
-    // Create a single HTTP server from the Express app
     server = createServer(app);
 
-    // Attach Socket.IO to the same HTTP server
-    const io: SocketIOServer = new SocketIOServer(server, {
-      cors: {
-        origin: '*',
-      },
-    });
-
-    // Start listening on the same port for both HTTP and WebSocket
-    server.listen(Number(config.port), () => {
-      console.log(
-        colors.green(
-          `Server (HTTP + Socket.IO) is running on ${config.ip_address}:${config.port}`,
-        ).bold,
-      );
-    });
-
-    // Call the createSuperAdmin function
-    await createSuperAdmin();
-
-    // Initialize your Socket.IO handler
-    socketHelper.socket(io);
-
-    // Optionally make the socket server globally accessible
+    const io: SocketIOServer = new SocketIOServer(server, { cors: { origin: '*' } });
     global.io = io;
 
+    await new Promise<void>((resolve) =>
+      server.listen(Number(config.port), config.ip_address, resolve)
+    );
+
+    logger.info(colors.green(`🚀 Server running on ${config.ip_address}:${config.port}`));
+
+    await createSuperAdmin();
+    socketHelper.socket(io);
+
   } catch (err) {
-    console.error('Error starting the server:', err);
-    process.exit(1);
+    logger.error('❌ Startup error:', err);
+    await gracefulShutdown(err);
   }
 }
 
+async function gracefulShutdown(err?: any) {
+  if (err) logger.error('⚠️ Shutting down due to error:', err);
+
+  if (server) {
+    server.close(() => logger.info('✅ HTTP server closed'));
+  }
+  await mongoose.disconnect();
+  logger.info('✅ MongoDB disconnected');
+
+  process.exit(err ? 1 : 0);
+}
+
+process.on('SIGINT', () => gracefulShutdown());
+process.on('SIGTERM', () => gracefulShutdown());
+process.on('unhandledRejection', gracefulShutdown);
+process.on('uncaughtException', gracefulShutdown);
+
 main();
-
-// Graceful shutdown for unhandled rejections
-process.on('unhandledRejection', (err) => {
-  console.error(`Unhandled rejection detected: ${err}`);
-  if (server) {
-    server.close(() => {
-      process.exit(1);
-    });
-  }
-  process.exit(1);
-});
-
-// Graceful shutdown for uncaught exceptions
-process.on('uncaughtException', (err) => {
-  console.error(`Uncaught exception detected: ${err}`);
-  if (server) {
-    server.close(() => {
-      process.exit(1);
-    });
-  }
-});
-

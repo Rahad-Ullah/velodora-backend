@@ -1,11 +1,7 @@
-// global.d.ts or types/global.d.ts
- 
-import { Server } from 'socket.io';
- 
+// global.d.ts
+import { Server as SocketIOServer } from "socket.io";
+
 declare global {
-  var io: Server; // Declare global 'io' as a Socket.IO Server instance
+  // eslint-disable-next-line no-var
+  var io: SocketIOServer | undefined;
 }
- 
-export {}; // Ensure this is treated as a module
- 
- 
