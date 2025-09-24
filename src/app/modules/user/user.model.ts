@@ -17,18 +17,16 @@ const userSchema = new Schema<IUser, TUserModal>(
       type: String,
       required: true,
     },
+    image: {
+      type: String,
+      default: null,
+    },
     email: {
       type: String,
       required: true,
       unique: true,
       lowercase: true,
       trim: true,
-    },
-    password: {
-      type: String,
-      required: true,
-      select: 0,
-      minlength: 6,
     },
     contact: {
       type: String,
@@ -38,20 +36,21 @@ const userSchema = new Schema<IUser, TUserModal>(
       type: String,
       required: true,
     },
-    image: {
+    password: {
       type: String,
-      default: null,
+      required: true,
+      select: 0,
+      minlength: 6,
     },
-    status: {
-      type: String,
-      enum: Object.values(USER_STATUS),
-      default: USER_STATUS.active,
+    isActive: {
+      type: Boolean,
+      default: true,
     },
-    service:{
+    verified: {
       type: Boolean,
       default: false,
     },
-    verified: {
+    isDeleted: {
       type: Boolean,
       default: false,
     },

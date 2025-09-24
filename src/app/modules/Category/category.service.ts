@@ -1,6 +1,6 @@
 import { StatusCodes } from 'http-status-codes';
 import ApiError from '../../../errors/ApiError';
-import {unlinkFile} from '../../../shared/unlinkFile';
+import { unlinkFile } from '../../../shared/unlinkFile';
 import { ICategory } from './category.interface';
 import QueryBuilder from '../../builder/QueryBuilder';
 import { CategoryModel } from './category.model';
@@ -65,6 +65,11 @@ const updateCategoryToDB = async (
 
   const isExistCategory = await CategoryModel.findById(id);
 
+  if (!isExistCategory) {
+    payload?.icon && unlinkFile(payload.icon!);
+    throw new ApiError(StatusCodes.BAD_REQUEST, "Category doesn't exist!");
+  }
+
   //unlink file here
   if (payload.icon && isExistCategory?.icon) {
     unlinkFile(isExistCategory.icon);
@@ -81,6 +86,9 @@ const deleteCategoryToDB = async (
 ): Promise<string> => {
 
   const isExistCategory = await CategoryModel.findByIdAndDelete(id);
+  if (!isExistCategory) {
+    throw new ApiError(StatusCodes.BAD_REQUEST, "Category doesn't exist!");
+  }
 
   //unlink file here
   if (isExistCategory?.icon) {

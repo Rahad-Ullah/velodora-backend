@@ -1,20 +1,37 @@
 import { StatusCodes } from 'http-status-codes';
 import ApiError from '../../../errors/ApiError';
-import { unlinkFiles } from '../../../shared/unlinkFile';
-import QueryBuilder from '../../builder/QueryBuilder';
 import { IService } from './service.interface';
 import { ServiceModel } from './service.model';
+import { CategoryModel } from '../Category/category.model';
+import { SubCategoryModel } from '../subCategory/subCategory.model';
 
 
 //create category
-const createServiceToDB = async (payload: Partial<IService>): Promise<string> => {
+const createServiceToDB = async (payload: Partial<IService>): Promise<any> => {
+  console.log("Create Service payload:", payload);
 
-  // const user = req.user;
+  const isCategoryExist = await CategoryModel.findOne({ _id: payload.category });
+  if (!isCategoryExist) {
+    throw new ApiError(StatusCodes.BAD_REQUEST, "Service category doesn't exist!");
+  }
 
+  const isSubCategoryExist = await SubCategoryModel.findOne({ _id: payload.subCategory });
+  if (!isSubCategoryExist) {
+    throw new ApiError(StatusCodes.BAD_REQUEST, "Service Sub-Category doesn't exist!");
+  }
+  if (!payload.price) {
+    throw new ApiError(StatusCodes.BAD_REQUEST, "Service price is required!");
+  }
 
-  await ServiceModel.create(payload);
+  const newServiceData = {
+    category: payload.category,
+    subCategory: payload.subCategory,
+    price: payload.price
+  }
 
-  return 'Service created successfully!';
+  const res = await ServiceModel.create(newServiceData);
+
+  return res;
 };
 
 //get Service
@@ -28,167 +45,55 @@ const getServiceFromDB = async (id: string): Promise<IService> => {
 };
 
 //get categories
-import { Types } from 'mongoose';
-
-type ServiceFilters = {
-  searchTerm?: string;
-  categoryId?: string;
-  minPrice?: number;
-  maxPrice?: number;
-  date?: string | Date;
-  time?: string;
-};
-
-const getServicesFromDB = async (
-  filterOptions: ServiceFilters
-): Promise<{ data: IService[] }> => {
-  const {
-    searchTerm,
-    categoryId,
-    minPrice,
-    maxPrice,
-    date,
-    time,
-  } = filterOptions;
-
-  // -------- Root-level $match (fields on the Service collection) --------
-  const rootMatch: any = {};
-
-  // Category: match on the FK field BEFORE lookup to categories
-  if (categoryId) {
-      rootMatch.serviceType = new Types.ObjectId(categoryId);
-  }
-
-  // Price range
-  if (minPrice != null || maxPrice != null) {
-    rootMatch.price = {};
-    if (minPrice != null) rootMatch.price.$gte = Number(minPrice);
-    if (maxPrice != null) rootMatch.price.$lte = Number(maxPrice);
-  }
-
-  // Date range (createdAt)
-  if (date) {
-    rootMatch.createdAt = {};
-    if (date) rootMatch.createdAt.$gte = new Date(date);
-  }
-
-  // Service time (only if your schema actually has this field)
-  if (time) {
-    rootMatch.serviceTime = time;
-  }
-
-  // -------- Build aggregation --------
-  const pipeline: any[] = [
-    { $match: rootMatch }, // ✅ early, efficient
-    {
-      $lookup: {
-        from: 'categories',
-        localField: 'serviceType',
-        foreignField: '_id',
-        as: 'serviceType'
-      }
-    },
-    {
-      $lookup: {
-        from: 'users',
-        localField: 'providerId',
-        foreignField: '_id',
-        as: 'provider'
-      }
-    },
-    { $unwind: '$serviceType' },
-    { $unwind: '$provider' },
-
-    // Coalesce provider name (support either provider.fullName or provider.name)
-    {
-      $addFields: {
-        providerName: { $ifNull: ['$provider.fullName', '$provider.name'] }
-      }
-    },
-  ];
-
-  // Text search across joined fields (only if searchTerm provided)
-  if (searchTerm && String(searchTerm).trim() !== '') {
-    pipeline.push({
-      $match: {
-        $or: [
-          { 'serviceType.name': { $regex: searchTerm, $options: 'i' } },
-          { additionalServiceType: { $regex: searchTerm, $options: 'i' } },
-          { aboutMe: { $regex: searchTerm, $options: 'i' } },
-          { providerName: { $regex: searchTerm, $options: 'i' } }
-        ]
-      }
-    });
-  }
-
-  pipeline.push({
-    $project: {
-      'serviceType._id': 1,
-      'serviceType.name': 1,
-      'provider._id': 1,
-      // you now have a stable providerName; keep the original fields too if you want
-      providerName: 1,
-      'provider.name': 1,
-      'provider.fullName': 1,
-      'provider.email': 1,
-      'provider.contact': 1,
-      aboutMe: 1,
-      additionalServiceType: 1,
-      serviceLocation: 1,
-      serviceDistance: 1,
-      price: 1,
-      pricePerHour: 1,
-      serviceImages: 1,
-      read: 1,
-      createdAt: 1,
-      updatedAt: 1
-    }
-  });
-
-  const services = await ServiceModel.aggregate(pipeline);
+const getServicesFromDB = async ( ): Promise<{ data: IService[] }> => {
+  
+  const services = await ServiceModel.find({});
   return { data: services };
 };
 
-
 //update category
 const updateServiceToDB = async (
-  payload: Partial<IService>, id: string, providerId: string
-): Promise<string> => {
+  payload: Partial<IService>, id: string,
+): Promise<any> => {
+  const newServiceData: Partial<IService> = {}
 
-  const isExistService = await ServiceModel.findById(id);
-  // console.log("Update Service : ", payload);
-  // console.log("isExistService : ", isExistService);
-  if (isExistService && isExistService?._id.toString() !== providerId) {
-    unlinkFiles(payload.serviceImages || []);
-    throw new ApiError(StatusCodes.BAD_REQUEST, "You are not authorized to update this service!");
+  if (payload.category) {
+    const isCategoryExist = await CategoryModel.findOne({ _id: payload.category });
+    if (!isCategoryExist) {
+      throw new ApiError(StatusCodes.BAD_REQUEST, "Service category doesn't exist!");
+    }
+    newServiceData.category = payload.category
   }
 
-  // unlink file here
+  if (payload.subCategory) {
+    const isSubCategoryExist = await SubCategoryModel.findOne({ _id: payload.subCategory });
+    if (!isSubCategoryExist) {
+      throw new ApiError(StatusCodes.BAD_REQUEST, "SubCategory doesn't exist!");
+    }
+    newServiceData.subCategory = payload.subCategory
+  }
 
+  if (payload.price) {
+    newServiceData.price = payload.price
+  }
 
-  const res = await ServiceModel.findByIdAndUpdate(id, payload, { new: true });
-  // console.log("update result : ", res);
-  if (!res?.serviceImages) {
-    unlinkFiles(payload?.serviceImages || []);
+  const res = await ServiceModel.findByIdAndUpdate(id, newServiceData, { new: true });
+  if (!res) {
     throw new ApiError(StatusCodes.BAD_REQUEST, "Service doesn't exist!");
-  } else if (res && payload?.serviceImages && res?.serviceImages) {
-    unlinkFiles(isExistService?.serviceImages || []);
   }
 
-  return "Service updated successfully!";
+  return res;
 };
 
-//update category
+// delete service
 const deleteServiceToDB = async (
   id: string
 ): Promise<string> => {
 
   const isExistService = await ServiceModel.findByIdAndDelete(id);
-
-  //unlink file here
-  // if (isExistService?.icon) {
-  //   unlinkFile(isExistService.icon);
-  // }
+  if (!isExistService) {
+    throw new ApiError(StatusCodes.BAD_REQUEST, "Service doesn't exist!");
+  }
 
   return "Service deleted successfully!";
 };

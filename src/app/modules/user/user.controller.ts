@@ -8,10 +8,12 @@ import { IUser, PartialUserWithRequiredEmail } from './user.interface';
 import { IPaginationMeta, IPaginationOptions } from '../../../types/pagination';
 import pick from '../../../shared/pick';
 
+
+// create single user
 const createUser = catchAsync(
   async (req: Request, res: Response, next: NextFunction) => {
-    const { ...userData } = req.body;
-    const result = await UserService.createUserToDB(userData);
+    const { referralCode="", ...userData } = req.body;
+    const result = await UserService.createUserToDB(userData,referralCode);
 
     sendResponse(res, {
       success: true,
@@ -22,6 +24,7 @@ const createUser = catchAsync(
   }
 );
 
+// create multiple users
 const createUsers = catchAsync(
   async (req: Request, res: Response, next: NextFunction) => {
     const result = await UserService.createUserToDB(req.body);
@@ -35,6 +38,7 @@ const createUsers = catchAsync(
   }
 );
 
+// get single user by admin
 const getUser = catchAsync(async (req: Request, res: Response) => {
   
   const result = await UserService.getUserFromDB(req.params?.id as string);
@@ -47,6 +51,7 @@ const getUser = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+// get user profile
 const getUserProfile = catchAsync(async (req: Request, res: Response) => {
   const user = req.user;
   const result = await UserService.getUserProfileFromDB(user);
@@ -59,9 +64,10 @@ const getUserProfile = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+// get all users
 const getUsers = catchAsync(async (req: Request, res: Response) => {
   // 1. Define which query fields are filters
-  const filterableFields = ['searchTerm', 'verified', 'fields', 'sort', 'role', 'status'];
+  const filterableFields = ['searchTerm', 'verified', 'isActive', 'isDeleted', 'fields', 'sort', 'role', 'status'];
 
   // 2. Pick only allowed filters from req.query
   const filterOptions = pick(req.query, filterableFields);
@@ -85,6 +91,7 @@ const getUsers = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+// get all users (aggregation)
 const getUsersAggregation = catchAsync(async (req: Request, res: Response) => {
   // 1. Define which query fields are filters
   const filterableFields = ['searchTerm', 'verified', 'fields', 'sort'];
@@ -132,13 +139,12 @@ const updateProfile = catchAsync(
   }
 );
 
-
 //delete user
 const updateUserStatus = catchAsync(
   async (req: Request, res: Response, next: NextFunction) => {
     // console.log("controller - user: ", req.params?.id);
 
-    const result = await UserService.updateUserStatusToDB(req.params?.id, req.body.status);
+    const result = await UserService.updateUserStatusToDB(req.params?.id);
 
     sendResponse(res, {
       success: true,

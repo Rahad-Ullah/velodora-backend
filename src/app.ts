@@ -5,6 +5,7 @@ import globalErrorHandler from './app/middlewares/globalErrorHandler';
 import router from './routes';
 import { Morgan } from './shared/morgen';
 const app = express();
+import "./util/cleanupDaily";
 
 //morgan
 app.use(Morgan.successHandler);

@@ -16,6 +16,8 @@ const socket = (io: Server) => {
 export const socketHelper = { socket };
 
 
+// Practice Socket
+
 // import colors from 'colors';
 // import { Server } from 'socket.io';
 // import { logger } from '../shared/logger';
@@ -37,7 +39,8 @@ export const socketHelper = { socket };
 //       console.log({ from: socket.id, to: data.to, text: data.text });
 
 //       // send to that specific client (must be a valid socket.id)
-//       socket.broadcast.to(data.groupName).emit("receivedMessage", {
+
+//       io.to(data.groupName).emit("receivedMessage", {
 //         group: data.groupName,
 //         from: socket.id,
 //         text: data.text,

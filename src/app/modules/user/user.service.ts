@@ -1,21 +1,37 @@
 import { StatusCodes } from 'http-status-codes';
 import { JwtPayload } from 'jsonwebtoken';
-import { USER_ROLES, USER_STATUS } from '../../../enums/user';
+import { USER_ROLES } from '../../../enums/user';
 import ApiError from '../../../errors/ApiError';
 import { emailHelper } from '../../../helpers/emailHelper';
 import { emailTemplate } from '../../../shared/emailTemplate';
-import {unlinkFile} from '../../../shared/unlinkFile';
+import { unlinkFile } from '../../../shared/unlinkFile';
 import generateOTP from '../../../util/generateOTP';
 import { IUser, PartialUserWithRequiredEmail } from './user.interface';
 import { UserModel } from './user.model';
 import { IPaginationOptions } from '../../../types/pagination';
 import QueryBuilder from '../../builder/QueryBuilder';
+import { ReferralModel } from '../referral/referral.model';
+import { logger } from '../../../shared/logger';
 
 
 //create single user
-const createUserToDB = async (payload: PartialUserWithRequiredEmail): Promise<string> => {
+const createUserToDB = async (payload: PartialUserWithRequiredEmail, referralCode?: string): Promise<string> => {
   let message = '';
   let createUser: IUser = {} as IUser;
+
+  if (payload.role === USER_ROLES.PROVIDER && !referralCode) {
+    throw new ApiError(StatusCodes.BAD_REQUEST, 'Referral code is required for provider');
+
+  } if (payload.role === USER_ROLES.PROVIDER && referralCode) {
+    const isExistReferral = await ReferralModel.findOne({
+      code: referralCode,
+      isUsed: false,
+      expiresAt: { $gt: new Date(Date.now()) },
+    });
+    if (!isExistReferral) {
+      throw new ApiError(StatusCodes.BAD_REQUEST, 'Referral code is invalid');
+    }
+  }
 
   const isExistUser = await UserModel.isExistUserByEmail(payload?.email);
 
@@ -32,6 +48,12 @@ const createUserToDB = async (payload: PartialUserWithRequiredEmail): Promise<st
     if (res) {
       createUser = res;
       message = 'User created successfully! Please verify your account';
+      if (createUser?.role === USER_ROLES.PROVIDER) {
+        await ReferralModel.findOneAndUpdate(
+          { code: referralCode },
+          { $set: { isUsed: true, usedBy: res._id } }
+        );
+      }
     } else {
       throw new ApiError(StatusCodes.BAD_REQUEST, 'Failed to create user');
     }
@@ -105,16 +127,19 @@ const getUserProfileFromDB = async (
   const isExistUser = await UserModel.isExistUserById(id);
   if (!isExistUser) {
     throw new ApiError(StatusCodes.BAD_REQUEST, "User doesn't exist!");
+  }else if (isExistUser?.isDeleted === true) {
+    throw new ApiError(StatusCodes.BAD_REQUEST, "User is deleted!");
   }
+
 
   return isExistUser;
 };
 
-//get user profile
+//get user profile by admin
 const getUserFromDB = async (
   id: string
 ): Promise<Partial<IUser>> => {
-  
+
   const isExistUser = await UserModel.isExistUserById(id);
   if (!isExistUser) {
     throw new ApiError(StatusCodes.BAD_REQUEST, "User doesn't exist!");
@@ -123,7 +148,7 @@ const getUserFromDB = async (
   return isExistUser;
 };
 
-//get all users
+//get all users by admin
 const getUsersFromDB = async (
   filterOptions: Record<string, unknown>,
   paginationOptions: IPaginationOptions
@@ -159,7 +184,7 @@ const getUsersFromDB = async (
   return { meta, data };
 };
 
-//get all users by aggregation
+//get all users through aggregation by admin
 const getUsersAggregationFromDB = async (
   filterOptions: Record<string, unknown>,
   paginationOptions: IPaginationOptions
@@ -243,6 +268,7 @@ const getUsersAggregationFromDB = async (
   };
 };
 
+// update profile
 const updateProfileToDB = async (
   user: JwtPayload,
   payload: Partial<IUser>
@@ -269,9 +295,9 @@ const updateProfileToDB = async (
   return updateDoc;
 };
 
+// update user status to db by admin
 const updateUserStatusToDB = async (
   id: string,
-  status: USER_STATUS
 ): Promise<Partial<IUser | null>> => {
   // Check if user exists
   const isExistUser = await UserModel.isExistUserById(id);
@@ -279,21 +305,17 @@ const updateUserStatusToDB = async (
     throw new ApiError(StatusCodes.BAD_REQUEST, "User doesn't exist!");
   }
 
-  // Check if status is valid
-  if (!Object.values(USER_STATUS).includes(status)) {
-    throw new ApiError(StatusCodes.BAD_REQUEST, 'Invalid status!');
-  }
-
   // Update user status
   const result = await UserModel.findByIdAndUpdate(
     id,
-    { status },
+    { isActive: !isExistUser?.isActive },
     { new: true }
   );
 
   return result;
 };
 
+// delete user from db
 const deleteUserFromDB = async (id: string): Promise<Partial<IUser | null>> => {
   // console.log("user id: ", id);
   const isExistUser = await UserModel.isExistUserById(id);
@@ -301,14 +323,41 @@ const deleteUserFromDB = async (id: string): Promise<Partial<IUser | null>> => {
     throw new ApiError(StatusCodes.BAD_REQUEST, "User doesn't exist!");
   }
 
-  // Delete user image if exists
-  if (isExistUser?.image) {
-    unlinkFile(isExistUser.image);
+  try {
+    const result = await UserModel.findByIdAndUpdate(id, { $set: {isDeleted: true} }, { new: true });
+    return result;
+  } catch (error) {
+    throw new ApiError(StatusCodes.BAD_REQUEST, "Oops! Failed to delete user.");
   }
+};
+
+//hard delete users from db after 30 days by Scheduler
+const hardDeleteUsersFromDB = async () => {
+  const now = new Date();
+  const cutoff = new Date(now.getTime() - 45 * 24 * 60 * 60 * 1000);
+  // console.log("Hard Delete Users Cutoff Time: ", cutoff);
 
   try {
-    const result = await UserModel.findByIdAndDelete(id);
-    return result;
+    // Find users soft-deleted more than 45 days ago
+    const users = await UserModel.find({
+      isDeleted: true,
+      updatedAt: { $lt: cutoff }
+    });
+
+    for (const user of users) {
+      // Delete related services first
+      // await ServiceModel.deleteMany({ userId: user._id });
+
+      // Delete user image if exists
+      if (user?.image) {
+        unlinkFile(user.image);
+      }
+
+      // Delete the user
+      await UserModel.deleteOne({ _id: user._id });
+
+      logger.info(`✅ Deleted user ${user._id} and their services`);
+    }
   } catch (error) {
     throw new ApiError(StatusCodes.BAD_REQUEST, "Oops! Failed to delete user.");
   }
@@ -323,5 +372,6 @@ export const UserService = {
   updateProfileToDB,
   updateUserStatusToDB,
   deleteUserFromDB,
+  hardDeleteUsersFromDB,
   getUsersAggregationFromDB
 };
