@@ -3,6 +3,10 @@ import { IService, IServiceModal } from './service.interface';
 
 const serviceSchema = new Schema<IService, IServiceModal>(
   {
+    ref: {
+      type: Schema.Types.ObjectId,
+      ref: 'service',
+    },
     category: {
       type: Schema.Types.ObjectId,
       ref: 'Category',

@@ -1,7 +1,6 @@
 import { NextFunction, Request, Response } from 'express';
 import { StatusCodes } from 'http-status-codes';
 import catchAsync from '../../../shared/catchAsync';
-import { getMultipleFilesPath, getSingleFilePath } from '../../../shared/getFilePath';
 import sendResponse from '../../../shared/sendResponse';
 import pick from '../../../shared/pick';
 import { ProviderService} from './provider.service';
@@ -11,25 +10,27 @@ import { TProvider } from './provider.interface';
 //create service controller
 const createProvider = catchAsync(
   async (req: Request, res: Response, next: NextFunction) => {
-    const providerId = req.user.id;
+    
     // const filePaths = getMultipleFilesPath(req.files, 'serviceImages');
     // console.log("filePaths", filePaths);
 
-    const newService = {
+    const provider = {
       ...req.body.data,
-      providerId,
+      user: req.user.id,
       serviceImages: req.body.serviceImages,
     }
-    const result = await ProviderService.createProviderToDB(newService);
+    const services = req.body.services;
+
+    const result = await ProviderService.createProviderToDB(provider, services);
 
     sendResponse(res, {
       success: true,
       statusCode: StatusCodes.OK,
-      message: result,
+      message: result.message,
+      data: result.data,
     });
   }
 );
-
 
 //get single service controller
 const getProvider = catchAsync(async (req: Request, res: Response) => {
@@ -47,7 +48,7 @@ const getProvider = catchAsync(async (req: Request, res: Response) => {
 //get all categories controller
 const getProviders = catchAsync(async (req: Request, res: Response) => {
   // Define which query fields are filters
-  const filterableFields = ['searchTerm', 'categoryId', 'minPrice', 'maxPrice', 'date', 'time'];
+  const filterableFields = ['searchTerm', 'categoryId', 'minPrice', 'maxPrice', 'date', 'time', 'location'];
 
   // Pick only allowed filters from req.query
   const filterOptions = pick(req.query, filterableFields);
@@ -71,9 +72,20 @@ const updateProvider = catchAsync(
     const providerId = req.user.id;
 
     const newData = {
-      ...req.body.data,
-      serviceImages: req.body.serviceImages,
+      data:req.body.data,
+      services: req.body.services && req.body.services,
+      serviceImages: [] as string[]
     }
+
+    if(req.body?.serviceImages?.length > 0){
+      newData.serviceImages = [...req.body.serviceImages];
+    }
+
+    if(req.body?.previousServiceImages?.length > 0){
+      newData.serviceImages = [...newData.serviceImages, ...req.body.previousServiceImages];
+    }
+    
+
     const result = await ProviderService.updateProviderToDB(newData, id!, providerId!);
 
     sendResponse(res, {

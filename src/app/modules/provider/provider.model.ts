@@ -8,6 +8,10 @@ const providerSchema = new Schema<TProvider, TProviderModal>(
       ref: 'User',
       required: true,
     },
+    ref:{
+      type: Schema.Types.ObjectId,
+      ref: 'Provider',
+    },
     aboutMe: {
       type: String,
       required: true,

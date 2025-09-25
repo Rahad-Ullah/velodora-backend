@@ -1,33 +1,42 @@
-import { Types } from 'mongoose';
+import mongoose, { Types } from 'mongoose';
 import { StatusCodes } from 'http-status-codes';
 import ApiError from '../../../errors/ApiError';
 import { unlinkFiles } from '../../../shared/unlinkFile';
 import { TProvider } from './provider.interface';
 import { ProviderModel } from './provider.model';
+import { ServiceModel } from '../service/service.model';
 
-type ServiceFilters = {
+type TProviderFilters = {
   searchTerm?: string;
   categoryId?: string;
   minPrice?: number;
   maxPrice?: number;
+  location?: string;
   date?: string | Date;
   time?: string;
 };
 
-
-//create category
-const createProviderToDB = async (payload: Partial<TProvider>): Promise<string> => {
+//create provider
+const createProviderToDB = async (providerInfo: Partial<TProvider>, servicesInfo: Partial<TProvider>): Promise<any> => {
 
   // const user = req.user;
 
-  await ProviderModel.create(payload);
+  const servicesResult = await ServiceModel.insertMany(servicesInfo);
+  const servicesId = servicesResult.map((service) => service._id);
 
-  return 'Service created successfully!';
+  const provider = { ...providerInfo, services: servicesId }
+  const res = await ProviderModel.create(provider);
+
+  return { data: res, message: "Provider created successfully" };
 };
 
-//get Service
-const getProviderFromDB = async (id: string): Promise<TProvider> => {
-  const isExistService = await ProviderModel.findById(id);
+//get provider
+const getProviderFromDB = async (id: string): Promise<any> => {
+  const isExistService = await ProviderModel.aggregate([
+    { $match: { _id: new Types.ObjectId(id) } },
+    { $lookup: { from: 'services', localField: 'services', foreignField: '_id', as: 'services' } }
+  ]);
+
   if (!isExistService) {
     throw new ApiError(StatusCodes.BAD_REQUEST, "Service doesn't exist!");
   }
@@ -35,146 +44,161 @@ const getProviderFromDB = async (id: string): Promise<TProvider> => {
   return isExistService;
 };
 
-//get categories
+// get providers
 const getProvidersFromDB = async (
-  filterOptions: ServiceFilters
+  filterOptions: TProviderFilters
 ): Promise<{ data: TProvider[] }> => {
   const {
     searchTerm,
     categoryId,
     minPrice,
     maxPrice,
+    location,
     date,
     time,
   } = filterOptions;
 
-  // -------- Root-level $match (fields on the Service collection) --------
-  const rootMatch: any = {};
+  // Build service filter dynamically
+  const serviceMatch: any = {};
+  let searchTermMatch: any = {};
+  let primaryLocation: any = {};
 
-  // Category: match on the FK field BEFORE lookup to categories
+  if (location) {
+    primaryLocation = { primaryLocation: { $regex: location, $options: 'i' } };
+  }
+
+  if (searchTerm) {
+    searchTermMatch['$or'] = [
+      // { 'name': { $regex: searchTerm, $options: 'i' } },
+      { 'category.name': { $regex: searchTerm, $options: 'i' } },
+      { 'subCategory.name': { $regex: searchTerm, $options: 'i' } },
+    ]
+  }
+
   if (categoryId) {
-    rootMatch.serviceType = new Types.ObjectId(categoryId);
+    serviceMatch.category = new mongoose.Types.ObjectId(categoryId);
   }
 
-  // Price range
-  if (minPrice != null || maxPrice != null) {
-    rootMatch.price = {};
-    if (minPrice != null) rootMatch.price.$gte = Number(minPrice);
-    if (maxPrice != null) rootMatch.price.$lte = Number(maxPrice);
+  if (minPrice !== undefined || maxPrice !== undefined) {
+    serviceMatch.price = {};
+    if (minPrice !== undefined) {
+      serviceMatch.price.$gte = Number(minPrice);
+    }
+    if (maxPrice !== undefined) {
+      serviceMatch.price.$lte = Number(maxPrice);
+    }
   }
 
-  // Date range (createdAt)
-  if (date) {
-    rootMatch.createdAt = {};
-    if (date) rootMatch.createdAt.$gte = new Date(date);
-  }
-
-  // Service time (only if your schema actually has this field)
-  if (time) {
-    rootMatch.serviceTime = time;
-  }
-
-  // -------- Build aggregation --------
+  // Aggregation pipeline
   const pipeline: any[] = [
-    { $match: rootMatch }, // ✅ early, efficient
+    { $match: primaryLocation },
     {
       $lookup: {
-        from: 'categories',
-        localField: 'serviceType',
-        foreignField: '_id',
-        as: 'serviceType'
-      }
+        from: "services",
+        localField: "services",
+        foreignField: "_id",
+        as: "services",
+        pipeline: [
+          { $match: serviceMatch }, // ✅ apply filters inside lookup
+          {
+            $project: {
+              category: 1,
+              subCategory: 1,
+              price: 1,
+            },
+          },
+          {
+            $lookup: {
+              from: "categories",
+              localField: "category",
+              foreignField: "_id",
+              as: "category",
+              pipeline: [
+                {
+                  $project: {
+                    name: 1,
+                  },
+                },
+              ],
+            },
+          },
+          {
+            $unwind: "$category",
+          },
+          {
+            $lookup: {
+              from: "subcategories",
+              localField: "subCategory",
+              foreignField: "_id",
+              as: "subCategory",
+              pipeline: [
+                {
+                  $project: {
+                    name: 1,
+                  },
+                },
+              ],
+            },
+          },
+          {
+            $unwind: "$subCategory",
+          },
+          {
+            $match: searchTermMatch,
+          }
+        ],
+      },
     },
     {
-      $lookup: {
-        from: 'users',
-        localField: 'providerId',
-        foreignField: '_id',
-        as: 'provider'
-      }
-    },
-    { $unwind: '$serviceType' },
-    { $unwind: '$provider' },
-
-    // Coalesce provider name (support either provider.fullName or provider.name)
-    {
-      $addFields: {
-        providerName: { $ifNull: ['$provider.fullName', '$provider.name'] }
-      }
+      $match: {
+        "services.0": { $exists: true }, // ✅ ensure provider has at least one matching service
+      },
     },
   ];
 
-  // Text search across joined fields (only if searchTerm provided)
-  if (searchTerm && String(searchTerm).trim() !== '') {
-    pipeline.push({
-      $match: {
-        $or: [
-          { 'serviceType.name': { $regex: searchTerm, $options: 'i' } },
-          { additionalServiceType: { $regex: searchTerm, $options: 'i' } },
-          { aboutMe: { $regex: searchTerm, $options: 'i' } },
-          { providerName: { $regex: searchTerm, $options: 'i' } }
-        ]
-      }
-    });
-  }
+  const providers = await ProviderModel.aggregate(pipeline);
 
-  pipeline.push({
-    $project: {
-      'serviceType._id': 1,
-      'serviceType.name': 1,
-      'provider._id': 1,
-      // you now have a stable providerName; keep the original fields too if you want
-      providerName: 1,
-      'provider.name': 1,
-      'provider.fullName': 1,
-      'provider.email': 1,
-      'provider.contact': 1,
-      aboutMe: 1,
-      additionalServiceType: 1,
-      serviceLocation: 1,
-      serviceDistance: 1,
-      price: 1,
-      pricePerHour: 1,
-      serviceImages: 1,
-      read: 1,
-      createdAt: 1,
-      updatedAt: 1
-    }
-  });
-
-  const services = await ProviderModel.aggregate(pipeline);
-  return { data: services };
+  return { data: providers };
 };
 
-//update category
-const updateProviderToDB = async (
-  payload: Partial<TProvider>, id: string, providerId: string
-): Promise<string> => {
 
-  const isExistService = await ProviderModel.findById(id);
+//update provider
+const updateProviderToDB = async (
+  payload: any, id: string, providerId: string
+): Promise<any> => {
+
+  const isExistProvider = await ProviderModel.findById(id);
   // console.log("Update Service : ", payload);
   // console.log("isExistService : ", isExistService);
-  if (isExistService && isExistService?._id.toString() !== providerId) {
-    unlinkFiles(payload.serviceImages || []);
+  if (!isExistProvider) {
+    throw new ApiError(StatusCodes.BAD_REQUEST, "Provider(service) doesn't exist!");
+  }
+
+  if (isExistProvider?.user.toString() !== providerId) {
     throw new ApiError(StatusCodes.BAD_REQUEST, "You are not authorized to update this service!");
   }
 
-  // unlink file here
-
-
-  const res = await ProviderModel.findByIdAndUpdate(id, payload, { new: true });
-  // console.log("update result : ", res);
-  if (!res?.serviceImages) {
-    unlinkFiles(payload?.serviceImages || []);
-    throw new ApiError(StatusCodes.BAD_REQUEST, "Service doesn't exist!");
-  } else if (res && payload?.serviceImages && res?.serviceImages) {
-    unlinkFiles(isExistService?.serviceImages || []);
+  let updatedProvider = {
+    ...payload.data,
+    user: isExistProvider?.user,
+    ref: isExistProvider?._id,
+    serviceImages: payload.serviceImages
   }
 
-  return "Service updated successfully!";
+  console.log("Exist Services : ", isExistProvider.services.toString());
+
+  const servicesNew = payload.services?.new && await ServiceModel.insertMany(payload.services.new) || [];
+  const servicesUpdate = payload.services?.update && await ServiceModel.insertMany(payload.services.update) || [];
+  const servicesExist = isExistProvider.services.filter((serviceId) => !servicesUpdate.map((service: any) => service.ref.toString()).includes(serviceId.toString()));
+  updatedProvider.services = [...servicesUpdate.map((service: any) => service?._id), ...servicesNew.map((service: any) => service?._id), ...servicesExist];
+
+
+  const res = await ProviderModel.create(updatedProvider);
+
+  return { data: res, message: "Service updated successfully!" };
 };
 
-//update category
+//delete provider
 const deleteProviderToDB = async (
   id: string
 ): Promise<string> => {

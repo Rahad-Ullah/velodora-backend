@@ -2,6 +2,7 @@ import { Model, Types } from 'mongoose';
 
 export type TProvider = {
   user:  Types.ObjectId;
+  ref: Types.ObjectId;
   aboutMe: string;
   services: [Types.ObjectId];
   schedules: [Types.ObjectId];

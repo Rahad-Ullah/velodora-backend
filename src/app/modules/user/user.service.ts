@@ -19,6 +19,8 @@ const createUserToDB = async (payload: PartialUserWithRequiredEmail, referralCod
   let message = '';
   let createUser: IUser = {} as IUser;
 
+  const now = new Date();
+
   if (payload.role === USER_ROLES.PROVIDER && !referralCode) {
     throw new ApiError(StatusCodes.BAD_REQUEST, 'Referral code is required for provider');
 
@@ -26,7 +28,7 @@ const createUserToDB = async (payload: PartialUserWithRequiredEmail, referralCod
     const isExistReferral = await ReferralModel.findOne({
       code: referralCode,
       isUsed: false,
-      expiresAt: { $gt: new Date(Date.now()) },
+      createdAt: { $gte: new Date(now.getTime() - 1 *24 * 60 * 60 * 1000) },
     });
     if (!isExistReferral) {
       throw new ApiError(StatusCodes.BAD_REQUEST, 'Referral code is invalid');
