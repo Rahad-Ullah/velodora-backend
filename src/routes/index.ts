@@ -9,6 +9,7 @@ import { ReferralRoutes } from '../app/modules/referral/referral.route';
 import { SubCategoryRoutes } from '../app/modules/subCategory/subCategory.route';
 import { ServiceRoutes } from '../app/modules/service/service.route';
 import { ProviderRoutes } from '../app/modules/provider/provider.route';
+import { ScheduleRoutes } from '../app/modules/schedule/schedule.route';
 const router = express.Router();
 
 const apiRoutes = [
@@ -39,6 +40,10 @@ const apiRoutes = [
   {
     path: '/service',
     route: ServiceRoutes,
+  },
+  {
+    path: '/schedule',
+    route: ScheduleRoutes,
   },
   {
     path: '/chats',

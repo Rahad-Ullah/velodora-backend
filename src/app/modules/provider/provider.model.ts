@@ -20,9 +20,6 @@ const providerSchema = new Schema<TProvider, TProviderModal>(
       type: [Schema.Types.ObjectId],
       required: true,
     },
-    schedules: {
-      type: [Schema.Types.ObjectId]
-    },
     serviceLanguage: {
       type: [String],
       required: true,

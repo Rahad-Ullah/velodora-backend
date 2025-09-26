@@ -5,6 +5,7 @@ import { unlinkFiles } from '../../../shared/unlinkFile';
 import { TProvider } from './provider.interface';
 import { ProviderModel } from './provider.model';
 import { ServiceModel } from '../service/service.model';
+import { pipeline } from 'zod';
 
 type TProviderFilters = {
   searchTerm?: string;
@@ -34,7 +35,8 @@ const createProviderToDB = async (providerInfo: Partial<TProvider>, servicesInfo
 const getProviderFromDB = async (id: string): Promise<any> => {
   const isExistService = await ProviderModel.aggregate([
     { $match: { _id: new Types.ObjectId(id) } },
-    { $lookup: { from: 'services', localField: 'services', foreignField: '_id', as: 'services' } }
+    { $lookup: { from: 'services', localField: 'services', foreignField: '_id', as: 'services' } },
+    { $lookup: { from: 'schedules', localField: '_id', foreignField: 'provider', as: 'schedules' } },
   ]);
 
   if (!isExistService) {
@@ -62,9 +64,40 @@ const getProvidersFromDB = async (
   const serviceMatch: any = {};
   let searchTermMatch: any = {};
   let primaryLocation: any = {};
+  let dateMatch: any = {};
+  let timeMatch: any = {};
+
+  if (time) {
+    const timeDate = new Date(time);
+
+    timeMatch = {
+      "schedules.available_slots": {
+        $elemMatch: {
+          start: { $lte: timeDate },
+          end: { $gte: timeDate },
+        },
+      },
+    }
+  }
+
+  if (date) {
+    const startOfDay = new Date(date);
+    startOfDay.setHours(0, 0, 0, 0);
+
+    const endOfDay = new Date(date);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    dateMatch = { date: { $gte: startOfDay, $lte: endOfDay } };
+  }
+
+
 
   if (location) {
     primaryLocation = { primaryLocation: { $regex: location, $options: 'i' } };
+  }
+
+  if (categoryId) {
+    serviceMatch.category = new mongoose.Types.ObjectId(categoryId);
   }
 
   if (searchTerm) {
@@ -73,10 +106,6 @@ const getProvidersFromDB = async (
       { 'category.name': { $regex: searchTerm, $options: 'i' } },
       { 'subCategory.name': { $regex: searchTerm, $options: 'i' } },
     ]
-  }
-
-  if (categoryId) {
-    serviceMatch.category = new mongoose.Types.ObjectId(categoryId);
   }
 
   if (minPrice !== undefined || maxPrice !== undefined) {
@@ -154,13 +183,79 @@ const getProvidersFromDB = async (
         "services.0": { $exists: true }, // ✅ ensure provider has at least one matching service
       },
     },
+    {
+      $unwind: "$services"
+    },
+    {
+      $lookup: {
+        from: 'schedules',
+        localField: '_id',
+        foreignField: 'provider',
+        as: 'schedules',
+        pipeline: [
+          {
+            $match: dateMatch
+          }
+        ]
+      }
+    },
+    {
+      $match: {
+        "schedules.0": { $exists: true }, // ✅ ensure provider has at least one matching schedule
+      },
+    },
+    {
+      $match: timeMatch
+    },
+    {
+      $lookup: {
+        from: 'users',
+        localField: 'user',
+        foreignField: '_id',
+        as: 'user',
+        pipeline: [
+          {
+            $project: {
+              name: 1,
+              email: 1,
+              image: 1,
+            }
+          }
+        ]
+      }
+    },
+    {
+      $unwind: "$user"
+    },
+    {
+      $addFields: {
+        "name": "$user.name",
+        "image": "$user.image",
+        "category": "$services.category.name",
+        "subCategory": "$services.subCategory.name",
+        "price": "$services.price",
+      }
+    },
+    {
+      $project: {
+        isOnline: 1,
+        name: 1,
+        image: 1,
+        category: 1,
+        subCategory: 1,
+        price: 1,
+        location: 1,
+        pricePerHour: 1,
+        primaryLocation: 1,
+      }
+    }
   ];
+
 
   const providers = await ProviderModel.aggregate(pipeline);
 
   return { data: providers };
 };
-
 
 //update provider
 const updateProviderToDB = async (
