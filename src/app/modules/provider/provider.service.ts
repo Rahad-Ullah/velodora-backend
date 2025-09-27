@@ -15,6 +15,8 @@ type TProviderFilters = {
   location?: string;
   date?: string | Date;
   time?: string;
+  userLng?: number;
+  userLat?: number;
 };
 
 //create provider
@@ -58,6 +60,8 @@ const getProvidersFromDB = async (
     location,
     date,
     time,
+    userLng,
+    userLat
   } = filterOptions;
 
   // Build service filter dynamically
@@ -69,7 +73,6 @@ const getProvidersFromDB = async (
 
   if (time) {
     const timeDate = new Date(time);
-
     timeMatch = {
       "schedules.available_slots": {
         $elemMatch: {
@@ -77,7 +80,7 @@ const getProvidersFromDB = async (
           end: { $gte: timeDate },
         },
       },
-    }
+    };
   }
 
   if (date) {
@@ -90,10 +93,8 @@ const getProvidersFromDB = async (
     dateMatch = { date: { $gte: startOfDay, $lte: endOfDay } };
   }
 
-
-
   if (location) {
-    primaryLocation = { primaryLocation: { $regex: location, $options: 'i' } };
+    primaryLocation = { primaryLocation: { $regex: location, $options: "i" } };
   }
 
   if (categoryId) {
@@ -101,11 +102,10 @@ const getProvidersFromDB = async (
   }
 
   if (searchTerm) {
-    searchTermMatch['$or'] = [
-      // { 'name': { $regex: searchTerm, $options: 'i' } },
-      { 'category.name': { $regex: searchTerm, $options: 'i' } },
-      { 'subCategory.name': { $regex: searchTerm, $options: 'i' } },
-    ]
+    searchTermMatch["$or"] = [
+      { "category.name": { $regex: searchTerm, $options: "i" } },
+      { "subCategory.name": { $regex: searchTerm, $options: "i" } },
+    ];
   }
 
   if (minPrice !== undefined || maxPrice !== undefined) {
@@ -119,7 +119,25 @@ const getProvidersFromDB = async (
   }
 
   // Aggregation pipeline
-  const pipeline: any[] = [
+  const pipeline: any[] = [];
+
+  // ✅ Add geoNear first only if userLat & userLng exist
+  if (userLat !== undefined && userLng !== undefined) {
+    pipeline.push({
+      $geoNear: {
+        near: {
+          type: "Point",
+          coordinates: [Number(userLng), Number(userLat)], // [lng, lat]
+        },
+        distanceField: "distance", // will store distance in km now
+        spherical: true,
+        distanceMultiplier: 0.001, // ✅ convert meters → km
+      },
+    });
+  }
+
+
+  pipeline.push(
     { $match: primaryLocation },
     {
       $lookup: {
@@ -128,113 +146,63 @@ const getProvidersFromDB = async (
         foreignField: "_id",
         as: "services",
         pipeline: [
-          { $match: serviceMatch }, // ✅ apply filters inside lookup
-          {
-            $project: {
-              category: 1,
-              subCategory: 1,
-              price: 1,
-            },
-          },
+          { $match: serviceMatch },
+          { $project: { category: 1, subCategory: 1, price: 1 } },
           {
             $lookup: {
               from: "categories",
               localField: "category",
               foreignField: "_id",
               as: "category",
-              pipeline: [
-                {
-                  $project: {
-                    name: 1,
-                  },
-                },
-              ],
+              pipeline: [{ $project: { name: 1 } }],
             },
           },
-          {
-            $unwind: "$category",
-          },
+          { $unwind: "$category" },
           {
             $lookup: {
               from: "subcategories",
               localField: "subCategory",
               foreignField: "_id",
               as: "subCategory",
-              pipeline: [
-                {
-                  $project: {
-                    name: 1,
-                  },
-                },
-              ],
+              pipeline: [{ $project: { name: 1 } }],
             },
           },
-          {
-            $unwind: "$subCategory",
-          },
-          {
-            $match: searchTermMatch,
-          }
+          { $unwind: "$subCategory" },
+          { $match: searchTermMatch },
         ],
       },
     },
-    {
-      $match: {
-        "services.0": { $exists: true }, // ✅ ensure provider has at least one matching service
-      },
-    },
-    {
-      $unwind: "$services"
-    },
+    { $match: { "services.0": { $exists: true } } },
+    { $unwind: "$services" },
     {
       $lookup: {
-        from: 'schedules',
-        localField: '_id',
-        foreignField: 'provider',
-        as: 'schedules',
-        pipeline: [
-          {
-            $match: dateMatch
-          }
-        ]
-      }
-    },
-    {
-      $match: {
-        "schedules.0": { $exists: true }, // ✅ ensure provider has at least one matching schedule
+        from: "schedules",
+        localField: "_id",
+        foreignField: "provider",
+        as: "schedules",
+        pipeline: [{ $match: dateMatch }],
       },
     },
-    {
-      $match: timeMatch
-    },
+    { $match: { "schedules.0": { $exists: true } } },
+    { $match: timeMatch },
     {
       $lookup: {
-        from: 'users',
-        localField: 'user',
-        foreignField: '_id',
-        as: 'user',
-        pipeline: [
-          {
-            $project: {
-              name: 1,
-              email: 1,
-              image: 1,
-            }
-          }
-        ]
-      }
+        from: "users",
+        localField: "user",
+        foreignField: "_id",
+        as: "user",
+        pipeline: [{ $project: { name: 1, email: 1, image: 1 } }],
+      },
     },
-    {
-      $unwind: "$user"
-    },
+    { $unwind: "$user" },
     {
       $addFields: {
-        "name": "$user.name",
-        "image": "$user.image",
-        "category": "$services.category.name",
-        "subCategory": "$services.subCategory.name",
-        "price": "$services.price",
-      }
+        name: "$user.name",
+        image: "$user.image",
+        category: "$services.category.name",
+        subCategory: "$services.subCategory.name",
+        price: "$services.price",
+      },
     },
     {
       $project: {
@@ -247,15 +215,17 @@ const getProvidersFromDB = async (
         location: 1,
         pricePerHour: 1,
         primaryLocation: 1,
-      }
+        distance: 1, // only exists if geoNear was applied
+        serviceDistance: 1
+      },
     }
-  ];
-
+  );
 
   const providers = await ProviderModel.aggregate(pipeline);
 
   return { data: providers };
 };
+
 
 //update provider
 const updateProviderToDB = async (

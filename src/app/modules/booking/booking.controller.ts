@@ -8,8 +8,11 @@ import { BookingService } from './booking.service';
 //create service controller
 const createBooking = catchAsync(
   async (req: Request, res: Response) => {
+    const user = req.user.id;
+
+    
  
-    const result = await BookingService.createBookingToDB();
+    const result = await BookingService.createBookingToDB({...req.body, user});
 
     sendResponse(res, {
       success: true,
@@ -20,4 +23,56 @@ const createBooking = catchAsync(
 );
 
 
-export const BookingController = { createBooking };
+//Accept Booking controller
+const acceptBooking = catchAsync(
+  async (req: Request, res: Response) => {
+    const userId = req.user.id;
+    const id = req.params.id;
+ 
+    const result = await BookingService.acceptBookingToDB(id, userId);
+
+    sendResponse(res, {
+      success: true,
+      statusCode: StatusCodes.OK,
+      message: result,
+    });
+  }
+);
+
+
+//Cancel Booking controller
+const cancelBooking = catchAsync(
+  async (req: Request, res: Response) => {
+    const userId = req.user.id;
+    const id = req.params.id;
+ 
+    const result = await BookingService.cancelBookingToDB(id, userId);
+
+    sendResponse(res, {
+      success: true,
+      statusCode: StatusCodes.OK,
+      message: result,
+    });
+  }
+);
+
+
+//Get Bookings controller
+const getBookings = catchAsync(
+  async (req: Request, res: Response) => {
+    const id = req.user.id;
+
+    
+ 
+    const result = await BookingService.getBookingsToDB(id, req.query);
+
+    sendResponse(res, {
+      success: true,
+      statusCode: StatusCodes.OK,
+      message: result,
+    });
+  }
+);
+
+
+export const BookingController = { createBooking, getBookings, cancelBooking, acceptBooking };

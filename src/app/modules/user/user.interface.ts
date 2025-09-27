@@ -9,7 +9,7 @@ export type IUser = {
   contact: string;
   location: string;
   password: string;
-  credit?: number;
+  credits: number;
   isActive?: Boolean;
   verified?: boolean;
   isDeleted?: boolean;

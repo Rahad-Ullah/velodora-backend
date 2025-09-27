@@ -10,6 +10,7 @@ import { SubCategoryRoutes } from '../app/modules/subCategory/subCategory.route'
 import { ServiceRoutes } from '../app/modules/service/service.route';
 import { ProviderRoutes } from '../app/modules/provider/provider.route';
 import { ScheduleRoutes } from '../app/modules/schedule/schedule.route';
+import { BookingRoutes } from '../app/modules/booking/booking.route';
 const router = express.Router();
 
 const apiRoutes = [
@@ -44,6 +45,10 @@ const apiRoutes = [
   {
     path: '/schedule',
     route: ScheduleRoutes,
+  },
+  {
+    path: '/booking',
+    route: BookingRoutes,
   },
   {
     path: '/chats',

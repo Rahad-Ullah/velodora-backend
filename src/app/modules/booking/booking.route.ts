@@ -8,11 +8,37 @@ const router = express.Router();
 
 router
   .route('/')
+  .get(
+    auth(USER_ROLES.USER, USER_ROLES.PROVIDER),
+    BookingController.getBookings
+  )
   .post(
-    auth(USER_ROLES.PROVIDER),
+    auth(USER_ROLES.USER),
     validateRequest(BookingValidation.createBookingZodSchema),
     BookingController.createBooking
   );
+
+router
+  .route('/:id')
+  .patch(
+    // auth(USER_ROLES.PROVIDER),
+    BookingController.acceptBooking
+  )
+  .delete(
+    auth(USER_ROLES.USER, USER_ROLES.PROVIDER),
+    BookingController.cancelBooking
+  )
+
+// router
+//   .route('/provider/:id')
+//   .patch(
+//     // auth(USER_ROLES.PROVIDER),
+//     BookingController.acceptBooking
+//   )
+//   .delete(
+//     auth(USER_ROLES.USER, USER_ROLES.PROVIDER),
+//     BookingController.cancelBooking
+//   )
 
 
 export const BookingRoutes = router;

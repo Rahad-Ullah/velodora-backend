@@ -7,10 +7,11 @@ const BookingSchema = new Schema(
     user: { type: Schema.Types.ObjectId, ref: "User", required: true },
     provider: { type: Schema.Types.ObjectId, ref: "Provider", required: true },
     services: [{ type: Schema.Types.ObjectId, ref: "Service", required: true }],
+    schedule: { type: Schema.Types.ObjectId, ref: "Schedule", required: true },
     date: { type: Date, required: true },
     slots: [{ start: { type: Date, required: true }, end: { type: Date, required: true } }],
     amount: { type: Number, required: true },
-    paymentId: { type: String, required: true },
+    paymentId: { type: String },
     status: { type: String, enum: Object.values(BOOKING_STATUS), default: BOOKING_STATUS.PENDING },
   },
   { timestamps: true }

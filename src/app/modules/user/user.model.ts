@@ -42,6 +42,10 @@ const userSchema = new Schema<IUser, TUserModal>(
       select: 0,
       minlength: 6,
     },
+    credits: {
+      type: Number,
+      default: 0,
+    },
     isActive: {
       type: Boolean,
       default: true,

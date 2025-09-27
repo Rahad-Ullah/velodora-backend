@@ -1,13 +1,17 @@
 import { Model, Types } from 'mongoose';
 
 export type TProvider = {
-  user:  Types.ObjectId;
+  user: Types.ObjectId;
   ref: Types.ObjectId;
   aboutMe: string;
   services: [Types.ObjectId];
   schedules: [Types.ObjectId];
   serviceLanguage: [string];
   primaryLocation: string;
+  location: {
+    type: string;
+    coordinates: [number, number];
+  };
   serviceDistance: number;
   pricePerHour: number;
   serviceImages: [string];

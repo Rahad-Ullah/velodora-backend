@@ -8,7 +8,7 @@ const providerSchema = new Schema<TProvider, TProviderModal>(
       ref: 'User',
       required: true,
     },
-    ref:{
+    ref: {
       type: Schema.Types.ObjectId,
       ref: 'Provider',
     },
@@ -27,6 +27,17 @@ const providerSchema = new Schema<TProvider, TProviderModal>(
     primaryLocation: {
       type: String,
       required: true,
+    },
+    location: {
+      type: {
+        type: String,
+        enum: ["Point"],
+        required: true,
+      },
+      coordinates: {
+        type: [Number], // [longitude, latitude]
+        required: true,
+      },
     },
     serviceDistance: {
       type: Number,
@@ -56,6 +67,8 @@ const providerSchema = new Schema<TProvider, TProviderModal>(
   },
   { timestamps: true }
 );
+
+providerSchema.index({ location: "2dsphere" });
 
 
 export const ProviderModel = model<TProvider, TProviderModal>(
