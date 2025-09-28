@@ -33,7 +33,7 @@ const createProviderToDB = async (providerInfo: Partial<TProvider>, servicesInfo
   return { data: res, message: "Provider created successfully" };
 };
 
-//get provider
+//get single provider from DB
 const getProviderFromDB = async (id: string): Promise<any> => {
   const isExistService = await ProviderModel.aggregate([
     { $match: { _id: new Types.ObjectId(id) } },
@@ -48,7 +48,7 @@ const getProviderFromDB = async (id: string): Promise<any> => {
   return isExistService;
 };
 
-// get providers
+// get all providers from DB
 const getProvidersFromDB = async (
   filterOptions: TProviderFilters
 ): Promise<{ data: TProvider[] }> => {
@@ -71,6 +71,7 @@ const getProvidersFromDB = async (
   let dateMatch: any = {};
   let timeMatch: any = {};
 
+  // match time
   if (time) {
     const timeDate = new Date(time);
     timeMatch = {
@@ -83,6 +84,7 @@ const getProvidersFromDB = async (
     };
   }
 
+// match date
   if (date) {
     const startOfDay = new Date(date);
     startOfDay.setHours(0, 0, 0, 0);
@@ -93,14 +95,17 @@ const getProvidersFromDB = async (
     dateMatch = { date: { $gte: startOfDay, $lte: endOfDay } };
   }
 
+  // match primaryLocation
   if (location) {
     primaryLocation = { primaryLocation: { $regex: location, $options: "i" } };
   }
 
+  // match category
   if (categoryId) {
     serviceMatch.category = new mongoose.Types.ObjectId(categoryId);
   }
 
+  // match searchTerm
   if (searchTerm) {
     searchTermMatch["$or"] = [
       { "category.name": { $regex: searchTerm, $options: "i" } },
@@ -108,6 +113,7 @@ const getProvidersFromDB = async (
     ];
   }
 
+  // match price
   if (minPrice !== undefined || maxPrice !== undefined) {
     serviceMatch.price = {};
     if (minPrice !== undefined) {
@@ -118,7 +124,7 @@ const getProvidersFromDB = async (
     }
   }
 
-  // Aggregation pipeline
+  // Aggregation pipeline definition //
   const pipeline: any[] = [];
 
   // ✅ Add geoNear first only if userLat & userLng exist
@@ -215,7 +221,7 @@ const getProvidersFromDB = async (
         location: 1,
         pricePerHour: 1,
         primaryLocation: 1,
-        distance: 1, // only exists if geoNear was applied
+        distance: 1,
         serviceDistance: 1
       },
     }

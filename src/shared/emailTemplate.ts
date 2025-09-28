@@ -1,4 +1,4 @@
-import { ICreateAccount, ISendOtp } from '../types/emailTamplate';
+import { IContactSupport, ICreateAccount, ISendOtp } from '../types/emailTamplate';
 
 const createAccount = (values: ICreateAccount) => {
   const data = {
@@ -38,7 +38,23 @@ const sendOtp = (values: ISendOtp) => {
   return data;
 };
 
+const contactSupport = (values: IContactSupport) => {
+  const data = {
+    to: values.email,
+    subject: values.sub,
+    html: 
+    `<body style="font-family: Arial, sans-serif; background-color: #f9f9f9; margin: 50px; padding: 20px; color: #555;">
+        <div style="text-align: center;">
+            <p style="color: #555; font-size: 16px; line-height: 1.5; margin-bottom: 20px;"><b>Your message:</b>${values.msg}</p>
+            <p style="color: #555; font-size: 16px; line-height: 1.5; margin-bottom: 20px;"><b>Admin Reply:</b>${values.reply}</p>
+        </div>
+      </body>`,
+  };
+  return data;
+};
+
 export const emailTemplate = {
   createAccount,
   sendOtp,
+  contactSupport
 };

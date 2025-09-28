@@ -11,6 +11,9 @@ import { ServiceRoutes } from '../app/modules/service/service.route';
 import { ProviderRoutes } from '../app/modules/provider/provider.route';
 import { ScheduleRoutes } from '../app/modules/schedule/schedule.route';
 import { BookingRoutes } from '../app/modules/booking/booking.route';
+import { ContactSupportRoutes } from '../app/modules/contactSupport/contactSupport.route';
+import { ReviewRoutes } from '../app/modules/Review/review.route';
+import { FavListRoutes } from '../app/modules/favList/favList.route';
 const router = express.Router();
 
 const apiRoutes = [
@@ -51,6 +54,14 @@ const apiRoutes = [
     route: BookingRoutes,
   },
   {
+    path: '/review',
+    route: ReviewRoutes,
+  },
+  {
+    path: '/fav-list',
+    route: FavListRoutes,
+  },
+  {
     path: '/chats',
     route: ChatRoutes,
   },
@@ -61,6 +72,10 @@ const apiRoutes = [
   {
     path: '/settings',
     route: settingsRouter,
+  },
+  {
+    path: '/contact-support',
+    route: ContactSupportRoutes,
   },
 ];
 

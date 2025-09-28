@@ -12,6 +12,7 @@ const BookingSchema = new Schema(
     slots: [{ start: { type: Date, required: true }, end: { type: Date, required: true } }],
     amount: { type: Number, required: true },
     paymentId: { type: String },
+    chatId: { type: Schema.Types.ObjectId, ref: "Chat" , default: null},
     status: { type: String, enum: Object.values(BOOKING_STATUS), default: BOOKING_STATUS.PENDING },
   },
   { timestamps: true }

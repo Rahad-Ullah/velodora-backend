@@ -10,6 +10,7 @@ export type TBooking = {
   slots: [{start: Date; end: Date;}];
   amount: number;
   paymentId: string;
+  chatId: Types.ObjectId;
   status: BOOKING_STATUS;
 };
 

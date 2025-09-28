@@ -24,6 +24,22 @@ const createBooking = catchAsync(
 
 
 //Accept Booking controller
+const completeBooking = catchAsync(
+  async (req: Request, res: Response) => {
+    const userId = req.user.id;
+    const providerId = req.params.id;
+ 
+    const result = await BookingService.completeBookingToDB(userId, providerId);
+
+    sendResponse(res, {
+      success: true,
+      statusCode: StatusCodes.OK,
+      message: result,
+    });
+  }
+);
+
+//Accept Booking controller
 const acceptBooking = catchAsync(
   async (req: Request, res: Response) => {
     const userId = req.user.id;
@@ -58,6 +74,22 @@ const cancelBooking = catchAsync(
 
 
 //Get Bookings controller
+const getBooking = catchAsync(
+  async (req: Request, res: Response) => {
+    
+ 
+    const result = await BookingService.getBookingToDB(req.params.id);
+
+    sendResponse(res, {
+      success: true,
+      statusCode: StatusCodes.OK,
+      message: result,
+    });
+  }
+);
+
+
+//Get Bookings controller
 const getBookings = catchAsync(
   async (req: Request, res: Response) => {
     const id = req.user.id;
@@ -75,4 +107,4 @@ const getBookings = catchAsync(
 );
 
 
-export const BookingController = { createBooking, getBookings, cancelBooking, acceptBooking };
+export const BookingController = { createBooking, getBookings, cancelBooking, acceptBooking, getBooking, completeBooking };

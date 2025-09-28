@@ -7,6 +7,7 @@ import { ScheduleModel } from '../schedule/schedule.model';
 import { UserModel } from '../user/user.model';
 import { USER_ROLES } from '../../../enums/user';
 import { BOOKING_STATUS } from '../../../enums/booking';
+import { ChatServices } from '../chat/chat.service';
 
 
 //create booking to db
@@ -107,10 +108,72 @@ const acceptBookingToDB = async (id: string, userId: string): Promise<any> => {
   if (!booking) {
     throw new ApiError(StatusCodes.NOT_FOUND, 'Booking not found');
   }
+  if(booking.status !== BOOKING_STATUS.PENDING) {
+    throw new ApiError(StatusCodes.NOT_FOUND, 'Booking is not pending. So you can not accept it');
+  }
+
+  const provider = await ProviderModel.findById(booking.provider);
+  if (!provider) {
+    throw new ApiError(StatusCodes.NOT_FOUND, 'Provider not found');
+  }
+
+  if(userId !== provider.user.toString()) {
+    throw new ApiError(StatusCodes.UNAUTHORIZED, 'You are not authorized user to accept this booking');
+  }
+
+  const result = await ChatServices.createChatIntoDB(userId, {
+    participants: [booking.user]
+  });
+  if(!result) {
+    throw new ApiError(StatusCodes.INTERNAL_SERVER_ERROR, 'Accept Booking - Failed to create chat');
+  }
+
+  console.log(result)
 
   booking.status = BOOKING_STATUS.UPCOMING;
+  booking.chatId = new Types.ObjectId(result._id);
   const res = await booking.save();
 
+  return res;
+}
+
+// Accept booking to db
+const completeBookingToDB = async ( userId: string, providerid: string): Promise<any> => {
+
+  const user = await UserModel.findById(userId);
+  if (!user) {
+    throw new ApiError(StatusCodes.NOT_FOUND, 'Booking - User not found');
+  }
+
+  const provider = await ProviderModel.findOne({user: providerid});
+  if (!provider) {
+    throw new ApiError(StatusCodes.NOT_FOUND, 'Booking - Provider not found');
+  }
+
+  const booking = await BookingModel.findOne({
+    user: new Types.ObjectId(userId),
+    provider: new Types.ObjectId(provider._id),
+    status: BOOKING_STATUS.UPCOMING
+  });
+  if (!booking) {
+    throw new ApiError(StatusCodes.NOT_FOUND, 'Booking not found');
+  }
+
+  const result = await ChatServices.deleteChatFromDB(booking.chatId.toString());
+  if(!result) {
+    throw new ApiError(StatusCodes.INTERNAL_SERVER_ERROR, 'Complete Booking - Failed to delete chat');
+  }
+
+  // console.log(result)
+
+  booking.status = BOOKING_STATUS.COMPLETED;
+  const res = await booking.save();
+
+  // user.credits = user.credits + (booking.amount - (booking.amount * 0.15));
+  // await user.save();
+  await UserModel.findByIdAndUpdate(providerid, {
+    $set: { credits: + (booking.amount - booking.amount * 0.15) }
+  })
 
   return res;
 }
@@ -166,6 +229,16 @@ const cancelBookingToDB = async (id: string, userId: string): Promise<any> => {
 
 
 // get all bookings to db
+const getBookingToDB = async (id: string): Promise<any> => {
+
+  const res = await BookingModel.findById(id).populate('user', 'name email image location').populate('provider', 'aboutMe serviceLanguage primaryLocation pricePerHour serviceImages isOnline');
+
+
+  return res;
+}
+
+
+// get all bookings to db
 const getBookingsToDB = async (id: string, query: any): Promise<any> => {
   const user = await UserModel.findById(id);
   if (!user) {
@@ -209,5 +282,7 @@ export const BookingService = {
   createBookingToDB,
   getBookingsToDB,
   cancelBookingToDB,
-  acceptBookingToDB
+  acceptBookingToDB,
+  getBookingToDB,
+  completeBookingToDB
 };

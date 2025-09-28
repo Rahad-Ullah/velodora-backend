@@ -7,7 +7,7 @@ import { ProviderService} from './provider.service';
 import { TProvider } from './provider.interface';
 
 
-//create service controller
+//create service
 const createProvider = catchAsync(
   async (req: Request, res: Response, next: NextFunction) => {
     
@@ -32,7 +32,7 @@ const createProvider = catchAsync(
   }
 );
 
-//get single service controller
+//get single service
 const getProvider = catchAsync(async (req: Request, res: Response) => {
   const id = req.params.id;
   const result = await ProviderService.getProviderFromDB(id!);
@@ -45,7 +45,7 @@ const getProvider = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
-//get all categories controller
+//get all services
 const getProviders = catchAsync(async (req: Request, res: Response) => {
   // Define which query fields are filters
   const filterableFields = ['searchTerm', 'categoryId', 'minPrice', 'maxPrice', 'date', 'time', 'location','userLng', 'userLat'];
