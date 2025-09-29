@@ -14,7 +14,7 @@ const createReview = catchAsync(
     sendResponse(res, {
       success: true,
       statusCode: StatusCodes.OK,
-      message: result,
+      data: result.data,
     });
   }
 );
@@ -27,7 +27,7 @@ const getMyReviews = catchAsync(
     sendResponse(res, {
       success: true,
       statusCode: StatusCodes.OK,
-      message: result,
+      data: result.data,
     });
   }
 );
@@ -40,7 +40,7 @@ const getProviderReviews = catchAsync(
     sendResponse(res, {
       success: true,
       statusCode: StatusCodes.OK,
-      message: result,
+      data: result.data,
     });
   }
 );

@@ -31,17 +31,17 @@ const createServiceToDB = async (payload: Partial<IService>): Promise<any> => {
 
   const res = await ServiceModel.create(newServiceData);
 
-  return res;
+  return {data: res};
 };
 
 //get Service
-const getServiceFromDB = async (id: string): Promise<IService> => {
+const getServiceFromDB = async (id: string): Promise<any> => {
   const isExistService = await ServiceModel.findById(id);
   if (!isExistService) {
     throw new ApiError(StatusCodes.BAD_REQUEST, "Service doesn't exist!");
   }
 
-  return isExistService;
+  return {data: isExistService};
 };
 
 //get categories
@@ -82,20 +82,20 @@ const updateServiceToDB = async (
     throw new ApiError(StatusCodes.BAD_REQUEST, "Service doesn't exist!");
   }
 
-  return res;
+  return {data:res};
 };
 
 // delete service
 const deleteServiceToDB = async (
   id: string
-): Promise<string> => {
+): Promise<any> => {
 
   const isExistService = await ServiceModel.findByIdAndDelete(id);
   if (!isExistService) {
     throw new ApiError(StatusCodes.BAD_REQUEST, "Service doesn't exist!");
   }
 
-  return "Service deleted successfully!";
+  return {message: "Service deleted successfully!"};
 };
 
 export const ServiceService = {

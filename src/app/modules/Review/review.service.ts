@@ -35,7 +35,7 @@ const createReviewToDB = async (userId: string, payload: Partial<IReview>): Prom
     throw new ApiError(StatusCodes.BAD_REQUEST, "Review to Provider failed!");
   }
 
-  return res;
+  return {data:res};
 };
 
 
@@ -58,7 +58,7 @@ const getMyReviewsToDB = async (id: string): Promise<any> => {
   if (!res || res.length === 0) {
     throw new ApiError(StatusCodes.BAD_REQUEST, "Review doesn't exist!");
   }
-  return res[0]; // since grouping by providerId, only one result
+  return {data: res[0]}; // since grouping by providerId, only one result
 };
 
 

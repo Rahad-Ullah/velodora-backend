@@ -14,7 +14,7 @@ const createFavList = catchAsync(
     sendResponse(res, {
       success: true,
       statusCode: StatusCodes.OK,
-      message: result,
+      data: result,
     });
   }
 );
@@ -28,7 +28,7 @@ const getFavList = catchAsync(
     sendResponse(res, {
       success: true,
       statusCode: StatusCodes.OK,
-      message: result,
+      data: result,
     });
   }
 );

@@ -18,7 +18,7 @@ const createSubCategory = catchAsync(
     sendResponse(res, {
       success: true,
       statusCode: StatusCodes.OK,
-      message: result,
+      data: result.data,
     });
   }
 );
@@ -32,7 +32,7 @@ const getSubCategory = catchAsync(async (req: Request, res: Response) => {
     success: true,
     statusCode: StatusCodes.OK,
     message: 'Sub Category data retrieved successfully',
-    data: result,
+    data: result.data,
   });
 });
 

@@ -172,6 +172,22 @@ const deleteProfile = catchAsync(
 );
 
 //delete user
+const activeBlockUser = catchAsync(
+  async (req: Request, res: Response, next: NextFunction) => {
+    // console.log("controller - user: ", req.params?.id);
+
+    const result = await UserService.activeBlockUserFromDB(req.params?.id  as string);
+
+    sendResponse(res, {
+      success: true,
+      statusCode: StatusCodes.OK,
+      message: result.message,
+      data: result.data,
+    });
+  }
+);
+
+//delete user
 const deleteUser = catchAsync(
   async (req: Request, res: Response, next: NextFunction) => {
     // console.log("controller - user: ", req.params?.id);
@@ -187,4 +203,34 @@ const deleteUser = catchAsync(
   }
 );
 
-export const UserController = { createUser, createUsers, getUserProfile, getUser, getUsers, updateProfile, deleteProfile, updateUserStatus, deleteUser, getUsersAggregation };
+//approve user
+const approveUpdateProfile = catchAsync(
+  async (req: Request, res: Response, next: NextFunction) => {
+
+    const result = await UserService.approveUpdateProfileToDB(req.params.id);
+
+    sendResponse(res, {
+      success: true,
+      statusCode: StatusCodes.OK,
+      message: 'User Updated successfully',
+      data: result,
+    });
+  }
+);
+
+//approve user
+const deleteUpdateProfile = catchAsync(
+  async (req: Request, res: Response, next: NextFunction) => {
+
+    const result = await UserService.deleteUpdateProfileToDB(req.params.id);
+
+    sendResponse(res, {
+      success: true,
+      statusCode: StatusCodes.OK,
+      message: 'User Updated successfully',
+      data: result,
+    });
+  }
+);
+
+export const UserController = { createUser, createUsers, getUserProfile, getUser, getUsers, updateProfile, deleteProfile, updateUserStatus, deleteUser, getUsersAggregation, approveUpdateProfile, deleteUpdateProfile, activeBlockUser };

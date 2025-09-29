@@ -38,5 +38,10 @@ router.patch('/complete-booking/:id',
   BookingController.completeBooking
 )
 
+router.get('/order-history/:id',
+  auth(USER_ROLES.ADMIN, USER_ROLES.SUPER_ADMIN),
+  BookingController.getBookingsByAdmin
+)
+
 
 export const BookingRoutes = router;

@@ -7,10 +7,13 @@ const providerTempSchema = new Schema<TProvider, TProviderModal>(
       type: Schema.Types.ObjectId,
       ref: 'User',
       required: true,
+      unique: true,
     },
     ref: {
       type: Schema.Types.ObjectId,
       ref: 'Provider',
+      required: true,
+      unique: true,
     },
     aboutMe: {
       type: String,
@@ -49,8 +52,7 @@ const providerTempSchema = new Schema<TProvider, TProviderModal>(
     },
     serviceImages: {
       type: [String],
-      maxlength: 10,
-      // required: true,
+      max: 10,
     },
     isRead: {
       type: Boolean,
@@ -67,9 +69,6 @@ const providerTempSchema = new Schema<TProvider, TProviderModal>(
   },
   { timestamps: true }
 );
-
-providerTempSchema.index({ location: "2dsphere" });
-
 
 export const ProviderTempModel = model<TProvider, TProviderModal>(
   'ProviderTemp',

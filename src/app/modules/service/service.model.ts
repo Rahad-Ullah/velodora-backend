@@ -1,5 +1,6 @@
 import { model, Schema } from 'mongoose';
 import { IService, IServiceModal } from './service.interface';
+import { SERVICE_STATUS } from '../../../enums/service';
 
 const serviceSchema = new Schema<IService, IServiceModal>(
   {
@@ -20,6 +21,11 @@ const serviceSchema = new Schema<IService, IServiceModal>(
     price: {
       type: Number,
       required: true,
+    },
+    status: {
+      type: String,
+      enum: Object.values(SERVICE_STATUS),
+      default: SERVICE_STATUS.OLD
     }
   },
   { timestamps: true }

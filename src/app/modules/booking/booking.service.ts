@@ -38,8 +38,8 @@ const createBookingToDB = async (payload: {
 
   // Check if the services are valid
   const providerServices = provider.services.map((service) => service.toString());
-  console.log("Create booking - Provider Services : ", providerServices);
-  console.log("Create booking - Payload Services : ", payload.services);
+  // console.log("Create booking - Provider Services : ", providerServices);
+  // console.log("Create booking - Payload Services : ", payload.services);
   payload.services.forEach((service) => {
     if (!providerServices.includes(service)) {
       throw new ApiError(StatusCodes.BAD_REQUEST, 'Invalid service found');

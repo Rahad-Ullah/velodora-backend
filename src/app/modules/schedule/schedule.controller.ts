@@ -20,7 +20,7 @@ const createSchedule = catchAsync(
     sendResponse(res, {
       success: true,
       statusCode: StatusCodes.OK,
-      message: result,
+      data: result.data,
     });
   }
 );
@@ -34,7 +34,7 @@ const openCloseSchedule = catchAsync(
     sendResponse(res, {
       success: true,
       statusCode: StatusCodes.OK,
-      message: result,
+      data: result.data,
     });
   }
 );
@@ -48,7 +48,7 @@ const getSchedule = catchAsync(
     sendResponse(res, {
       success: true,
       statusCode: StatusCodes.OK,
-      message: result,
+      data: result.data,
     });
   }
 );
@@ -63,7 +63,7 @@ const getSchedules = catchAsync(
     sendResponse(res, {
       success: true,
       statusCode: StatusCodes.OK,
-      message: result,
+      data: result.data,
     });
   }
 );

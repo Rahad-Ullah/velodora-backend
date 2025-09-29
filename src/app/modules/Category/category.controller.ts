@@ -21,7 +21,7 @@ const createCategory = catchAsync(
     sendResponse(res, {
       success: true,
       statusCode: StatusCodes.OK,
-      message: result,
+      data: result,
     });
   }
 );

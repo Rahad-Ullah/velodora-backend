@@ -14,7 +14,7 @@ const createContactSupport = catchAsync(
     sendResponse(res, {
       success: true,
       statusCode: StatusCodes.OK,
-      message: result,
+      data: result,
     });
   }
 );
@@ -28,7 +28,7 @@ const updateContactSupport = catchAsync(
     sendResponse(res, {
       success: true,
       statusCode: StatusCodes.OK,
-      message: result,
+      data: result,
     });
   }
 );
@@ -42,7 +42,7 @@ const getContactSupport = catchAsync(
     sendResponse(res, {
       success: true,
       statusCode: StatusCodes.OK,
-      message: result,
+      data: result,
     });
   }
 );
@@ -58,7 +58,7 @@ const getContactSupports = catchAsync(
     sendResponse(res, {
       success: true,
       statusCode: StatusCodes.OK,
-      message: result,
+      data: result,
     });
   }
 );

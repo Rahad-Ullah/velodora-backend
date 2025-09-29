@@ -7,10 +7,7 @@ const providerSchema = new Schema<TProvider, TProviderModal>(
       type: Schema.Types.ObjectId,
       ref: 'User',
       required: true,
-    },
-    ref: {
-      type: Schema.Types.ObjectId,
-      ref: 'Provider',
+      unique: true,
     },
     aboutMe: {
       type: String,
@@ -49,8 +46,8 @@ const providerSchema = new Schema<TProvider, TProviderModal>(
     },
     serviceImages: {
       type: [String],
-      maxlength: 10,
-      // required: true,
+      max: 10,
+      required: true,
     },
     isRead: {
       type: Boolean,

@@ -38,22 +38,34 @@ router
     auth(USER_ROLES.SUPER_ADMIN, USER_ROLES.ADMIN),
     UserController.getUsers
   );
+
   
 router
-  .route('/users/:id')
-  .delete(auth(USER_ROLES.SUPER_ADMIN, USER_ROLES.ADMIN), UserController.deleteUser)
-  .get(auth(USER_ROLES.SUPER_ADMIN, USER_ROLES.ADMIN), UserController.getUser);
+  .route('/users/edit-profile/:id')
+  .patch(auth(USER_ROLES.SUPER_ADMIN, USER_ROLES.ADMIN), UserController.approveUpdateProfile)
+  .delete(auth(USER_ROLES.SUPER_ADMIN, USER_ROLES.ADMIN), UserController.deleteUpdateProfile);
+
 
 router
   .route('/users/change-status/:id')
   .patch(auth(USER_ROLES.SUPER_ADMIN, USER_ROLES.ADMIN), UserController.updateUserStatus);
-  
+    
+
 router
-  .route('/users-aggregation')
-  .get(
-    auth(USER_ROLES.SUPER_ADMIN, USER_ROLES.ADMIN),
-    UserController.getUsersAggregation
-  );
+  .route('/users/:id')
+  .delete(auth(USER_ROLES.SUPER_ADMIN, USER_ROLES.ADMIN), UserController.deleteUser)
+  .get(auth(USER_ROLES.SUPER_ADMIN, USER_ROLES.ADMIN), UserController.getUser)
+
+router
+  .route('/active-block-users/:id')
+  .delete(auth(USER_ROLES.SUPER_ADMIN, USER_ROLES.ADMIN), UserController.activeBlockUser)
+  
+// router
+//   .route('/users-aggregation')
+//   .get(
+//     auth(USER_ROLES.SUPER_ADMIN, USER_ROLES.ADMIN),
+//     UserController.getUsersAggregation
+//   );
 
 
 

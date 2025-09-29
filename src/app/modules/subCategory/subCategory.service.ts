@@ -18,17 +18,17 @@ const createSubCategoryToDB = async (payload: Partial<ISubCategory>): Promise<an
 
   const res = await SubCategoryModel.create(payload);
 
-  return res;
+  return {data: res};
 };
 
 //get sub category
-const getSubCategoryFromDB = async (id: string): Promise<ISubCategory> => {
+const getSubCategoryFromDB = async (id: string): Promise<any> => {
   const isExistSubCategory = await SubCategoryModel.findById(id);
   if (!isExistSubCategory) {
     throw new ApiError(StatusCodes.BAD_REQUEST, "Sub Category doesn't exist!");
   }
 
-  return isExistSubCategory;
+  return {data:isExistSubCategory};
 };
 
 //get sub categories

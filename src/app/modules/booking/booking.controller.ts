@@ -34,7 +34,7 @@ const completeBooking = catchAsync(
     sendResponse(res, {
       success: true,
       statusCode: StatusCodes.OK,
-      message: result,
+      data: result,
     });
   }
 );
@@ -50,7 +50,7 @@ const acceptBooking = catchAsync(
     sendResponse(res, {
       success: true,
       statusCode: StatusCodes.OK,
-      message: result,
+      data: result,
     });
   }
 );
@@ -67,7 +67,7 @@ const cancelBooking = catchAsync(
     sendResponse(res, {
       success: true,
       statusCode: StatusCodes.OK,
-      message: result,
+      data: result,
     });
   }
 );
@@ -83,7 +83,7 @@ const getBooking = catchAsync(
     sendResponse(res, {
       success: true,
       statusCode: StatusCodes.OK,
-      message: result,
+      data: result,
     });
   }
 );
@@ -101,10 +101,25 @@ const getBookings = catchAsync(
     sendResponse(res, {
       success: true,
       statusCode: StatusCodes.OK,
-      message: result,
+      data: result,
+    });
+  }
+);
+
+//Get Bookings controller
+const getBookingsByAdmin = catchAsync(
+  async (req: Request, res: Response) => {
+    const id = req.params.id;
+ 
+    const result = await BookingService.getBookingsToDB(id, req.query);
+
+    sendResponse(res, {
+      success: true,
+      statusCode: StatusCodes.OK,
+      data: result,
     });
   }
 );
 
 
-export const BookingController = { createBooking, getBookings, cancelBooking, acceptBooking, getBooking, completeBooking };
+export const BookingController = { createBooking, getBookings, cancelBooking, acceptBooking, getBooking, completeBooking, getBookingsByAdmin };

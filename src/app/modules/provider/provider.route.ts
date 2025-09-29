@@ -36,17 +36,8 @@ router
         next(error); // let error handler send response
       }
     }
-  );
-
-
-router
-  .route('/:id')
-  .get(ProviderController.getProvider)
-  .delete(
-    auth(USER_ROLES.SUPER_ADMIN, USER_ROLES.ADMIN, USER_ROLES.PROVIDER),
-    ProviderController.deleteProvider
   )
-  .post(
+  .put(
     auth(USER_ROLES.PROVIDER),
     fileUploadHandler(),
     (req: Request, res: Response, next: NextFunction) => {
@@ -69,7 +60,40 @@ router
         next(error);
       }
     }
+  )
+
+
+
+router
+  .route('/approve-edit-provider/:id')
+  .put(
+    auth(USER_ROLES.SUPER_ADMIN, USER_ROLES.ADMIN),
+    ProviderController.approveEditProvider
+  )
+  .delete(
+    auth(USER_ROLES.SUPER_ADMIN, USER_ROLES.ADMIN),
+    ProviderController.deleteEditProvider
   );
+
+router
+  .route('/active-block-provider/:id')
+  .put(
+    auth(USER_ROLES.SUPER_ADMIN, USER_ROLES.ADMIN),
+    ProviderController.activeBlockProvider
+  )
+
+router
+  .route('/:id')
+  .get(ProviderController.getProvider)
+  .put(
+    auth(USER_ROLES.SUPER_ADMIN, USER_ROLES.ADMIN),
+    ProviderController.approveEditProvider
+  )
+  .delete(
+    auth(USER_ROLES.PROVIDER),
+    ProviderController.deleteProvider
+  );
+
 
 
 

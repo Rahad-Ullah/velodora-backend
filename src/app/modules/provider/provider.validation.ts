@@ -27,12 +27,17 @@ const createProviderZodSchema = z.object({
 // update provider sod schema
 const updateProviderZodSchema = z.object({
   data: z.object({
-    aboutMe: z.string().optional(),
-    serviceLanguage: z.array(z.string()).optional(),
-    primaryLocation: z.string().optional(),
-    serviceDistance: z.number().optional(),
-    pricePerHour: z.number().optional(),
-  }).optional(),
+    aboutMe: z.string({ required_error: 'About me is required' }),
+    serviceLanguage: z.array(z.string({ required_error: 'Service language is required' })),
+    primaryLocation: z.string({ required_error: 'Location is required' }),
+    location: z.object({
+      type: z.string({ required_error: 'Location type is required' }),
+      coordinates: z.array(z.number({ required_error: 'Coordinates are required' })),
+    }),
+    serviceDistance: z.number({ required_error: 'Service distance is required' }),
+    pricePerHour: z.number({ required_error: 'Price per hour is required' }),
+    isRead: z.boolean({ required_error: 'Read is required' })
+  }),
   services: z.object({
     new: z.array(z.object({
       category: z.string({ required_error: 'Category is required' }),

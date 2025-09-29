@@ -12,6 +12,7 @@ import { IPaginationOptions } from '../../../types/pagination';
 import QueryBuilder from '../../builder/QueryBuilder';
 import { ReferralModel } from '../referral/referral.model';
 import { logger } from '../../../shared/logger';
+import { UserTempModel } from './userTemp.model';
 
 
 //create single user
@@ -28,7 +29,7 @@ const createUserToDB = async (payload: PartialUserWithRequiredEmail, referralCod
     const isExistReferral = await ReferralModel.findOne({
       code: referralCode,
       isUsed: false,
-      createdAt: { $gte: new Date(now.getTime() - 1 *24 * 60 * 60 * 1000) },
+      createdAt: { $gte: new Date(now.getTime() - 1 * 24 * 60 * 60 * 1000) },
     });
     if (!isExistReferral) {
       throw new ApiError(StatusCodes.BAD_REQUEST, 'Referral code is invalid');
@@ -129,7 +130,7 @@ const getUserProfileFromDB = async (
   const isExistUser = await UserModel.isExistUserById(id);
   if (!isExistUser) {
     throw new ApiError(StatusCodes.BAD_REQUEST, "User doesn't exist!");
-  }else if (isExistUser?.isDeleted === true) {
+  } else if (isExistUser?.isDeleted === true) {
     throw new ApiError(StatusCodes.BAD_REQUEST, "User is deleted!");
   }
 
@@ -159,6 +160,7 @@ const getUsersFromDB = async (
 
   const query: Record<string, unknown> = {
     ...filterOptions,
+    role: { $eq: USER_ROLES.USER },
     page,
     limit,
   };
@@ -274,27 +276,76 @@ const getUsersAggregationFromDB = async (
 const updateProfileToDB = async (
   user: JwtPayload,
   payload: Partial<IUser>
-): Promise<Partial<IUser | null>> => {
+): Promise<any> => {
   const { id } = user;
   const isExistUser = await UserModel.isExistUserById(id);
   if (!isExistUser) {
     throw new ApiError(StatusCodes.BAD_REQUEST, "User doesn't exist!");
   }
 
-  //unlink file here
-  if (payload?.image && isExistUser?.image) {
-    unlinkFile(isExistUser.image);
+  if (isExistUser.role === USER_ROLES.PROVIDER) {
+    console.log("update provider", payload);
+    const isExistTempUser = await UserTempModel.findOne({ ref: id });
+    if (isExistTempUser) {
+      throw new ApiError(StatusCodes.BAD_REQUEST, "You have already approval request!");
+    }
+    const { name, email, contact, location, image } = payload; //email, role, password can't be updated here.
+    const testUser = await UserTempModel.create({ ref: id, name, email, contact, location, image });
+    return testUser;
+
+  } else {
+    //unlink file here
+    if (payload?.image && isExistUser?.image) {
+      unlinkFile(isExistUser.image);
+    }
+    const { email, password, role, ...newPayload } = payload; //email, role, password can't be updated here.
+    const updateDoc = await UserModel.findOneAndUpdate({ _id: id }, newPayload, {
+      new: true,
+    });
+
+    return updateDoc;
+  }
+};
+
+// update profile
+const approveUpdateProfileToDB = async (
+  id: string,
+): Promise<any> => {
+  // console.log("Temp User Id :", id);
+  const isExistUser = await UserTempModel.findById(id);
+  if (!isExistUser) {
+    throw new ApiError(StatusCodes.BAD_REQUEST, "User doesn't exist!");
   }
 
-  // console.log("Update Profile : ", payload);
+  const isOriginalUser = await UserModel.findOne({ _id: isExistUser.ref });
+  if (!isOriginalUser) {
+    throw new ApiError(StatusCodes.BAD_REQUEST, "Original User doesn't exist!");
+  }
 
-  const { email, password, role, ...newPayload } = payload; //email, role, password can't be updated here.
+  isExistUser.image && isOriginalUser.image && unlinkFile(isOriginalUser.image);
 
-  const updateDoc = await UserModel.findOneAndUpdate({ _id: id }, newPayload, {
+  const { name, email, contact, location, image } = isExistUser;
+  const updateUser = await UserModel.findOneAndUpdate({ _id: isExistUser.ref }, { name, email, contact, location, image }, {
     new: true,
   });
 
-  return updateDoc;
+  await UserTempModel.findByIdAndDelete(id);
+
+  return updateUser;
+};
+
+// update profile
+const deleteUpdateProfileToDB = async (
+  id: string,
+): Promise<any> => {
+  
+  const isExistUser = await UserTempModel.findByIdAndDelete(id);
+  if (!isExistUser) {
+    throw new ApiError(StatusCodes.BAD_REQUEST, "User doesn't exist!");
+  }
+  isExistUser.image && unlinkFile(isExistUser.image);
+
+  return isExistUser;
 };
 
 // update user status to db by admin
@@ -326,10 +377,26 @@ const deleteUserFromDB = async (id: string): Promise<Partial<IUser | null>> => {
   }
 
   try {
-    const result = await UserModel.findByIdAndUpdate(id, { $set: {isDeleted: true} }, { new: true });
+    const result = await UserModel.findByIdAndUpdate(id, { $set: { isDeleted: true } }, { new: true });
     return result;
   } catch (error) {
     throw new ApiError(StatusCodes.BAD_REQUEST, "Oops! Failed to delete user.");
+  }
+};
+
+// delete user from db
+const activeBlockUserFromDB = async (id: string): Promise<any> => {
+  // console.log("user id: ", id);
+  const isExistUser = await UserModel.isExistUserById(id);
+  if (!isExistUser) {
+    throw new ApiError(StatusCodes.BAD_REQUEST, "User doesn't exist!");
+  }
+
+  try {
+    const result = await UserModel.findByIdAndUpdate(id, { $set: { isActive: !isExistUser?.isActive } }, { new: true });
+    return {message: `${isExistUser?.isActive ? "Blocked" : "Active"} User Successfully`, data: result};
+  } catch (error) {
+    throw new ApiError(StatusCodes.BAD_REQUEST, "Oops! Failed to Active/Block user.");
   }
 };
 
@@ -375,5 +442,8 @@ export const UserService = {
   updateUserStatusToDB,
   deleteUserFromDB,
   hardDeleteUsersFromDB,
-  getUsersAggregationFromDB
+  getUsersAggregationFromDB,
+  approveUpdateProfileToDB,
+  deleteUpdateProfileToDB,
+  activeBlockUserFromDB
 };

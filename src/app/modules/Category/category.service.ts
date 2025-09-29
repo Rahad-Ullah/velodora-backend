@@ -7,7 +7,7 @@ import { CategoryModel } from './category.model';
 
 
 //create category
-const createCategoryToDB = async (payload: Partial<ICategory>): Promise<string> => {
+const createCategoryToDB = async (payload: Partial<ICategory>): Promise<any> => {
 
   const isExistCategory = await CategoryModel.findOne({ name: payload.name });
 
@@ -19,7 +19,7 @@ const createCategoryToDB = async (payload: Partial<ICategory>): Promise<string> 
   const res = await CategoryModel.create(payload);
 
 
-  return 'Category created successfully!';
+  return res;
 };
 
 //get category

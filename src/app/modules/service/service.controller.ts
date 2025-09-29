@@ -14,7 +14,7 @@ const createService = catchAsync(
     sendResponse(res, {
       success: true,
       statusCode: StatusCodes.OK,
-      message: result,
+      data: result.data,
     });
   }
 );
@@ -28,7 +28,7 @@ const getService = catchAsync(async (req: Request, res: Response) => {
     success: true,
     statusCode: StatusCodes.OK,
     message: 'Service data retrieved successfully',
-    data: result,
+    data: result.data,
   });
 });
 
@@ -56,7 +56,7 @@ const updateService = catchAsync(
     sendResponse(res, {
       success: true,
       statusCode: StatusCodes.OK,
-      message: result
+      data: result.data
     });
   }
 );
@@ -71,8 +71,7 @@ const deleteService = catchAsync(
     sendResponse(res, {
       success: true,
       statusCode: StatusCodes.OK,
-      message: result,
-      // data: result,
+      data: result.data,
     });
   }
 );

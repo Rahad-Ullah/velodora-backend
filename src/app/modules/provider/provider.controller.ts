@@ -7,7 +7,7 @@ import { ProviderService} from './provider.service';
 import { TProvider } from './provider.interface';
 
 
-//create service
+//create provider
 const createProvider = catchAsync(
   async (req: Request, res: Response, next: NextFunction) => {
     
@@ -32,7 +32,7 @@ const createProvider = catchAsync(
   }
 );
 
-//get single service
+//get single provider
 const getProvider = catchAsync(async (req: Request, res: Response) => {
   const id = req.params.id;
   const result = await ProviderService.getProviderFromDB(id!);
@@ -41,11 +41,11 @@ const getProvider = catchAsync(async (req: Request, res: Response) => {
     success: true,
     statusCode: StatusCodes.OK,
     message: 'Service data retrieved successfully',
-    data: result,
+    data: result.data,
   });
 });
 
-//get all services
+//get all providers
 const getProviders = catchAsync(async (req: Request, res: Response) => {
   // Define which query fields are filters
   const filterableFields = ['searchTerm', 'categoryId', 'minPrice', 'maxPrice', 'date', 'time', 'location','userLng', 'userLat'];
@@ -60,7 +60,7 @@ const getProviders = catchAsync(async (req: Request, res: Response) => {
   sendResponse(res, {
     success: true,
     statusCode: StatusCodes.OK,
-    message: 'Users retrieved successfully',
+    message: 'Providers retrieved successfully',
     data: data as Partial<TProvider>[] || [],
   });
 });
@@ -68,12 +68,12 @@ const getProviders = catchAsync(async (req: Request, res: Response) => {
 //update service
 const updateProvider = catchAsync(
   async (req: Request, res: Response, next: NextFunction) => {
-    const id = req.params?.id;
     const providerId = req.user.id;
 
     const newData = {
       data:req.body.data,
       services: req.body.services && req.body.services,
+      newServiceImages: req.body.serviceImages,
       serviceImages: [] as string[]
     }
 
@@ -86,17 +86,48 @@ const updateProvider = catchAsync(
     }
     
 
-    const result = await ProviderService.updateProviderToDB(newData, id!, providerId!);
+    const result = await ProviderService.updateProviderToDB(newData, providerId!);
 
     sendResponse(res, {
       success: true,
       statusCode: StatusCodes.OK,
-      message: result
+      message: result.message,
+      data: result.data,
     });
   }
 );
 
-//delete service
+//delete edited provider
+const deleteEditProvider = catchAsync(
+  async (req: Request, res: Response, next: NextFunction) => {
+
+    const id = req.params?.id;
+    const result = await ProviderService.deleteEditProviderToDB(id!);
+
+    sendResponse(res, {
+      success: true,
+      statusCode: StatusCodes.OK,
+      message: result.message,
+    });
+  }
+);
+
+//approve provider
+const approveProvider = catchAsync(
+  async (req: Request, res: Response, next: NextFunction) => {
+
+    const id = req.params?.id;
+    const result = await ProviderService.approveProviderToDB(id!);
+
+    sendResponse(res, {
+      success: true,
+      statusCode: StatusCodes.OK,
+      message: result.message,
+    });
+  }
+);
+
+//delete provider
 const deleteProvider = catchAsync(
   async (req: Request, res: Response, next: NextFunction) => {
 
@@ -106,10 +137,40 @@ const deleteProvider = catchAsync(
     sendResponse(res, {
       success: true,
       statusCode: StatusCodes.OK,
-      message: 'Profile updated successfully',
-      data: result,
+      message: result.message,
     });
   }
 );
 
-export const ProviderController = { createProvider, getProvider, getProviders, updateProvider, deleteProvider };
+//active block provider
+const activeBlockProvider = catchAsync(
+  async (req: Request, res: Response, next: NextFunction) => {
+
+    const id = req.params?.id;
+    const result = await ProviderService.activeBlockProviderToDB(id!);
+
+    sendResponse(res, {
+      success: true,
+      statusCode: StatusCodes.OK,
+      message: result.message,
+      data: result.data,
+    });
+  }
+);
+
+//delete edited provider
+const approveEditProvider = catchAsync(
+  async (req: Request, res: Response, next: NextFunction) => {
+
+    const id = req.params?.id;
+    const result = await ProviderService.approveEditProviderToDB(id!);
+
+    sendResponse(res, {
+      success: true,
+      statusCode: StatusCodes.OK,
+      message: result.message,
+    });
+  }
+);
+
+export const ProviderController = { createProvider, getProvider, getProviders, updateProvider, deleteProvider, approveProvider, approveEditProvider, deleteEditProvider, activeBlockProvider };

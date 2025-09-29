@@ -54,7 +54,7 @@ const createScheduleToDB = async (payload: {
     })
   };
 
-  return schedule;
+  return {data: schedule};
 };
 
 //get schedule to db
@@ -65,7 +65,7 @@ const getScheduleToDB = async (id: string): Promise<any> => {
     throw new ApiError(StatusCodes.NOT_FOUND, 'Schedule not found');
   }
 
-  return schedule;
+  return {data: schedule};
 };
 
 //get schedule to db
@@ -78,7 +78,7 @@ const openCloseScheduleToDB = async (id: string): Promise<any> => {
   schedule.isActive = !schedule.isActive;
   await schedule.save();
 
-  return schedule;
+  return {data: schedule};
 };
 
 //get schedules to db
@@ -129,7 +129,7 @@ const getSchedulesToDB = async (providerId: string): Promise<any> => {
     throw new ApiError(StatusCodes.NOT_FOUND, 'Schedules not found');
   }
 
-  return schedules;
+  return {data: schedules};
 };
 
 export const ScheduleService = {
