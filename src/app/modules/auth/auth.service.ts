@@ -126,7 +126,7 @@ const verifyOtpToDB = async (payload: IVerifyEmail) => {
   const date = new Date();
   if (date > isExistUser.authentication?.expireAt) {
     throw new ApiError(
-      StatusCodes.BAD_REQUEST,
+      StatusCodes.OK,
       'Otp already expired, Please try again'
     );
   }
@@ -182,7 +182,7 @@ const verifyAccountToDB = async (payload: IVerifyEmail) => {
   const date = new Date();
   if (date > isExistUser.authentication?.expireAt) {
     throw new ApiError(
-      StatusCodes.BAD_REQUEST,
+      StatusCodes.OK,
       'Otp already expired, Please try again'
     );
   }

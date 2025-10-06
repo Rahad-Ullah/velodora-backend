@@ -39,7 +39,7 @@ const createUserToDB = async (payload: PartialUserWithRequiredEmail, referralCod
   const isExistUser = await UserModel.isExistUserByEmail(payload?.email);
 
   if (isExistUser?.verified) {
-    return "User already exist! Please Login";
+    throw new ApiError(StatusCodes.CONFLICT, 'User already exist! Please Login');
   }
 
   if (isExistUser && !isExistUser?.verified) {
@@ -338,7 +338,7 @@ const approveUpdateProfileToDB = async (
 const deleteUpdateProfileToDB = async (
   id: string,
 ): Promise<any> => {
-  
+
   const isExistUser = await UserTempModel.findByIdAndDelete(id);
   if (!isExistUser) {
     throw new ApiError(StatusCodes.BAD_REQUEST, "User doesn't exist!");
@@ -394,7 +394,7 @@ const activeBlockUserFromDB = async (id: string): Promise<any> => {
 
   try {
     const result = await UserModel.findByIdAndUpdate(id, { $set: { isActive: !isExistUser?.isActive } }, { new: true });
-    return {message: `${isExistUser?.isActive ? "Blocked" : "Active"} User Successfully`, data: result};
+    return { message: `${isExistUser?.isActive ? "Blocked" : "Active"} User Successfully`, data: result };
   } catch (error) {
     throw new ApiError(StatusCodes.BAD_REQUEST, "Oops! Failed to Active/Block user.");
   }

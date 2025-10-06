@@ -25,8 +25,10 @@ const globalErrorHandler: ErrorRequestHandler = (error, req, res, next) => {
     errorMessages = simplifiedError.errorMessages;
 
     // unlink uploaded files if validation error occurs
-    const filePaths = getMultipleFilesPath(req.files, 'serviceImages') || [];
-    unlinkFiles(filePaths);
+    if(req.files && Object.keys(req.files).length > 0){
+      const filePaths = getMultipleFilesPath(req.files, 'serviceImages') || [];
+      unlinkFiles(filePaths);
+    }
 
   } else if (error.name === 'ValidationError') {
     const simplifiedError = handleValidationError(error);
