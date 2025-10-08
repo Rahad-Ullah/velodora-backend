@@ -70,6 +70,8 @@ const providerTempSchema = new Schema<TProvider, TProviderModal>(
   { timestamps: true }
 );
 
+providerTempSchema.index({ location: "2dsphere" });
+
 export const ProviderTempModel = model<TProvider, TProviderModal>(
   'ProviderTemp',
   providerTempSchema

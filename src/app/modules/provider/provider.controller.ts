@@ -45,6 +45,20 @@ const getProvider = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+//get my provider
+const getMyProvider = catchAsync(async (req: Request, res: Response) => {
+  const id = req.user.id;
+  console.log("my provider id", id);
+  const result = await ProviderService.getMyProviderFromDB(id!);
+
+  sendResponse(res, {
+    success: true,
+    statusCode: StatusCodes.OK,
+    message: 'Service data retrieved successfully',
+    data: result.data,
+  });
+});
+
 //get all providers
 const getProviders = catchAsync(async (req: Request, res: Response) => {
   // Define which query fields are filters
@@ -54,14 +68,14 @@ const getProviders = catchAsync(async (req: Request, res: Response) => {
   const filterOptions = pick(req.query, filterableFields);
 
   // Call service
-  const { data } = await ProviderService.getProvidersFromDB(filterOptions);
+  const result = await ProviderService.getProvidersFromDB(filterOptions);
 
   // Send response
   sendResponse(res, {
     success: true,
     statusCode: StatusCodes.OK,
     message: 'Providers retrieved successfully',
-    data: data as Partial<TProvider>[] || [],
+    data: result.data
   });
 });
 
@@ -173,4 +187,4 @@ const approveEditProvider = catchAsync(
   }
 );
 
-export const ProviderController = { createProvider, getProvider, getProviders, updateProvider, deleteProvider, approveProvider, approveEditProvider, deleteEditProvider, activeBlockProvider };
+export const ProviderController = { createProvider, getMyProvider, getProvider, getProviders, updateProvider, deleteProvider, approveProvider, approveEditProvider, deleteEditProvider, activeBlockProvider };

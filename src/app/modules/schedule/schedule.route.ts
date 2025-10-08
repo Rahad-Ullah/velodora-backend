@@ -16,6 +16,17 @@ router
   );
 
 router
+  .route('/provider-schedule/:id')
+  .get(
+    // auth(USER_ROLES.USER),
+    ScheduleController.getProviderSchedules
+  )
+  .patch(
+    auth(USER_ROLES.PROVIDER),
+    ScheduleController.openCloseSchedule
+  )
+
+router
   .route('/:id')
   .get(
     auth(USER_ROLES.PROVIDER),

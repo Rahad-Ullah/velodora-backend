@@ -19,16 +19,19 @@ import cryptoToken from '../../../util/cryptoToken';
 
 //login
 const loginUserFromDB = async (payload: ILoginData) => {
-  const { email, password } = payload;
+  const { email, password, role } = payload;
 
   const isExistUser = await UserModel.findOne({ email }).select('+password');
   // console.log("Auth Service - loginUserFromDB - isExistUser: ", isExistUser);
 
   if (!isExistUser) {
     throw new ApiError(StatusCodes.BAD_REQUEST, "User doesn't exist!");
-  }else if (!isExistUser?.isActive) {
+  } else if (isExistUser?.role !== role) {
+    throw new ApiError(StatusCodes.BAD_REQUEST, "Role doesn't match!");
+  } else if (isExistUser?.isDeleted) {
+  } else if (!isExistUser?.isActive) {
     throw new ApiError(StatusCodes.BAD_REQUEST, "User is blocked by admin!");
-  }else if (isExistUser?.isDeleted) {
+  } else if (isExistUser?.isDeleted) {
     const now = new Date();
     const expireAt = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
     if ((isExistUser as any).updatedAt < expireAt) {
@@ -36,8 +39,8 @@ const loginUserFromDB = async (payload: ILoginData) => {
     }
   }
 
-  if(isExistUser?.isDeleted === true) {
-    await UserModel.findByIdAndUpdate(isExistUser._id, { $set: {isDeleted: false} }, { new: true });
+  if (isExistUser?.isDeleted === true) {
+    await UserModel.findByIdAndUpdate(isExistUser._id, { $set: { isDeleted: false } }, { new: true });
   }
 
   //check match password

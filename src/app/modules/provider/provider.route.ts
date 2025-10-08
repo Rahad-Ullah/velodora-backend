@@ -83,6 +83,13 @@ router
   )
 
 router
+  .route('/my-provider')
+  .get(
+    auth(USER_ROLES.PROVIDER),
+    ProviderController.getMyProvider
+  );
+
+router
   .route('/:id')
   .get(ProviderController.getProvider)
   .put(
