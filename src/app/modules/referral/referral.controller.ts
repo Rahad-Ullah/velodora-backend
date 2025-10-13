@@ -17,7 +17,43 @@ const getReferralCode = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+const deleteReferralCode = catchAsync(async (req: Request, res: Response) => {
+
+
+  const result = await ReferralService.deleteReferralFromDB(req.params.referralCodeId as string);
+
+  sendResponse(res, {
+    success: true,
+    statusCode: StatusCodes.OK,
+    message: result.message
+  });
+});
+
+const getReferralsList = catchAsync(async (req: Request, res: Response) => {
+  const paginationOptions = {
+    page: req.query.page ? Number(req.query.page) : 1,
+    limit: req.query.limit ? Number(req.query.limit) : 10
+  };
+
+
+  const result = await ReferralService.getReferralsListFromDB({
+    referralCode: req.query.referralCode as string,
+    status: req.query.status as string,
+    paginationOptions: paginationOptions,
+  });
+
+  sendResponse(res, {
+    success: true,
+    statusCode: StatusCodes.OK,
+    message: "Referrals data retrieved successfully",
+    data: result.data,
+    pagination: result.meta
+  });
+});
+
 
 export const ReferralController = {
-  getReferralCode
+  getReferralCode,
+  deleteReferralCode,
+  getReferralsList,
 };

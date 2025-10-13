@@ -8,6 +8,7 @@ import { StatusCodes } from 'http-status-codes';
 const addSetting = catchAsync(async (req, res) => {
   const settingData = {
     privacyPolicy: '',
+    providerUsagePolicy: '',
     termsAndConditions: '',
   };
 

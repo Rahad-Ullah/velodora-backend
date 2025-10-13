@@ -6,10 +6,11 @@ const userTempSchema = new Schema<IUser, TUserModal>(
     ref: {
       type: Schema.Types.ObjectId,
       ref: 'User',
+      required: true,
+      unique: true,
     },
     name: {
       type: String,
-      required: true,
     },
     image: {
       type: String,
@@ -17,18 +18,12 @@ const userTempSchema = new Schema<IUser, TUserModal>(
     },
     email: {
       type: String,
-      required: true,
-      unique: true,
-      lowercase: true,
-      trim: true,
     },
     contact: {
       type: String,
-      required: true,
     },
     location: {
       type: String,
-      required: true,
     },
   },
   { timestamps: true }

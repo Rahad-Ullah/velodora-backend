@@ -4,7 +4,6 @@ import catchAsync from '../../../shared/catchAsync';
 import sendResponse from '../../../shared/sendResponse';
 import pick from '../../../shared/pick';
 import { ProviderService} from './provider.service';
-import { TProvider } from './provider.interface';
 
 
 //create provider
@@ -36,6 +35,19 @@ const createProvider = catchAsync(
 const getProvider = catchAsync(async (req: Request, res: Response) => {
   const id = req.params.id;
   const result = await ProviderService.getProviderFromDB(id!);
+
+  sendResponse(res, {
+    success: true,
+    statusCode: StatusCodes.OK,
+    message: 'Service data retrieved successfully',
+    data: result.data,
+  });
+});
+
+//get my provider
+const getUserProvider = catchAsync(async (req: Request, res: Response) => {
+  const id = req.params.id;
+  const result = await ProviderService.getMyProviderFromDB(id!);
 
   sendResponse(res, {
     success: true,
@@ -187,4 +199,4 @@ const approveEditProvider = catchAsync(
   }
 );
 
-export const ProviderController = { createProvider, getMyProvider, getProvider, getProviders, updateProvider, deleteProvider, approveProvider, approveEditProvider, deleteEditProvider, activeBlockProvider };
+export const ProviderController = { createProvider, getMyProvider, getUserProvider, getProvider, getProviders, updateProvider, deleteProvider, approveProvider, approveEditProvider, deleteEditProvider, activeBlockProvider };

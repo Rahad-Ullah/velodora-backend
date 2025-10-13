@@ -35,7 +35,7 @@ const getCategoryFromDB = async (id: string): Promise<ICategory> => {
 //get categories
 const getCategoriesFromDB = async (
   filterOptions: Record<string, unknown>,
-): Promise<{ data: ICategory[] }> => {
+): Promise<any> => {
 
   const query: Record<string, unknown> = {
     ...filterOptions,
@@ -47,15 +47,12 @@ const getCategoriesFromDB = async (
 
   const usersQuery = builder
     .search(searchableFields)
+    .paginate()
 
-  // const data = await usersQuery.modelQuery.lean();
-  const data = (await usersQuery.modelQuery.lean()).map((category: any) => ({
-    ...category,
-    _id: category._id.toString(),
-    __v: undefined,
-  }));
+    const data = await usersQuery.modelQuery.lean();
+    const meta = await usersQuery.getPaginationInfo()
 
-  return { data };
+  return { data, meta };
 };
 
 //update category

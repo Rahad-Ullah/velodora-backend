@@ -9,8 +9,7 @@ import { ScheduleService } from './schedule.service';
 const createSchedule = catchAsync(
   async (req: Request, res: Response) => {
  
-    const result = await ScheduleService.createScheduleToDB({
-      provider: req.body.provider,
+    const result = await ScheduleService.createScheduleToDB(req.user.id, {
       date: req.body.date,
       startTime: req.body.startTime,
       endTime: req.body.endTime,
@@ -58,7 +57,7 @@ const getProviderSchedules = catchAsync(
   async (req: Request, res: Response) => {
     // const providerId = req.user.id;
  
-    const result = await ScheduleService.getSchedulesToDB(req.params.id);
+    const result = await ScheduleService.getSchedulesToDB(req.params.id, req.query.date as string);
 
     sendResponse(res, {
       success: true,
@@ -73,7 +72,7 @@ const getSchedules = catchAsync(
   async (req: Request, res: Response) => {
     // const providerId = req.user.id;
  
-    const result = await ScheduleService.getSchedulesToDB(req.user.id);
+    const result = await ScheduleService.getSchedulesToDB(req.user.id, req.query.date as string);
 
     sendResponse(res, {
       success: true,

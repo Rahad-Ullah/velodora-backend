@@ -53,6 +53,8 @@ router
           previousServiceImages: req.body.previousServiceImages && JSON.parse(req.body.previousServiceImages),
         });
 
+        console.log("validatedData", validatedData);
+
         req.body = validatedData;
 
         return ProviderController.updateProvider(req, res, next);
@@ -87,6 +89,13 @@ router
   .get(
     auth(USER_ROLES.PROVIDER),
     ProviderController.getMyProvider
+  );
+
+router
+  .route('/user-provider/:id')
+  .get(
+    auth(USER_ROLES.ADMIN, USER_ROLES.SUPER_ADMIN),
+    ProviderController.getUserProvider
   );
 
 router

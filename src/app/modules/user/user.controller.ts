@@ -172,6 +172,21 @@ const deleteProfile = catchAsync(
 );
 
 //delete user
+const giveCredits = catchAsync(
+  async (req: Request, res: Response, next: NextFunction) => {
+
+    const result = await UserService.giveCreditFromDB(req.params?.id  as string, req.body.credits);
+
+    sendResponse(res, {
+      success: true,
+      statusCode: StatusCodes.OK,
+      message: result.message,
+      data: result.data,
+    });
+  }
+);
+
+//delete user
 const activeBlockUser = catchAsync(
   async (req: Request, res: Response, next: NextFunction) => {
     // console.log("controller - user: ", req.params?.id);
@@ -233,4 +248,4 @@ const deleteUpdateProfile = catchAsync(
   }
 );
 
-export const UserController = { createUser, createUsers, getUserProfile, getUser, getUsers, updateProfile, deleteProfile, updateUserStatus, deleteUser, getUsersAggregation, approveUpdateProfile, deleteUpdateProfile, activeBlockUser };
+export const UserController = { createUser, createUsers, getUserProfile, getUser, getUsers, updateProfile, deleteProfile, updateUserStatus, deleteUser, getUsersAggregation, approveUpdateProfile, deleteUpdateProfile, activeBlockUser, giveCredits };

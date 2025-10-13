@@ -59,6 +59,10 @@ router
 router
   .route('/active-block-users/:id')
   .delete(auth(USER_ROLES.SUPER_ADMIN, USER_ROLES.ADMIN), UserController.activeBlockUser)
+
+router
+  .route('/give-credits/:id')
+  .patch(auth(USER_ROLES.SUPER_ADMIN, USER_ROLES.ADMIN), UserController.giveCredits)
   
 // router
 //   .route('/users-aggregation')

@@ -7,6 +7,10 @@ const settingsSchema = new Schema<ISettings>(
       type: String,
       default: '',
     },
+    providerUsagePolicy: {
+      type: String,
+      default: '',
+    },
     termsAndConditions: {
       type: String,
       default: '',

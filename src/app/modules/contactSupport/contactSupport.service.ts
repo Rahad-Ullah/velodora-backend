@@ -59,7 +59,7 @@ const updateContactSupportToDB = async (id: string, reply: string): Promise<any>
 
 // get contact support
 const getContactSupportToDB = async (id: string): Promise<any> => {
-  const res = await ContactSupportModel.findById(id);
+  const res = await ContactSupportModel.findById(id).populate('user', 'name email contact location');
   if (!res) {
     throw new ApiError(StatusCodes.BAD_REQUEST, "Contact Support doesn't exist!");
   }
@@ -69,11 +69,20 @@ const getContactSupportToDB = async (id: string): Promise<any> => {
 // get contact support with pagination
 const getContactSupportsToDB = async (
   limit: number,
-  pageNumber: number
+  pageNumber: number,
+  status: string
 ): Promise<any> => {
   const skip = (pageNumber - 1) * limit;
 
-  const result = await ContactSupportModel.aggregate([
+  const isReply: boolean = status === 'solved' ? true : false;
+
+  const pipeline: any[] = [];
+
+  if (status === 'pending' || status === 'solved') {
+    pipeline.push({ $match: { isReply: isReply } });
+  }
+
+  pipeline.push(
     {
       $lookup: {
         from: 'users',
@@ -85,14 +94,17 @@ const getContactSupportsToDB = async (
             $project: {
               name: 1,
               email: 1,
+              contact: 1,
+              location: 1,
             },
           },
         ],
       },
     },
     { $unwind: '$user' },
+  );
 
-    // Use $facet to get both paginated data & total count in one query
+  pipeline.push(
     {
       $facet: {
         data: [
@@ -116,7 +128,9 @@ const getContactSupportsToDB = async (
         total: '$totalCount.count',
       },
     },
-  ]);
+  )
+
+  const result = await ContactSupportModel.aggregate(pipeline);
 
   console.log("Contact Support aggregate result: ", result);
 

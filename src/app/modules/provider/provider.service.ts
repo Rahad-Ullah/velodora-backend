@@ -80,6 +80,8 @@ const getMyProviderFromDB = async (id: string): Promise<any> => {
       }
     },
     { $lookup: { from: 'schedules', localField: '_id', foreignField: 'provider', as: 'schedules' } },
+    { $lookup: { from: 'users', localField: 'user', foreignField: '_id', as: 'user' } },
+    { $unwind: { path: '$user', preserveNullAndEmptyArrays: true } },
   ]);
 
   if (!isExistService) {

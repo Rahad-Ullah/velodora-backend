@@ -12,6 +12,7 @@ const referralSchema = new Schema<TReferral, TReferralModel>(
     usedBy: {
       type: Schema.Types.ObjectId,
       ref: 'User',
+      default: null,
     },
     isUsed: { type: Boolean, default: false },
   },

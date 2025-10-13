@@ -9,6 +9,17 @@ router.get(
   auth(USER_ROLES.SUPER_ADMIN, USER_ROLES.ADMIN),
   ReferralController.getReferralCode
 );
+router.delete(
+  '/deleteReferralCode/:referralCodeId',
+  auth(USER_ROLES.SUPER_ADMIN, USER_ROLES.ADMIN),
+  ReferralController.deleteReferralCode
+);
+
+router.get(
+  '/referralList',
+  auth(USER_ROLES.SUPER_ADMIN, USER_ROLES.ADMIN),
+  ReferralController.getReferralsList
+);
 
 
 export const ReferralRoutes = router;

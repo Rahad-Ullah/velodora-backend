@@ -155,16 +155,14 @@ const getUserFromDB = async (
 const getUsersFromDB = async (
   filterOptions: Record<string, unknown>,
   paginationOptions: IPaginationOptions
-): Promise<{ meta: IPaginationOptions; data: Partial<IUser>[] }> => {
+): Promise<{ meta: IPaginationOptions; data: any[] }> => {
   const { page = 1, limit = 10 } = paginationOptions;
 
   const query: Record<string, unknown> = {
     ...filterOptions,
-    role: { $eq: USER_ROLES.USER },
     page,
     limit,
   };
-  // console.log("All Queries: ", query);
 
   const searchableFields = ['name', 'email', 'location', 'contact'];
 
@@ -179,11 +177,7 @@ const getUsersFromDB = async (
 
   // const data = await usersQuery.modelQuery.lean();
   const meta = await builder.getPaginationInfo();
-  const data = (await usersQuery.modelQuery.lean()).map((user: any) => ({
-    ...user,
-    _id: user._id.toString(),
-    __v: undefined,
-  }));
+  const data = await usersQuery.modelQuery.lean()
 
   return { meta, data };
 };
@@ -289,8 +283,16 @@ const updateProfileToDB = async (
     if (isExistTempUser) {
       throw new ApiError(StatusCodes.BAD_REQUEST, "You have already approval request!");
     }
-    const { name, email, contact, location, image } = payload; //email, role, password can't be updated here.
-    const testUser = await UserTempModel.create({ ref: id, name, email, contact, location, image });
+    const { name, contact, location, image } = payload; //email, role, password can't be updated here.
+    const data = {
+      ref: id,
+      name: name ?? isExistUser.name,
+      email: isExistUser.email,
+      contact: contact ?? isExistUser.contact,
+      location: location ?? isExistUser.location,
+      image: image ?? isExistUser.image
+    }
+    const testUser = await UserTempModel.create(data);
     return testUser;
 
   } else {
@@ -377,7 +379,7 @@ const deleteUserFromDB = async (id: string): Promise<Partial<IUser | null>> => {
   }
 
   try {
-    const result = await UserModel.findByIdAndUpdate(id, { $set: { isDeleted: true } }, { new: true });
+    const result = await UserModel.findByIdAndUpdate(id, { $set: { isDeleted: !isExistUser?.isDeleted } }, { new: true });
     return result;
   } catch (error) {
     throw new ApiError(StatusCodes.BAD_REQUEST, "Oops! Failed to delete user.");
@@ -397,6 +399,23 @@ const activeBlockUserFromDB = async (id: string): Promise<any> => {
     return { message: `${isExistUser?.isActive ? "Blocked" : "Active"} User Successfully`, data: result };
   } catch (error) {
     throw new ApiError(StatusCodes.BAD_REQUEST, "Oops! Failed to Active/Block user.");
+  }
+};
+
+// delete user from db
+const giveCreditFromDB = async (id: string, credits: number): Promise<any> => {
+  console.log("user id: ", id, "credits: ", credits);
+  const isExistUser = await UserModel.isExistUserById(id);
+  if (!isExistUser) {
+    throw new ApiError(StatusCodes.BAD_REQUEST, "User doesn't exist!");
+  }
+  console.log("User Credits: ", isExistUser);
+
+  try {
+    const result = await UserModel.findByIdAndUpdate(id, { $set: { credits: isExistUser?.credits + Number(credits) } }, { new: true }); 
+    return { message: `${credits} send to ${isExistUser?.name} Successfully`, data: result };
+  } catch (error) {
+    throw new ApiError(StatusCodes.BAD_REQUEST, "Oops! Failed to send credits.");
   }
 };
 
@@ -445,5 +464,6 @@ export const UserService = {
   getUsersAggregationFromDB,
   approveUpdateProfileToDB,
   deleteUpdateProfileToDB,
-  activeBlockUserFromDB
+  activeBlockUserFromDB,
+  giveCreditFromDB
 };

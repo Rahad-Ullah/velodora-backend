@@ -42,13 +42,13 @@ const getCategory = catchAsync(async (req: Request, res: Response) => {
 //get all categories controller
 const getCategories = catchAsync(async (req: Request, res: Response) => {
   // Define which query fields are filters
-  const filterableFields = ['searchTerm'];
+  const filterableFields = ['searchTerm', 'page'];
 
   // Pick only allowed filters from req.query
   const filterOptions = pick(req.query, filterableFields);
 
   // Call service
-  const { data } = await CategoryService.getCategoriesFromDB(filterOptions);
+  const { data, meta } = await CategoryService.getCategoriesFromDB(filterOptions);
 
   // Send response
   sendResponse(res, {
@@ -56,6 +56,7 @@ const getCategories = catchAsync(async (req: Request, res: Response) => {
     statusCode: StatusCodes.OK,
     message: 'Users retrieved successfully',
     data: data as Partial<ICategory>[] || [],
+    pagination: meta || {},
   });
 });
 
