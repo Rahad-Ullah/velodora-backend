@@ -106,7 +106,7 @@ router
     ProviderController.approveEditProvider
   )
   .delete(
-    auth(USER_ROLES.PROVIDER),
+    auth(USER_ROLES.PROVIDER, USER_ROLES.SUPER_ADMIN, USER_ROLES.ADMIN),
     ProviderController.deleteProvider
   );
 

@@ -47,6 +47,7 @@ const getProvider = catchAsync(async (req: Request, res: Response) => {
 //get my provider
 const getUserProvider = catchAsync(async (req: Request, res: Response) => {
   const id = req.params.id;
+  console.log("user provider id", id);
   const result = await ProviderService.getMyProviderFromDB(id!);
 
   sendResponse(res, {

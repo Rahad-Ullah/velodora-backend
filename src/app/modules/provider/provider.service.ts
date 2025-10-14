@@ -7,6 +7,7 @@ import { ServiceModel } from '../service/service.model';
 import { ProviderTempModel } from './providerTemp.model';
 import { unlinkFile, unlinkFiles } from '../../../shared/unlinkFile';
 import { SERVICE_STATUS } from '../../../enums/service';
+import { UserModel } from '../user/user.model';
 
 type TProviderFilters = {
   searchTerm?: string;
@@ -87,6 +88,7 @@ const getMyProviderFromDB = async (id: string): Promise<any> => {
   if (!isExistService) {
     throw new ApiError(StatusCodes.BAD_REQUEST, "Service doesn't exist!");
   }
+  console.log("Provider Details : ", isExistService);
 
   return { data: isExistService[0] };
 };
@@ -492,6 +494,11 @@ const deleteProviderToDB = async (
     throw new ApiError(StatusCodes.BAD_REQUEST, "Provider doesn't exist!");
   }
 
+  const isUser = await UserModel.findByIdAndDelete(isExistService.user);
+  if (!isUser) {
+    throw new ApiError(StatusCodes.BAD_REQUEST, "User doesn't exist!");
+  }
+
   // unlink files here
   if (isExistService?.serviceImages) {
     unlinkFiles(isExistService.serviceImages);
@@ -510,7 +517,13 @@ const activeBlockProviderToDB = async (
     throw new ApiError(StatusCodes.BAD_REQUEST, "Provider doesn't exist!");
   }
 
+  const isUser = await UserModel.findById(isExistService.user);
+  if (!isUser) {
+    throw new ApiError(StatusCodes.BAD_REQUEST, "User doesn't exist!");
+  }
+
   const res = await ProviderModel.findByIdAndUpdate(id, { $set: { isActive: !isExistService?.isActive } }, { new: true });
+  await UserModel.findByIdAndUpdate(iisExistService.user, { $set: { isActive: !isExistService?.isActive } }, { new: true });
 
   return { message: `Provider ${isExistService?.isActive ? 'blocked' : 'unblocked'} successfully!`, data: res };
 };
