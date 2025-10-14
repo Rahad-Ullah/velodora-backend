@@ -151,6 +151,19 @@ const getUserFromDB = async (
   return isExistUser;
 };
 
+//get user profile by admin
+const getEditedUserFromDB = async (
+  id: string
+): Promise<any> => {
+
+  const isExistUser = await UserTempModel.findOne({ref: id});
+  if (!isExistUser) {
+    throw new ApiError(StatusCodes.BAD_REQUEST, "User doesn't exist!");
+  }
+
+  return isExistUser;
+};
+
 //get all users by admin
 const getUsersFromDB = async (
   filterOptions: Record<string, unknown>,
@@ -293,6 +306,7 @@ const updateProfileToDB = async (
       image: image ?? isExistUser.image
     }
     const testUser = await UserTempModel.create(data);
+    await UserModel.findByIdAndUpdate(isExistUser._id, { $set: { isModified: true } }, { new: true });
     return testUser;
 
   } else {
@@ -314,7 +328,7 @@ const approveUpdateProfileToDB = async (
   id: string,
 ): Promise<any> => {
   // console.log("Temp User Id :", id);
-  const isExistUser = await UserTempModel.findById(id);
+  const isExistUser = await UserTempModel.findOne({ ref: id });
   if (!isExistUser) {
     throw new ApiError(StatusCodes.BAD_REQUEST, "User doesn't exist!");
   }
@@ -331,7 +345,8 @@ const approveUpdateProfileToDB = async (
     new: true,
   });
 
-  await UserTempModel.findByIdAndDelete(id);
+  await UserModel.findByIdAndUpdate(id, { $set: { isModified: false } }, { new: true });
+  await UserTempModel.findOneAndDelete({ ref: id });
 
   return updateUser;
 };
@@ -346,6 +361,7 @@ const deleteUpdateProfileToDB = async (
     throw new ApiError(StatusCodes.BAD_REQUEST, "User doesn't exist!");
   }
   isExistUser.image && unlinkFile(isExistUser.image);
+  await UserModel.findByIdAndUpdate(isExistUser.ref, { $set: { isModified: false } }, { new: true });
 
   return isExistUser;
 };
@@ -412,7 +428,7 @@ const giveCreditFromDB = async (id: string, credits: number): Promise<any> => {
   console.log("User Credits: ", isExistUser);
 
   try {
-    const result = await UserModel.findByIdAndUpdate(id, { $set: { credits: isExistUser?.credits + Number(credits) } }, { new: true }); 
+    const result = await UserModel.findByIdAndUpdate(id, { $set: { credits: isExistUser?.credits + Number(credits) } }, { new: true });
     return { message: `${credits} send to ${isExistUser?.name} Successfully`, data: result };
   } catch (error) {
     throw new ApiError(StatusCodes.BAD_REQUEST, "Oops! Failed to send credits.");
@@ -456,6 +472,7 @@ export const UserService = {
   createUsersToDB,
   getUserProfileFromDB,
   getUserFromDB,
+  getEditedUserFromDB,
   getUsersFromDB,
   updateProfileToDB,
   updateUserStatusToDB,

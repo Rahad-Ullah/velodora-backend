@@ -62,6 +62,10 @@ const providerTempSchema = new Schema<TProvider, TProviderModal>(
       type: Boolean,
       default: false,
     },
+    verified: {
+      type: Boolean,
+      default: false,
+    },
     isOnline: {
       type: Boolean,
       default: false,

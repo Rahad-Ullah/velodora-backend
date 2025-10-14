@@ -13,7 +13,9 @@ export type IUser = {
   credits: number;
   isActive?: Boolean;
   verified?: boolean;
+  verifiedService?: boolean;
   isDeleted?: boolean;
+  isModified?: boolean;
   authentication?: {
     isSendOtp: boolean;
     oneTimeCode: number;

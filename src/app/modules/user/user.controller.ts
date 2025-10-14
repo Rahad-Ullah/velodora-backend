@@ -4,7 +4,7 @@ import catchAsync from '../../../shared/catchAsync';
 import { getSingleFilePath } from '../../../shared/getFilePath';
 import sendResponse from '../../../shared/sendResponse';
 import { UserService } from './user.service';
-import { IUser, PartialUserWithRequiredEmail } from './user.interface';
+import { IUser } from './user.interface';
 import { IPaginationMeta, IPaginationOptions } from '../../../types/pagination';
 import pick from '../../../shared/pick';
 
@@ -51,6 +51,19 @@ const getUser = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+// get single user by admin
+const getEditedUser = catchAsync(async (req: Request, res: Response) => {
+  
+  const result = await UserService.getEditedUserFromDB(req.params?.id as string);
+
+  sendResponse(res, {
+    success: true,
+    statusCode: StatusCodes.OK,
+    message: 'Profile data retrieved successfully',
+    data: result,
+  });
+});
+
 // get user profile
 const getUserProfile = catchAsync(async (req: Request, res: Response) => {
   const user = req.user;
@@ -67,7 +80,7 @@ const getUserProfile = catchAsync(async (req: Request, res: Response) => {
 // get all users
 const getUsers = catchAsync(async (req: Request, res: Response) => {
   // 1. Define which query fields are filters
-  const filterableFields = ['searchTerm', 'verified', 'isActive', 'isDeleted', 'fields', 'sort', 'role', 'status'];
+  const filterableFields = ['searchTerm', 'verified', 'isActive', 'verifiedService', 'isModified', 'isDeleted', 'fields', 'sort', 'role', 'status'];
 
   // 2. Pick only allowed filters from req.query
   const filterOptions = pick(req.query, filterableFields);
@@ -248,4 +261,4 @@ const deleteUpdateProfile = catchAsync(
   }
 );
 
-export const UserController = { createUser, createUsers, getUserProfile, getUser, getUsers, updateProfile, deleteProfile, updateUserStatus, deleteUser, getUsersAggregation, approveUpdateProfile, deleteUpdateProfile, activeBlockUser, giveCredits };
+export const UserController = { createUser, createUsers, getUserProfile, getUser, getEditedUser, getUsers, updateProfile, deleteProfile, updateUserStatus, deleteUser, getUsersAggregation, approveUpdateProfile, deleteUpdateProfile, activeBlockUser, giveCredits };

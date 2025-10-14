@@ -54,6 +54,14 @@ const userSchema = new Schema<IUser, TUserModal>(
       type: Boolean,
       default: false,
     },
+    verifiedService: {
+      type: Boolean,
+      default: false,
+    },
+    isModified: {
+      type: Boolean,
+      default: false,
+    },
     isDeleted: {
       type: Boolean,
       default: false,

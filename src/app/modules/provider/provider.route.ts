@@ -68,7 +68,7 @@ router
 
 router
   .route('/approve-edit-provider/:id')
-  .put(
+  .patch(
     auth(USER_ROLES.SUPER_ADMIN, USER_ROLES.ADMIN),
     ProviderController.approveEditProvider
   )
@@ -99,6 +99,13 @@ router
   );
 
 router
+  .route('/user-edited-provider/:id')
+  .get(
+    auth(USER_ROLES.ADMIN, USER_ROLES.SUPER_ADMIN),
+    ProviderController.getUserEditedProvider
+  );
+
+router
   .route('/:id')
   .get(ProviderController.getProvider)
   .put(
@@ -109,8 +116,6 @@ router
     auth(USER_ROLES.PROVIDER, USER_ROLES.SUPER_ADMIN, USER_ROLES.ADMIN),
     ProviderController.deleteProvider
   );
-
-
 
 
 

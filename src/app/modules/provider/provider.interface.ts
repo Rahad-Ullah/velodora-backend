@@ -17,6 +17,7 @@ export type TProvider = {
   serviceImages: [string];
   isRead: boolean;
   isActive: boolean;
+  verified: boolean;
   isOnline?: boolean;
 };
 

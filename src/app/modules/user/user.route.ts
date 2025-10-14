@@ -8,7 +8,7 @@ const router = express.Router();
 
 router
   .route('/user')
-  .post( UserController.createUser );
+  .post(UserController.createUser);
 
 router
   .route('/profile')
@@ -30,16 +30,16 @@ router
 
 router
   .route('/users')
-  .post(
-    auth(USER_ROLES.SUPER_ADMIN, USER_ROLES.ADMIN),
-    UserController.createUsers
-  )
   .get(
     auth(USER_ROLES.SUPER_ADMIN, USER_ROLES.ADMIN),
     UserController.getUsers
-  );
+  )
+  // .post(
+  //   auth(USER_ROLES.SUPER_ADMIN, USER_ROLES.ADMIN),
+  //   UserController.createUsers
+  // )
 
-  
+
 router
   .route('/users/edit-profile/:id')
   .patch(auth(USER_ROLES.SUPER_ADMIN, USER_ROLES.ADMIN), UserController.approveUpdateProfile)
@@ -49,12 +49,16 @@ router
 router
   .route('/users/change-status/:id')
   .patch(auth(USER_ROLES.SUPER_ADMIN, USER_ROLES.ADMIN), UserController.updateUserStatus);
-    
+
 
 router
   .route('/users/:id')
   .delete(auth(USER_ROLES.SUPER_ADMIN, USER_ROLES.ADMIN), UserController.deleteUser)
   .get(auth(USER_ROLES.SUPER_ADMIN, USER_ROLES.ADMIN), UserController.getUser)
+
+router
+  .route('/edited-users/:id')
+  .get(auth(USER_ROLES.SUPER_ADMIN, USER_ROLES.ADMIN), UserController.getEditedUser)
 
 router
   .route('/active-block-users/:id')
@@ -63,7 +67,7 @@ router
 router
   .route('/give-credits/:id')
   .patch(auth(USER_ROLES.SUPER_ADMIN, USER_ROLES.ADMIN), UserController.giveCredits)
-  
+
 // router
 //   .route('/users-aggregation')
 //   .get(

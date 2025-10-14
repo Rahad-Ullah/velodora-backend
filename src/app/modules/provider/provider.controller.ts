@@ -45,6 +45,20 @@ const getProvider = catchAsync(async (req: Request, res: Response) => {
 });
 
 //get my provider
+const getUserEditedProvider = catchAsync(async (req: Request, res: Response) => {
+  const id = req.params.id;
+  console.log("user provider id", id);
+  const result = await ProviderService.getUserEditProviderFromDB(id!);
+
+  sendResponse(res, {
+    success: true,
+    statusCode: StatusCodes.OK,
+    message: 'Service data retrieved successfully',
+    data: result.data,
+  });
+});
+
+//get my provider
 const getUserProvider = catchAsync(async (req: Request, res: Response) => {
   const id = req.params.id;
   console.log("user provider id", id);
@@ -200,4 +214,4 @@ const approveEditProvider = catchAsync(
   }
 );
 
-export const ProviderController = { createProvider, getMyProvider, getUserProvider, getProvider, getProviders, updateProvider, deleteProvider, approveProvider, approveEditProvider, deleteEditProvider, activeBlockProvider };
+export const ProviderController = { createProvider, getMyProvider, getUserProvider, getUserEditedProvider, getProvider, getProviders, updateProvider, deleteProvider, approveProvider, approveEditProvider, deleteEditProvider, activeBlockProvider };
