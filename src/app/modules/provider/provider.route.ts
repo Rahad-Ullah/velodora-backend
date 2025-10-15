@@ -110,7 +110,7 @@ router
   .get(ProviderController.getProvider)
   .put(
     auth(USER_ROLES.SUPER_ADMIN, USER_ROLES.ADMIN),
-    ProviderController.approveEditProvider
+    ProviderController.approveProvider
   )
   .delete(
     auth(USER_ROLES.PROVIDER, USER_ROLES.SUPER_ADMIN, USER_ROLES.ADMIN),

@@ -7,6 +7,7 @@ export default {
   database_url: process.env.DATABASE_URL,
   ip_address: process.env.IP_ADDRESS,
   port: process.env.PORT,
+  frontend_url: process.env.FRONTEND_URL,
   bcrypt_salt_rounds: process.env.BCRYPT_SALT_ROUNDS,
   jwt: {
     jwt_secret: process.env.JWT_SECRET,
@@ -22,5 +23,10 @@ export default {
   super_admin: {
     email: process.env.SUPER_ADMIN_EMAIL,
     password: process.env.SUPER_ADMIN_PASSWORD,
+  },
+  stripe: {
+    secret_key: process.env.STRIPE_SECRET_KEY,
+    public_key: process.env.STRIPE_PUBLIC_KEY,
+    webhook_secret: process.env.STRIPE_WEBHOOK_SECRET,
   },
 };

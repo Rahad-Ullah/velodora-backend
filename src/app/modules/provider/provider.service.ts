@@ -513,7 +513,7 @@ const deleteEditProviderToDB = async (
   id: string
 ): Promise<any> => {
 
-  const isExistProviderTemp = await ProviderTempModel.findByIdAndDelete(id);
+  const isExistProviderTemp = await ProviderTempModel.findOneAndDelete({ user: id });
   if (!isExistProviderTemp) {
     throw new ApiError(StatusCodes.BAD_REQUEST, "Edit Provider doesn't exist!");
   }
@@ -522,35 +522,55 @@ const deleteEditProviderToDB = async (
   if (isExistProviderTemp?.serviceImages) {
     unlinkFiles(isExistProviderTemp.serviceImages);
   }
-  await UserModel.findByIdAndUpdate(isExistProviderTemp.user, { $set: { isModified: false } }, { new: true });
+  await UserModel.findByIdAndUpdate(id, { $set: { isModified: false } }, { new: true });
 
   return { message: "Service deleted successfully!" };
 };
 
-//delete provider
-const approveProviderToDB = async (
-  id: string
-): Promise<any> => {
+// Approve provider
+const approveProviderToDB = async (id: string): Promise<{ message: string }> => {
 
-  const isExistService = await ProviderModel.findByIdAndUpdate(id, { isActive: true }, { new: true });
-  if (!isExistService) {
+  console.log("id", id);
+  // 1. Update provider
+  const updatedProvider = await ProviderModel.findOneAndUpdate(
+    { user: id },
+    { $set: { isActive: true, verified: true } },
+    { new: true }
+  );
+
+  console.log("updatedProvider", updatedProvider);
+
+  if (!updatedProvider) {
     throw new ApiError(StatusCodes.BAD_REQUEST, "Provider doesn't exist!");
   }
 
-  return { message: "Service deleted successfully!" };
+  // 2. Update related user
+  const updatedUser = await UserModel.findByIdAndUpdate(
+    updatedProvider.user,
+    { $set: { isActive: true, verifiedService: true } },
+    { new: true }
+  );
+
+  if (!updatedUser) {
+    throw new ApiError(StatusCodes.BAD_REQUEST, "User doesn't exist!");
+  }
+
+  // 3. Return success message
+  return { message: "Approved successfully!" };
 };
+
 
 //delete provider
 const deleteProviderToDB = async (
   id: string
 ): Promise<any> => {
 
-  const isExistService = await ProviderModel.findByIdAndDelete(id);
+  const isExistService = await ProviderModel.findOneAndDelete({ user: id });
   if (!isExistService) {
     throw new ApiError(StatusCodes.BAD_REQUEST, "Provider doesn't exist!");
   }
 
-  const isUser = await UserModel.findByIdAndDelete(isExistService.user);
+  const isUser = await UserModel.findByIdAndDelete(id);
   if (!isUser) {
     throw new ApiError(StatusCodes.BAD_REQUEST, "User doesn't exist!");
   }
@@ -568,18 +588,20 @@ const activeBlockProviderToDB = async (
   id: string
 ): Promise<any> => {
 
-  const isExistService = await ProviderModel.findById(id);
+  const isExistService = await ProviderModel.findOne({ user: id });
   if (!isExistService) {
     throw new ApiError(StatusCodes.BAD_REQUEST, "Provider doesn't exist!");
   }
 
-  const isUser = await UserModel.findById(isExistService.user);
+  const isUser = await UserModel.findById(id);
   if (!isUser) {
     throw new ApiError(StatusCodes.BAD_REQUEST, "User doesn't exist!");
   }
 
-  const res = await ProviderModel.findByIdAndUpdate(id, { $set: { isActive: !isExistService?.isActive, verified: true } }, { new: true });
-  await UserModel.findByIdAndUpdate(isUser._id, { $set: { verifiedService: !isExistService?.isActive } }, { new: true });
+  const res = await ProviderModel.findByIdAndUpdate(isExistService._id, { $set: { isActive: !isExistService?.isActive, verified: true } }, { new: true });
+  const profile = await UserModel.findByIdAndUpdate(id, { $set: { verifiedService: !isExistService?.isActive } }, { new: true });
+  console.log("Provider", res);
+  console.log("Profile", profile);
 
   return { message: `Provider ${isExistService?.isActive ? 'blocked' : 'unblocked'} successfully!`, data: res };
 };

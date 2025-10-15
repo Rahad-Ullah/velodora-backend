@@ -8,6 +8,8 @@ import { UserModel } from '../user/user.model';
 import { USER_ROLES } from '../../../enums/user';
 import { BOOKING_STATUS } from '../../../enums/booking';
 import { ChatServices } from '../chat/chat.service';
+import stripe from '../../config/stripe.config';
+import config from '../../../config';
 
 
 //create booking to db
@@ -96,8 +98,30 @@ const createBookingToDB = async (payload: {
 
 
   const res = await BookingModel.create(newPayload);
+  // console.log(res);
 
-  return res;
+
+  // Create Stripe Checkout Session //
+  const price = await stripe.prices.create({
+    unit_amount: payload.amount * 100,
+    currency: 'usd'
+  });
+
+  const session = await stripe.checkout.sessions.create({
+    payment_method_types: ['card'],
+    mode: 'payment',
+    success_url: `${config.frontend_url}/success-payment`,
+    cancel_url: `${config.frontend_url}/cancel-payment`,
+    line_items: [{ price: price.id, quantity: 1 }],
+    metadata: {
+      bookingId: res._id.toString(),
+      amount: payload.amount,
+    },
+  });
+
+  return session.url;
+
+  // return res;
 };
 
 
@@ -108,7 +132,7 @@ const acceptBookingToDB = async (id: string, userId: string): Promise<any> => {
   if (!booking) {
     throw new ApiError(StatusCodes.NOT_FOUND, 'Booking not found');
   }
-  if(booking.status !== BOOKING_STATUS.PENDING) {
+  if (booking.status !== BOOKING_STATUS.PENDING) {
     throw new ApiError(StatusCodes.NOT_FOUND, 'Booking is not pending. So you can not accept it');
   }
 
@@ -117,14 +141,14 @@ const acceptBookingToDB = async (id: string, userId: string): Promise<any> => {
     throw new ApiError(StatusCodes.NOT_FOUND, 'Provider not found');
   }
 
-  if(userId !== provider.user.toString()) {
+  if (userId !== provider.user.toString()) {
     throw new ApiError(StatusCodes.UNAUTHORIZED, 'You are not authorized user to accept this booking');
   }
 
   const result = await ChatServices.createChatIntoDB(userId, {
     participants: [booking.user]
   });
-  if(!result) {
+  if (!result) {
     throw new ApiError(StatusCodes.INTERNAL_SERVER_ERROR, 'Accept Booking - Failed to create chat');
   }
 
@@ -138,14 +162,14 @@ const acceptBookingToDB = async (id: string, userId: string): Promise<any> => {
 }
 
 // Accept booking to db
-const completeBookingToDB = async ( userId: string, providerid: string): Promise<any> => {
+const completeBookingToDB = async (userId: string, providerid: string): Promise<any> => {
 
   const user = await UserModel.findById(userId);
   if (!user) {
     throw new ApiError(StatusCodes.NOT_FOUND, 'Booking - User not found');
   }
 
-  const provider = await ProviderModel.findOne({user: providerid});
+  const provider = await ProviderModel.findOne({ user: providerid });
   if (!provider) {
     throw new ApiError(StatusCodes.NOT_FOUND, 'Booking - Provider not found');
   }
@@ -160,7 +184,7 @@ const completeBookingToDB = async ( userId: string, providerid: string): Promise
   }
 
   const result = await ChatServices.deleteChatFromDB(booking.chatId.toString());
-  if(!result) {
+  if (!result) {
     throw new ApiError(StatusCodes.INTERNAL_SERVER_ERROR, 'Complete Booking - Failed to delete chat');
   }
 

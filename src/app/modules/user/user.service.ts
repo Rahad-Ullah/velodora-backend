@@ -356,12 +356,12 @@ const deleteUpdateProfileToDB = async (
   id: string,
 ): Promise<any> => {
 
-  const isExistUser = await UserTempModel.findByIdAndDelete(id);
+  const isExistUser = await UserTempModel.findOneAndDelete({ ref: id });
   if (!isExistUser) {
     throw new ApiError(StatusCodes.BAD_REQUEST, "User doesn't exist!");
   }
   isExistUser.image && unlinkFile(isExistUser.image);
-  await UserModel.findByIdAndUpdate(isExistUser.ref, { $set: { isModified: false } }, { new: true });
+  await UserModel.findByIdAndUpdate(id, { $set: { isModified: false } }, { new: true });
 
   return isExistUser;
 };

@@ -46,6 +46,7 @@
     "node-cron": "^4.2.1",
     "nodemailer": "^6.9.14",
     "socket.io": "^4.8.1",
+    "stripe": "^19.1.0",
     "winston": "^3.13.0",
     "winston-daily-rotate-file": "^5.0.0",
     "zod": "^3.23.8"
