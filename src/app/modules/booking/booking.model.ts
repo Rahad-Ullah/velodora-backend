@@ -1,6 +1,6 @@
 import { Schema, model } from "mongoose";
 import { TBooking, TBookingModel } from "./booking.interface";
-import { BOOKING_STATUS } from "../../../enums/booking";
+import { BOOKING_PAYMENT_STATUS, BOOKING_STATUS } from "../../../enums/booking";
 
 const BookingSchema = new Schema(
   {
@@ -14,6 +14,7 @@ const BookingSchema = new Schema(
     paymentId: { type: String },
     chatId: { type: Schema.Types.ObjectId, ref: "Chat" , default: null},
     status: { type: String, enum: Object.values(BOOKING_STATUS), default: BOOKING_STATUS.PENDING },
+    paymentStatus: { type: String, enum: Object.values(BOOKING_PAYMENT_STATUS), default: BOOKING_PAYMENT_STATUS.UNPAID },
   },
   { timestamps: true }
 );

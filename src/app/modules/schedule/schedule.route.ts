@@ -7,7 +7,7 @@ const router = express.Router();
 router
   .route('/')
   .get(
-    auth(USER_ROLES.PROVIDER),
+    auth(USER_ROLES.PROVIDER, USER_ROLES.USER, USER_ROLES.ADMIN, USER_ROLES.SUPER_ADMIN),
     ScheduleController.getSchedules
   )
   .post(
@@ -29,7 +29,7 @@ router
 router
   .route('/:id')
   .get(
-    auth(USER_ROLES.PROVIDER),
+    auth(USER_ROLES.PROVIDER, USER_ROLES.USER, USER_ROLES.ADMIN, USER_ROLES.SUPER_ADMIN),
     ScheduleController.getSchedule
   )
   .patch(

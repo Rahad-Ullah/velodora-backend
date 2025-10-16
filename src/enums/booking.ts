@@ -4,3 +4,8 @@ export enum BOOKING_STATUS {
   COMPLETED='Completed', 
   CANCELLED='Cancelled'
 }
+
+export enum BOOKING_PAYMENT_STATUS {
+  PAID='Paid',
+  UNPAID='Unpaid'
+}

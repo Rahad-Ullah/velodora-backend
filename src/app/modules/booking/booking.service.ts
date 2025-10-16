@@ -99,29 +99,37 @@ const createBookingToDB = async (payload: {
 
   const res = await BookingModel.create(newPayload);
   // console.log(res);
+  return res;
 
 
   // Create Stripe Checkout Session //
-  const price = await stripe.prices.create({
-    unit_amount: payload.amount * 100,
-    currency: 'usd'
-  });
+  // try {
+  //   // Create Stripe Checkout Session //
+  //   const price = await stripe.prices.create({
+  //     unit_amount: Number(payload.amount) * 100,
+  //     currency: 'usd',
+  //     product_data: {
+  //       name: 'Booking Payment',
+  //     },
+  //   });
 
-  const session = await stripe.checkout.sessions.create({
-    payment_method_types: ['card'],
-    mode: 'payment',
-    success_url: `${config.frontend_url}/success-payment`,
-    cancel_url: `${config.frontend_url}/cancel-payment`,
-    line_items: [{ price: price.id, quantity: 1 }],
-    metadata: {
-      bookingId: res._id.toString(),
-      amount: payload.amount,
-    },
-  });
+  //   const session = await stripe.checkout.sessions.create({
+  //     payment_method_types: ['card'],
+  //     mode: 'payment',
+  //     success_url: `${config.frontend_url}/success-payment`,
+  //     cancel_url: `${config.frontend_url}/cancel-payment`,
+  //     line_items: [{ price: price.id, quantity: 1 }],
+  //     metadata: {
+  //       bookingId: res._id.toString(),
+  //       amount: payload.amount,
+  //       paymentType: 'bookingPayment'
+  //     },
+  //   });
 
-  return session.url;
-
-  // return res;
+  //   return session.url;
+  // } catch (err) {
+  //   throw new ApiError(StatusCodes.INTERNAL_SERVER_ERROR, 'Failed to create stripe checkout session');
+  // }
 };
 
 

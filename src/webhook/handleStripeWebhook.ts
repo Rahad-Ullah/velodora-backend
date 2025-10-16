@@ -2,60 +2,26 @@ import { Request, Response } from 'express';
 import stripe from '../app/config/stripe.config';
 import config from '../config';
 import Stripe from 'stripe';
-import { Payment } from '../app/modules/payment/payment.model';
-import { randomUUID } from 'crypto';
-import { GiftCard } from '../app/modules/giftcard/gift-card.model';
+import { BookingModel } from '../app/modules/booking/booking.model';
+import { BOOKING_PAYMENT_STATUS } from '../enums/booking';
 
 
 
 const handlePaymentSuccess = async (session: Stripe.Checkout.Session) => {
       const { metadata } = session;
+      console.log('metadata', metadata);
 
-      if (metadata?.paymentType === 'giftCard') {
-            const claimToken = randomUUID();
-            await Payment.create({
-                  // userId: metadata?.userId,
-                  giftCardId: metadata?.giftCardId,
-                  paymentIntentId: session.payment_intent as string,
-                  amount: (session.amount_total! / 100) as number,
-                  transactionId: session.id,
-                  status: 'paid',
-                  claimToken,
+      if (metadata?.paymentType === 'bookingPayment') {
+            await BookingModel.findByIdAndUpdate(metadata?.bookingId, {
+                  $set: { paymentStatus: BOOKING_PAYMENT_STATUS.PAID },
             });
-
-            await GiftCard.findByIdAndUpdate(metadata?.giftCardId, {
-                  $set: {
-                        paymentStatus: 'paid',
-                  },
-            });
-      }
-
-      if (metadata?.paymentType === 'contribution') {
-            const addedContributionAmount = await Payment.findOneAndUpdate(
-                  {
-                        giftCardId: metadata?.giftCardId,
-                  },
-                  {
-                        $inc: {
-                              totalContribution: metadata?.amount,
-                        },
-                        $push: {
-                              contributors: {
-                                    email: metadata?.contributorEmail,
-                                    amount: metadata?.amount,
-                              },
-                        },
-                  },
-                  {
-                        new: true,
-                        upsert: true,
-                  }
-            );
       }
 
       return;
 };
+
 const handleStripeWebhook = async (req: Request, res: Response) => {
+      console.log('req.body', req.body);
       const signature = req.headers['stripe-signature'];
       if (!signature) {
             return res.status(400).json({ error: 'Missing stripe-signature header' });

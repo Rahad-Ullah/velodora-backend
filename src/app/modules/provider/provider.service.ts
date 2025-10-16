@@ -148,6 +148,12 @@ const getUserEditProviderFromDB = async (id: string): Promise<any> => {
 const getProviderFromDB = async (id: string): Promise<any> => {
   const isExistService = await ProviderModel.aggregate([
     { $match: { _id: new Types.ObjectId(id) } },
+    { $lookup: { from: 'users', localField: 'user', foreignField: '_id', as: 'user',
+      pipeline: [
+        { $project: { name: 1, email: 1, contact: 1, image: 1 } }
+      ]
+     } },
+    { $unwind: { path: '$user', preserveNullAndEmptyArrays: true } },
     {
       $lookup: {
         from: 'services', localField: 'services', foreignField: '_id', as: 'services',
@@ -558,7 +564,6 @@ const approveProviderToDB = async (id: string): Promise<{ message: string }> => 
   // 3. Return success message
   return { message: "Approved successfully!" };
 };
-
 
 //delete provider
 const deleteProviderToDB = async (
