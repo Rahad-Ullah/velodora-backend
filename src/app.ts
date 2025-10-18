@@ -9,7 +9,7 @@ import "./util/cleanupDaily";
 import handleStripeWebhook from './webhook/handleStripeWebhook';
 
 
-app.use('/api/v1/stripe/webhook', express.raw({ type: 'application/json' }), handleStripeWebhook);
+app.post('/api/v1/stripe/webhook', express.raw({ type: 'application/json' }), handleStripeWebhook);
 
 //morgan
 app.use(Morgan.successHandler);

@@ -86,57 +86,6 @@ const openCloseScheduleToDB = async (id: string): Promise<any> => {
 };
 
 //get schedules to db
-// const getSchedulesToDB = async (providerId: string, date?: Date): Promise<any> => {
-//   console.log("providerId in schedule service: ", providerId);
-
-//   const provider = await ProviderModel.findOne({ user: providerId });
-
-//   if (!provider) {
-//     throw new ApiError(StatusCodes.NOT_FOUND, 'Provider not found');
-//   }
-//   // console.log("provider in schedule service: ", provider);
-
-//   const schedules = await ScheduleModel.aggregate([
-//     {
-//       $match: {
-//         provider: new mongoose.Types.ObjectId(provider._id),
-//       }
-//     },
-//     {
-//       $lookup: {
-//         from: 'providers',
-//         localField: 'provider',
-//         foreignField: '_id',
-//         as: 'provider',
-//         pipeline: [
-//           {
-//             $match: { ref: { $exists: false } }
-//           }
-//         ]
-//       }
-//     },
-//     {
-//       $unwind: "$provider"
-//     },
-//     {
-//       $project: {
-//         date: 1,
-//         startTime: 1,
-//         endTime: 1,
-//         duration: 1,
-//         count: 1
-//       }
-//     }
-//   ]);
-
-//   if (schedules.length <= 0) {
-//     throw new ApiError(StatusCodes.NOT_FOUND, 'Schedules not found');
-//   }
-
-//   return {data: schedules};
-// };
-
-
 export const getSchedulesToDB = async (providerId: string, date?: string): Promise<any> => {
   console.log("providerId in schedule service:", providerId);
 
@@ -208,9 +157,53 @@ export const getSchedulesToDB = async (providerId: string, date?: string): Promi
 };
 
 
+//get schedule by date to db
+export const getSchedulesByDateToDB = async (
+  providerId: string,
+  date?: string
+): Promise<any> => {
+  console.log("providerId in schedule service:", providerId);
+
+  const provider = await ProviderModel.findOne({ _id: providerId });
+
+  if (!provider) {
+    throw new ApiError(StatusCodes.NOT_FOUND, "Provider not found");
+  }
+
+  // 🕒 Handle date safely (default to today if no date is provided)
+  const d = date ? new Date(date) : new Date();
+  const startOfDay = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0);
+  const endOfDay = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1, 0, 0, 0);
+
+  console.log("Schedule Date Range:", startOfDay, "to", endOfDay);
+
+  const schedules = await ScheduleModel.aggregate([
+    {
+      $match: {
+        provider: provider._id,
+        date: {
+          $gte: startOfDay,
+          $lt: endOfDay
+        }
+      }
+    }
+  ]);
+
+  if (!schedules || schedules.length === 0) {
+    throw new ApiError(
+      StatusCodes.NOT_FOUND,
+      "Schedules not found for the given date"
+    );
+  }
+
+  return { data: schedules[0] };
+};
+
+
 export const ScheduleService = {
   createScheduleToDB,
   getScheduleToDB,
   getSchedulesToDB,
   openCloseScheduleToDB,
+  getSchedulesByDateToDB,
 };

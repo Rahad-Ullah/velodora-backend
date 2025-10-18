@@ -1,5 +1,5 @@
 import { Model, Types } from "mongoose";
-import { BOOKING_STATUS } from "../../../enums/booking";
+import { BOOKING_PAYMENT_STATUS, BOOKING_STATUS } from "../../../enums/booking";
 
 export type TBooking = {
   user: Types.ObjectId;
@@ -12,6 +12,7 @@ export type TBooking = {
   paymentId: string;
   chatId: Types.ObjectId;
   status: BOOKING_STATUS;
+  paymentStatus: BOOKING_PAYMENT_STATUS;
 };
 
 export type TBookingModel = Model<TBooking>;

@@ -6,10 +6,43 @@ import { ProviderModel } from '../provider/provider.model';
 import { ScheduleModel } from '../schedule/schedule.model';
 import { UserModel } from '../user/user.model';
 import { USER_ROLES } from '../../../enums/user';
-import { BOOKING_STATUS } from '../../../enums/booking';
+import { BOOKING_PAYMENT_STATUS, BOOKING_STATUS } from '../../../enums/booking';
 import { ChatServices } from '../chat/chat.service';
 import stripe from '../../config/stripe.config';
 import config from '../../../config';
+
+
+// Create Stripe Checkout Session //
+const stripePaymentToDB = async (): Promise<any> => {
+  // Create Stripe Checkout Session //
+  try {
+    // Create Stripe Checkout Session //
+    const price = await stripe.prices.create({
+      unit_amount: Number(10) * 100,
+      currency: 'usd',
+      product_data: {
+        name: 'Booking Payment',
+      },
+    });
+
+    const session = await stripe.checkout.sessions.create({
+      payment_method_types: ['card'],
+      mode: 'payment',
+      success_url: `${config.frontend_url}/success-payment`,
+      cancel_url: `${config.frontend_url}/cancel-payment`,
+      line_items: [{ price: price.id, quantity: 1 }],
+      metadata: {
+        bookingId: "68f25bae247ed432390a7606",
+        amount: 10,
+        paymentType: 'bookingPayment'
+      },
+    });
+
+    return session.url;
+  } catch (err) {
+    throw new ApiError(StatusCodes.INTERNAL_SERVER_ERROR, 'Failed to create stripe checkout session');
+  }
+}
 
 
 //create booking to db
@@ -99,37 +132,45 @@ const createBookingToDB = async (payload: {
 
   const res = await BookingModel.create(newPayload);
   // console.log(res);
-  return res;
+  // return res;
+
+
+  // const TEN_MINUTES = 2 * 60 * 1000;
+
+  // setTimeout(() => {
+  //   autoCancelBookingToDB(res._id.toString());
+  // }, TEN_MINUTES);
 
 
   // Create Stripe Checkout Session //
-  // try {
-  //   // Create Stripe Checkout Session //
-  //   const price = await stripe.prices.create({
-  //     unit_amount: Number(payload.amount) * 100,
-  //     currency: 'usd',
-  //     product_data: {
-  //       name: 'Booking Payment',
-  //     },
-  //   });
+  try {
+    // Create Stripe Checkout Session //
+    const price = await stripe.prices.create({
+      unit_amount: Number(payload.amount) * 100,
+      currency: 'usd',
+      product_data: {
+        name: 'Booking Payment',
+      },
+    });
 
-  //   const session = await stripe.checkout.sessions.create({
-  //     payment_method_types: ['card'],
-  //     mode: 'payment',
-  //     success_url: `${config.frontend_url}/success-payment`,
-  //     cancel_url: `${config.frontend_url}/cancel-payment`,
-  //     line_items: [{ price: price.id, quantity: 1 }],
-  //     metadata: {
-  //       bookingId: res._id.toString(),
-  //       amount: payload.amount,
-  //       paymentType: 'bookingPayment'
-  //     },
-  //   });
+    const session = await stripe.checkout.sessions.create({
+      payment_method_types: ['card'],
+      mode: 'payment',
+      success_url: `${config.frontend_url}/success-payment`,
+      cancel_url: `${config.frontend_url}/cancel-payment`,
+      line_items: [{ price: price.id, quantity: 1 }],
+      metadata: {
+        bookingId: res._id.toString(),
+        amount: payload.amount,
+        paymentType: 'bookingPayment'
+      },
+    });
 
-  //   return session.url;
-  // } catch (err) {
-  //   throw new ApiError(StatusCodes.INTERNAL_SERVER_ERROR, 'Failed to create stripe checkout session');
-  // }
+
+    return session.url;
+  } catch (err) {
+    throw new ApiError(StatusCodes.INTERNAL_SERVER_ERROR, 'Failed to create stripe checkout session');
+  }
 };
 
 
@@ -212,6 +253,37 @@ const completeBookingToDB = async (userId: string, providerid: string): Promise<
 
 
 // Cancel Booking to db
+const autoCancelBookingToDB = async (id: string) => {
+
+  const booking = await BookingModel.findById(id);
+  if (!booking) {
+    throw new ApiError(StatusCodes.NOT_FOUND, 'Auto Cancel - Booking not found');
+  }
+
+  if (booking.paymentStatus === BOOKING_PAYMENT_STATUS.PAID) {
+    return;
+  }
+
+  const provider = await ProviderModel.findById(booking.provider);
+  if (!provider) {
+    throw new ApiError(StatusCodes.NOT_FOUND, 'Auto Cancel - Provider not found');
+  }
+
+  const schedule = await ScheduleModel.findById(booking.schedule);
+  if (!schedule) {
+    throw new ApiError(StatusCodes.NOT_FOUND, 'Auto Cancel - Schedule not found');
+  }
+
+  schedule.available_slots.push(...booking.slots);
+  schedule.count = schedule.count - 1;
+  await schedule.save();
+
+  booking.status = BOOKING_STATUS.CANCELLED;
+  await booking.save();
+  throw new ApiError(StatusCodes.OK, 'Auto Cancel - Booking cancelled successfully');
+}
+
+// Cancel Booking to db
 const cancelBookingToDB = async (id: string, userId: string): Promise<any> => {
   const user = await UserModel.findById(userId);
 
@@ -263,7 +335,132 @@ const cancelBookingToDB = async (id: string, userId: string): Promise<any> => {
 // get all bookings to db
 const getBookingToDB = async (id: string): Promise<any> => {
 
-  const res = await BookingModel.findById(id).populate('user', 'name email image location').populate('provider', 'aboutMe serviceLanguage primaryLocation pricePerHour serviceImages isOnline');
+  const res = await BookingModel.aggregate([
+    {
+      $match: {
+        _id: new Types.ObjectId(id),
+      },
+    },
+    {
+      $lookup: {
+        from: 'services',
+        localField: 'services',
+        foreignField: '_id',
+        as: 'services',
+        pipeline: [
+          {
+            $lookup: {
+              from: 'categories',
+              localField: 'category',
+              foreignField: '_id',
+              as: 'category',
+              pipeline: [
+                {
+                  $project: {
+                    name: 1,
+                  }
+                },
+                {
+                  $unwind: {
+                    path: '$name',
+                    preserveNullAndEmptyArrays: true,
+                  }
+                }
+
+              ]
+            },
+          },
+          {
+            $unwind: {
+              path: '$category',
+              preserveNullAndEmptyArrays: true,
+            }
+          },
+          {
+            $project: {
+              name: 1,
+              category: 1,
+            }
+          }
+        ]
+      }
+    },
+    {
+      $lookup: {
+        from: 'users',
+        localField: 'user',
+        foreignField: '_id',
+        as: 'user',
+        pipeline: [
+          {
+            $project: {
+              name: 1,
+              image: 1,
+              location: 1,
+            }
+          }
+        ]
+      }
+    },
+    {
+      $unwind: {
+        path: '$user',
+        preserveNullAndEmptyArrays: true,
+      }
+    },
+    {
+      $lookup: {
+        from: 'providers',
+        localField: 'provider',
+        foreignField: '_id',
+        as: 'provider',
+        pipeline: [
+          {
+            $lookup: {
+              from: 'users',
+              localField: 'user',
+              foreignField: '_id',
+              as: 'user',
+              pipeline: [
+                {
+                  $project: {
+                    name: 1,
+                    image: 1,
+                  }
+                }
+              ]
+            },
+
+          },
+          {
+            $unwind: {
+              path: '$user',
+              preserveNullAndEmptyArrays: true,
+            }
+          },
+          {
+            $addFields: {
+              "name": "$user.name",
+              "image": "$user.image",
+            }
+          },
+          {
+            $project: {
+              name: 1,
+              image: 1,
+              primaryLocation: 1,
+            }
+          }
+        ]
+      }
+    },
+    {
+      $unwind: {
+        path: '$provider',
+        preserveNullAndEmptyArrays: true,
+      }
+    }
+  ]);
 
 
   return res;
@@ -280,11 +477,11 @@ const getBookingsToDB = async (id: string, query: any): Promise<any> => {
   let matchUserProvider: any = {}
 
   if (user.role === USER_ROLES.USER) {
-    console.log("Booking User", user);
+    // console.log("Booking User", user);
     matchUserProvider = { user: new Types.ObjectId(id) }
 
   } else if (user.role === USER_ROLES.PROVIDER) {
-    console.log("Booking Provider", user);
+    // console.log("Booking Provider", user);
     const provider = await ProviderModel.findOne({ user: new Types.ObjectId(id) });
     if (!provider) {
       throw new ApiError(StatusCodes.NOT_FOUND, 'Provider not found');
@@ -303,6 +500,125 @@ const getBookingsToDB = async (id: string, query: any): Promise<any> => {
   const res = await BookingModel.aggregate([
     {
       $match: matchUserProvider
+    },
+    {
+      $lookup: {
+        from: 'services',
+        localField: 'services',
+        foreignField: '_id',
+        as: 'services',
+        pipeline: [
+          {
+            $lookup: {
+              from: 'categories',
+              localField: 'category',
+              foreignField: '_id',
+              as: 'category',
+              pipeline: [
+                {
+                  $project: {
+                    name: 1,
+                  }
+                },
+                {
+                  $unwind: {
+                    path: '$name',
+                    preserveNullAndEmptyArrays: true,
+                  }
+                }
+
+              ]
+            },
+          },
+          {
+            $unwind: {
+              path: '$category',
+              preserveNullAndEmptyArrays: true,
+            }
+          },
+          {
+            $project: {
+              name: 1,
+              category: 1,
+            }
+          }
+        ]
+      }
+    },
+    {
+      $lookup: {
+        from: 'users',
+        localField: 'user',
+        foreignField: '_id',
+        as: 'user',
+        pipeline: [
+          {
+            $project: {
+              name: 1,
+              image: 1,
+              location: 1,
+            }
+          }
+        ]
+      }
+    },
+    {
+      $unwind: {
+        path: '$user',
+        preserveNullAndEmptyArrays: true,
+      }
+    },
+    {
+      $lookup: {
+        from: 'providers',
+        localField: 'provider',
+        foreignField: '_id',
+        as: 'provider',
+        pipeline: [
+          {
+            $lookup: {
+              from: 'users',
+              localField: 'user',
+              foreignField: '_id',
+              as: 'user',
+              pipeline: [
+                {
+                  $project: {
+                    name: 1,
+                    image: 1,
+                  }
+                }
+              ]
+            },
+
+          },
+          {
+            $unwind: {
+              path: '$user',
+              preserveNullAndEmptyArrays: true,
+            }
+          },
+          {
+            $addFields: {
+              "name": "$user.name",
+              "image": "$user.image",
+            }
+          },
+          {
+            $project: {
+              name: 1,
+              image: 1,
+              primaryLocation: 1,
+            }
+          }
+        ]
+      }
+    },
+    {
+      $unwind: {
+        path: '$provider',
+        preserveNullAndEmptyArrays: true,
+      }
     }
   ])
 
@@ -316,5 +632,6 @@ export const BookingService = {
   cancelBookingToDB,
   acceptBookingToDB,
   getBookingToDB,
-  completeBookingToDB
+  completeBookingToDB,
+  stripePaymentToDB
 };

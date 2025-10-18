@@ -68,6 +68,21 @@ const getProviderSchedules = catchAsync(
 );
 
 //create service controller
+const getSchedulesDate = catchAsync(
+  async (req: Request, res: Response) => {
+    // const providerId = req.user.id;
+ 
+    const result = await ScheduleService.getSchedulesByDateToDB(req.params.id, req.query.date as string);
+
+    sendResponse(res, {
+      success: true,
+      statusCode: StatusCodes.OK,
+      data: result.data,
+    });
+  }
+);
+
+//create service controller
 const getSchedules = catchAsync(
   async (req: Request, res: Response) => {
     // const providerId = req.user.id;
@@ -83,4 +98,4 @@ const getSchedules = catchAsync(
 );
 
 
-export const ScheduleController = { createSchedule, getSchedule, getSchedules, getProviderSchedules, openCloseSchedule };
+export const ScheduleController = { createSchedule, getSchedule, getSchedules, getProviderSchedules, openCloseSchedule, getSchedulesDate };

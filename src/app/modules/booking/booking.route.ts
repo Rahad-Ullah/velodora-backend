@@ -18,6 +18,22 @@ router
     BookingController.createBooking
   );
 
+
+
+router.patch('/complete-booking/:id',
+  auth(USER_ROLES.USER),
+  BookingController.completeBooking
+)
+
+router.get('/order-history/:id',
+  auth(USER_ROLES.ADMIN, USER_ROLES.SUPER_ADMIN),
+  BookingController.getBookingsByAdmin
+)
+
+router.post('/stripe-payment',
+  BookingController.stripePayment
+)
+
 router
   .route('/:id')
   .get(
@@ -33,15 +49,6 @@ router
     BookingController.cancelBooking
   );
 
-router.patch('/complete-booking/:id',
-  auth(USER_ROLES.USER),
-  BookingController.completeBooking
-)
-
-router.get('/order-history/:id',
-  auth(USER_ROLES.ADMIN, USER_ROLES.SUPER_ADMIN),
-  BookingController.getBookingsByAdmin
-)
 
 
 export const BookingRoutes = router;

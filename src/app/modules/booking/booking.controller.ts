@@ -6,6 +6,21 @@ import { BookingService } from './booking.service';
 
 
 //create service controller
+const stripePayment = catchAsync(
+  async (req: Request, res: Response) => {    
+ 
+    const result = await BookingService.stripePaymentToDB();
+
+    sendResponse(res, {
+      success: true,
+      statusCode: StatusCodes.OK,
+      message: "Payment success",
+      data: result
+    });
+  }
+);
+
+//create service controller
 const createBooking = catchAsync(
   async (req: Request, res: Response) => {
     const user = req.user.id;
@@ -122,4 +137,4 @@ const getBookingsByAdmin = catchAsync(
 );
 
 
-export const BookingController = { createBooking, getBookings, cancelBooking, acceptBooking, getBooking, completeBooking, getBookingsByAdmin };
+export const BookingController = { createBooking, getBookings, cancelBooking, acceptBooking, getBooking, completeBooking, getBookingsByAdmin, stripePayment };
