@@ -28,8 +28,8 @@ const stripePaymentToDB = async (): Promise<any> => {
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
       mode: 'payment',
-      success_url: `${config.frontend_url}/success-payment`,
-      cancel_url: `${config.frontend_url}/cancel-payment`,
+      success_url: `${config.frontend_url}/payment-success`,
+      cancel_url: `${config.frontend_url}/payment-failed`,
       line_items: [{ price: price.id, quantity: 1 }],
       metadata: {
         bookingId: "68f25bae247ed432390a7606",
