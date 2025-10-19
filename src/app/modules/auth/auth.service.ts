@@ -50,14 +50,22 @@ const loginUserFromDB = async (payload: ILoginData) => {
     throw new ApiError(StatusCodes.BAD_REQUEST, 'Password is incorrect!');
   }
 
+  const jwtPayload = { id: isExistUser._id, role: isExistUser.role, email: isExistUser.email };
+
   //create token
   const createToken = jwtHelper.createToken(
-    { id: isExistUser._id, role: isExistUser.role, email: isExistUser.email },
+    jwtPayload,
     config.jwt.jwt_secret as Secret,
     config.jwt.jwt_expire_in as string
   );
 
-  return { createToken };
+  const refreshToken = jwtHelper.createToken(
+    jwtPayload,
+    config.jwt.jwt_refresh_secret as Secret,
+    config.jwt.jwt_refresh_expire_in as string
+  );
+
+  return { createToken, refreshToken, id: isExistUser._id };
 };
 
 //send otp
@@ -324,6 +332,42 @@ const changePasswordToDB = async (
   await UserModel.findOneAndUpdate({ _id: user.id }, updateData, { new: true });
 };
 
+// Refresh token
+const refreshTokenToDB = async (token: string) => {
+  console.log('token====>', token);
+  if (!token) {
+    throw new ApiError(StatusCodes.BAD_REQUEST, 'Token not found');
+  }
+
+  const decoded = jwtHelper.verifyToken(
+    token,
+    config.jwt.jwt_refresh_secret as string,
+  );
+
+  // console.log('decoded====>', decoded);
+  const { email } = decoded;
+  
+  const activeUser = await UserModel.findOne({ email, isActive: true });
+
+
+  if (!activeUser) {
+    throw new ApiError(StatusCodes.NOT_FOUND, 'User not found');
+  }
+
+  const jwtPayload = { id: activeUser._id, role: activeUser.role, email: activeUser.email };
+  
+  const accessToken = jwtHelper.createToken(
+    jwtPayload,
+    config.jwt.jwt_secret as Secret,
+    config.jwt.jwt_expire_in as string
+  );
+
+  return {
+    accessToken,
+    refreshToken: token,
+  };
+};
+
 export const AuthService = {
   verifyAccountToDB,
   verifyOtpToDB,
@@ -331,4 +375,5 @@ export const AuthService = {
   sendOtpToDB,
   resetPasswordToDB,
   changePasswordToDB,
+  refreshTokenToDB,
 };

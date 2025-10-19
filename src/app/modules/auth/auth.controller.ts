@@ -37,7 +37,9 @@ const loginUser = catchAsync(async (req: Request, res: Response) => {
     statusCode: StatusCodes.OK,
     message: 'User logged in successfully.',
     data: {
-      accessToken: result?.createToken
+      accessToken: result?.createToken,
+      // refreshToken: result?.refreshToken,
+      id: result?.id,
     },
   });
 });
@@ -80,6 +82,23 @@ const changePassword = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+const refreshToken = catchAsync(async (req: Request, res: Response) => {
+  const token = req.get('refreshtoken');
+  console.log("refresh token : ", token);
+  
+  const result = await AuthService.refreshTokenToDB(token as string);
+
+  sendResponse(res, {
+    success: true,
+    statusCode: StatusCodes.OK,
+    message: 'Token refreshed successfully',
+    data: {
+      accessToken: result?.accessToken,
+      refreshToken: result?.refreshToken || '',
+    },
+  });
+});
+
 export const AuthController = {
   verifyAccount,
   verifyOtp,
@@ -87,4 +106,5 @@ export const AuthController = {
   sendOtp,
   resetPassword,
   changePassword,
+  refreshToken,
 };

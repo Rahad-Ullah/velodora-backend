@@ -7,7 +7,7 @@ import handleZodError from '../../errors/handleZodError';
 import { errorLogger } from '../../shared/logger';
 import { IErrorMessage } from '../../types/errors.types';
 import { getMultipleFilesPath } from '../../shared/getFilePath';
-import { unlinkFiles} from '../../shared/unlinkFile';
+import { unlinkFiles } from '../../shared/unlinkFile';
 
 const globalErrorHandler: ErrorRequestHandler = (error, req, res, next) => {
   config.node_env === 'development'
@@ -25,7 +25,7 @@ const globalErrorHandler: ErrorRequestHandler = (error, req, res, next) => {
     errorMessages = simplifiedError.errorMessages;
 
     // unlink uploaded files if validation error occurs
-    if(req.files && Object.keys(req.files).length > 0){
+    if (req.files && Object.keys(req.files).length > 0) {
       const filePaths = getMultipleFilesPath(req.files, 'serviceImages') || [];
       unlinkFiles(filePaths);
     }

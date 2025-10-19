@@ -1,13 +1,10 @@
-// util/cleanupDaily.ts
 import cron from "node-cron";
-import { UserService } from "../app/modules/user/user.service";
+import { autoCancelBookings } from "../cleanUp/autoCancelBooking";
 
-// Run every day at midnight
-cron.schedule("0 0 * * *", async () => {
-  console.log("🧹 Running cleanup job...");
-  
+cron.schedule("* * * * *", async () => {
+  console.log("🧹 Running auto cancel job...");
   try {
-    await UserService.hardDeleteUsersFromDB();
+    await autoCancelBookings();
   } catch (err) {
     console.error("❌ Error in cleanup job:", err);
   }

@@ -253,35 +253,35 @@ const completeBookingToDB = async (userId: string, providerid: string): Promise<
 
 
 // Cancel Booking to db
-const autoCancelBookingToDB = async (id: string) => {
+// const autoCancelBookingToDB = async (id: string) => {
 
-  const booking = await BookingModel.findById(id);
-  if (!booking) {
-    throw new ApiError(StatusCodes.NOT_FOUND, 'Auto Cancel - Booking not found');
-  }
+//   const booking = await BookingModel.findById(id);
+//   if (!booking) {
+//     throw new ApiError(StatusCodes.NOT_FOUND, 'Auto Cancel - Booking not found');
+//   }
 
-  if (booking.paymentStatus === BOOKING_PAYMENT_STATUS.PAID) {
-    return;
-  }
+//   if (booking.paymentStatus === BOOKING_PAYMENT_STATUS.PAID) {
+//     return;
+//   }
 
-  const provider = await ProviderModel.findById(booking.provider);
-  if (!provider) {
-    throw new ApiError(StatusCodes.NOT_FOUND, 'Auto Cancel - Provider not found');
-  }
+//   const provider = await ProviderModel.findById(booking.provider);
+//   if (!provider) {
+//     throw new ApiError(StatusCodes.NOT_FOUND, 'Auto Cancel - Provider not found');
+//   }
 
-  const schedule = await ScheduleModel.findById(booking.schedule);
-  if (!schedule) {
-    throw new ApiError(StatusCodes.NOT_FOUND, 'Auto Cancel - Schedule not found');
-  }
+//   const schedule = await ScheduleModel.findById(booking.schedule);
+//   if (!schedule) {
+//     throw new ApiError(StatusCodes.NOT_FOUND, 'Auto Cancel - Schedule not found');
+//   }
 
-  schedule.available_slots.push(...booking.slots);
-  schedule.count = schedule.count - 1;
-  await schedule.save();
+//   schedule.available_slots.push(...booking.slots);
+//   schedule.count = schedule.count - 1;
+//   await schedule.save();
 
-  booking.status = BOOKING_STATUS.CANCELLED;
-  await booking.save();
-  throw new ApiError(StatusCodes.OK, 'Auto Cancel - Booking cancelled successfully');
-}
+//   booking.status = BOOKING_STATUS.CANCELLED;
+//   await booking.save();
+//   throw new ApiError(StatusCodes.OK, 'Auto Cancel - Booking cancelled successfully');
+// }
 
 // Cancel Booking to db
 const cancelBookingToDB = async (id: string, userId: string): Promise<any> => {

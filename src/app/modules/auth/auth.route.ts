@@ -54,4 +54,9 @@ router.patch(
   AuthController.changePassword
 );
 
+router.get(
+  '/refresh-token',
+  AuthController.refreshToken
+);
+
 export const AuthRoutes = router;

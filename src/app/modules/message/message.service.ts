@@ -20,11 +20,19 @@ const createMessage = async (payload: IMessage): Promise<IMessage> => {
   if (!isChatExist) throw new Error('ChatModel not found or deleted');
 
   const result = await MessageModel.create(payload);
+  if (!result) {
+    throw new ApiError(400, 'Failed to create message');
+  };
+  // console.log("message result", result);
+  
+  const msgResponse = await MessageModel.findById(result._id).populate('sender', { role: 1, name: 1, image: 1 });
+  if(!msgResponse) throw new ApiError(400, 'Failed to get message');
+  // console.log("Message Response", msgResponse);
 
   // emit socket event for new message
   const io = global.io;
   if (io) {
-    io.emit(`getMessage::${payload.chat}`, result);
+    io.emit(`getMessage::${payload.chat}`, msgResponse);
   }
 
   // Find the receiver(s): all participants except the sender
