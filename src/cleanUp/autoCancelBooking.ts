@@ -42,10 +42,14 @@ export const autoCancelBookings = async () => {
     await schedule.save();
 
     // ❌ Cancel booking
-    booking.status = BOOKING_STATUS.AUTO_CANCELLED;
-    await booking.save();
+    // booking.status = BOOKING_STATUS.AUTO_CANCELLED;
+    const result = await BookingModel.findByIdAndDelete(booking._id);
+    if (!result) {
+      console.warn(`⚠️ Booking ${booking._id} not found.`);
+      continue;
+    }
 
-    console.log(`✅ Booking ${booking._id} cancelled.`);
+    console.log(`✅ Booking ${booking._id} Deleted.`);
   }
 
   console.log(`🧹 Auto cancel completed.`);

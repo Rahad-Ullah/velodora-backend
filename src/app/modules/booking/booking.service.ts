@@ -156,8 +156,8 @@ const createBookingToDB = async (payload: {
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
       mode: 'payment',
-      success_url: `${config.frontend_url}/success-payment`,
-      cancel_url: `${config.frontend_url}/cancel-payment`,
+      success_url: `${config.frontend_url}/payment-success`,
+      cancel_url: `${config.frontend_url}/payment-failed`,
       line_items: [{ price: price.id, quantity: 1 }],
       metadata: {
         bookingId: res._id.toString(),
@@ -253,37 +253,6 @@ const completeBookingToDB = async (userId: string, providerid: string): Promise<
 
 
 // Cancel Booking to db
-// const autoCancelBookingToDB = async (id: string) => {
-
-//   const booking = await BookingModel.findById(id);
-//   if (!booking) {
-//     throw new ApiError(StatusCodes.NOT_FOUND, 'Auto Cancel - Booking not found');
-//   }
-
-//   if (booking.paymentStatus === BOOKING_PAYMENT_STATUS.PAID) {
-//     return;
-//   }
-
-//   const provider = await ProviderModel.findById(booking.provider);
-//   if (!provider) {
-//     throw new ApiError(StatusCodes.NOT_FOUND, 'Auto Cancel - Provider not found');
-//   }
-
-//   const schedule = await ScheduleModel.findById(booking.schedule);
-//   if (!schedule) {
-//     throw new ApiError(StatusCodes.NOT_FOUND, 'Auto Cancel - Schedule not found');
-//   }
-
-//   schedule.available_slots.push(...booking.slots);
-//   schedule.count = schedule.count - 1;
-//   await schedule.save();
-
-//   booking.status = BOOKING_STATUS.CANCELLED;
-//   await booking.save();
-//   throw new ApiError(StatusCodes.OK, 'Auto Cancel - Booking cancelled successfully');
-// }
-
-// Cancel Booking to db
 const cancelBookingToDB = async (id: string, userId: string): Promise<any> => {
   const user = await UserModel.findById(userId);
 
@@ -330,6 +299,100 @@ const cancelBookingToDB = async (id: string, userId: string): Promise<any> => {
 
   return res;
 }
+
+
+// get overview from db
+// get overview from db
+const getOverviewFromDB = async (
+  id: string,
+  filter?: { year?: number; month?: number; day?: number }
+): Promise<any> => {
+  const provider = await ProviderModel.findOne({ user: id });
+  if (!provider) {
+    throw new ApiError(StatusCodes.NOT_FOUND, "Provider not found");
+  }
+
+  const matchConditions: any = { provider: provider._id };
+
+  // ✅ Only add $expr if any date filter is provided
+  if (filter?.year || filter?.month || filter?.day) {
+    matchConditions.$expr = { $and: [] };
+
+    if (filter.year) {
+      matchConditions.$expr.$and.push({
+        $eq: [{ $year: "$date" }, filter.year],
+      });
+    }
+
+    if (filter.month) {
+      matchConditions.$expr.$and.push({
+        $eq: [{ $month: "$date" }, filter.month],
+      });
+    }
+
+    if (filter.day) {
+      matchConditions.$expr.$and.push({
+        $eq: [{ $dayOfMonth: "$date" }, filter.day],
+      });
+    }
+
+    // If only one condition exists, $and is not required
+    if (matchConditions.$expr.$and.length === 1) {
+      matchConditions.$expr = matchConditions.$expr.$and[0];
+    }
+  }
+
+  const overview = await BookingModel.aggregate([
+    { $match: matchConditions },
+    {
+      $group: {
+        _id: null,
+        totalCompleted: {
+          $sum: {
+            $cond: [{ $eq: ["$status", "Completed"] }, 1, 0],
+          },
+        },
+        totalCanceled: {
+          $sum: {
+            $cond: [
+              { $in: ["$status", ["Cancelled", "Auto_Cancelled"]] },
+              1,
+              0,
+            ],
+          },
+        },
+        totalEarned: {
+          $sum: {
+            $cond: [
+              {
+                $and: [
+                  { $eq: ["$paymentStatus", "Paid"] },
+                  { $eq: ["$status", "Completed"] },
+                ],
+              },
+              "$amount",
+              0,
+            ],
+          },
+        },
+      },
+    },
+    {
+      $project: {
+        _id: 0,
+        totalCompleted: 1,
+        totalCanceled: 1,
+        totalEarned: 1,
+      },
+    },
+  ]);
+
+  return overview[0] || {
+    totalCompleted: 0,
+    totalCanceled: 0,
+    totalEarned: 0,
+  };
+};
 
 
 // get all bookings to db
@@ -518,6 +581,7 @@ const getBookingsToDB = async (id: string, query: any): Promise<any> => {
                 {
                   $project: {
                     name: 1,
+                    icon: 1
                   }
                 },
                 {
@@ -633,5 +697,6 @@ export const BookingService = {
   acceptBookingToDB,
   getBookingToDB,
   completeBookingToDB,
-  stripePaymentToDB
+  stripePaymentToDB,
+  getOverviewFromDB
 };

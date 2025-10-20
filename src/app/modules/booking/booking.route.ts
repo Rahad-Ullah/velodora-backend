@@ -25,6 +25,11 @@ router.patch('/complete-booking/:id',
   BookingController.completeBooking
 )
 
+router.get('/overview',
+  auth(USER_ROLES.PROVIDER),
+  BookingController.getOverview
+)
+
 router.get('/order-history/:id',
   auth(USER_ROLES.ADMIN, USER_ROLES.SUPER_ADMIN),
   BookingController.getBookingsByAdmin
