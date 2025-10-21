@@ -34,10 +34,17 @@ router
     auth(USER_ROLES.SUPER_ADMIN, USER_ROLES.ADMIN),
     UserController.getUsers
   )
-  // .post(
-  //   auth(USER_ROLES.SUPER_ADMIN, USER_ROLES.ADMIN),
-  //   UserController.createUsers
-  // )
+// .post(
+//   auth(USER_ROLES.SUPER_ADMIN, USER_ROLES.ADMIN),
+//   UserController.createUsers
+// )
+
+router
+  .route('/total-users-providers')
+  .get(
+    // auth(USER_ROLES.SUPER_ADMIN, USER_ROLES.ADMIN),
+    UserController.totalUsersProvider
+  )
 
 
 router

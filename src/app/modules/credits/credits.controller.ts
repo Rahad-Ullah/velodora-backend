@@ -6,9 +6,10 @@ import { CreditsService, } from './credits.service';
 
 //get all categories controller
 const getCredits = catchAsync(async (req: Request, res: Response) => {
+  const year = Number(req.query.year) || new Date().getFullYear();
 
   // Call service
-  const result = await CreditsService.getCreditsFromDB();
+  const result = await CreditsService.getCreditsFromDB(year);
 
   // Send response
   sendResponse(res, {

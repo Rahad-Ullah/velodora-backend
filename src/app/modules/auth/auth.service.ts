@@ -77,15 +77,15 @@ const sendOtpToDB = async (email: string) => {
     throw new ApiError(StatusCodes.BAD_REQUEST, "User doesn't exist!");
   }
 
-  if (isExistUser?.authentication?.oneTimeCode) {
-    const date = new Date();
-    if (date < isExistUser.authentication?.expireAt) {
-      throw new ApiError(
-        StatusCodes.BAD_REQUEST,
-        'Otp already sent, Please try after 3 minutes later'
-      );
-    }
-  }
+  // if (isExistUser?.authentication?.oneTimeCode) {
+  //   const date = new Date();
+  //   if (date < isExistUser.authentication?.expireAt) {
+  //     throw new ApiError(
+  //       StatusCodes.BAD_REQUEST,
+  //       'Otp already sent, Please try after 3 minutes later'
+  //     );
+  //   }
+  // }
 
   //send mail
   const otp = generateOTP();

@@ -138,6 +138,21 @@ const getBookings = catchAsync(
 );
 
 //Get Bookings controller
+const getBookingsAllByAdmin = catchAsync(
+  async (req: Request, res: Response) => {
+    const id = req.user.id;
+
+    const result = await BookingService.getBookingsForAdminFromDB(id, req.query);
+
+    sendResponse(res, {
+      success: true,
+      statusCode: StatusCodes.OK,
+      data: result,
+    });
+  }
+);
+
+//Get Bookings controller
 const getBookingsByAdmin = catchAsync(
   async (req: Request, res: Response) => {
     const id = req.params.id;
@@ -153,4 +168,4 @@ const getBookingsByAdmin = catchAsync(
 );
 
 
-export const BookingController = { createBooking, getBookings, cancelBooking, acceptBooking, getBooking, completeBooking, getBookingsByAdmin, stripePayment, getOverview };
+export const BookingController = { createBooking, getBookings, cancelBooking, acceptBooking, getBooking, completeBooking, getBookingsByAdmin, stripePayment, getOverview, getBookingsAllByAdmin };

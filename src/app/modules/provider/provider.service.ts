@@ -144,15 +144,19 @@ const getUserEditProviderFromDB = async (id: string): Promise<any> => {
 
   return { data: isExistService[0] };
 };
+
 //get single provider from DB
 const getProviderFromDB = async (id: string): Promise<any> => {
   const isExistService = await ProviderModel.aggregate([
     { $match: { _id: new Types.ObjectId(id) } },
-    { $lookup: { from: 'users', localField: 'user', foreignField: '_id', as: 'user',
-      pipeline: [
-        { $project: { name: 1, email: 1, contact: 1, image: 1 } }
-      ]
-     } },
+    {
+      $lookup: {
+        from: 'users', localField: 'user', foreignField: '_id', as: 'user',
+        pipeline: [
+          { $project: { name: 1, email: 1, contact: 1, image: 1 } }
+        ]
+      }
+    },
     { $unwind: { path: '$user', preserveNullAndEmptyArrays: true } },
     {
       $lookup: {
@@ -330,7 +334,7 @@ const getProvidersFromDB = async (
       },
     },
     { $match: { "services.0": { $exists: true } } },
-    { $unwind: "$services" },
+    // { $unwind: "$services"},
     {
       $lookup: {
         from: "schedules",
@@ -354,11 +358,16 @@ const getProvidersFromDB = async (
     { $unwind: "$user" },
     {
       $addFields: {
+        firstService: { $arrayElemAt: ["$services", 0] },
+      },
+    },
+    {
+      $addFields: {
         name: "$user.name",
         image: "$user.image",
-        category: "$services.category.name",
-        subCategory: "$services.subCategory.name",
-        price: "$services.price",
+        category: { $ifNull: ["$firstService.category.name", null] },
+        subCategory: { $ifNull: ["$firstService.subCategory.name", null] },
+        price: "$firstService.price",
       },
     },
     {

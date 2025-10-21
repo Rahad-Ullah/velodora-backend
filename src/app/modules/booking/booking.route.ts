@@ -35,6 +35,11 @@ router.get('/order-history/:id',
   BookingController.getBookingsByAdmin
 )
 
+router.get('/order-history-all',
+  auth(USER_ROLES.ADMIN, USER_ROLES.SUPER_ADMIN),
+  BookingController.getBookingsAllByAdmin
+)
+
 router.post('/stripe-payment',
   BookingController.stripePayment
 )

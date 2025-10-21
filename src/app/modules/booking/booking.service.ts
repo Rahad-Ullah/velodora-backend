@@ -10,6 +10,7 @@ import { BOOKING_PAYMENT_STATUS, BOOKING_STATUS } from '../../../enums/booking';
 import { ChatServices } from '../chat/chat.service';
 import stripe from '../../config/stripe.config';
 import config from '../../../config';
+import { RevenueModel } from '../revenues/revenue.model';
 
 
 // Create Stripe Checkout Session //
@@ -134,12 +135,14 @@ const createBookingToDB = async (payload: {
   // console.log(res);
   // return res;
 
+  const resRevenue = await RevenueModel.create({
+    user: new mongoose.Types.ObjectId(payload.user),
+    revenue: payload.amount * 15 / 100,
+  });
 
-  // const TEN_MINUTES = 2 * 60 * 1000;
-
-  // setTimeout(() => {
-  //   autoCancelBookingToDB(res._id.toString());
-  // }, TEN_MINUTES);
+  if (!resRevenue) {
+    throw new ApiError(StatusCodes.INTERNAL_SERVER_ERROR, 'Failed to cut revenue');
+  }
 
 
   // Create Stripe Checkout Session //
@@ -397,7 +400,6 @@ const getOverviewFromDB = async (
 
 // get all bookings to db
 const getBookingToDB = async (id: string): Promise<any> => {
-
   const res = await BookingModel.aggregate([
     {
       $match: {
@@ -460,6 +462,8 @@ const getBookingToDB = async (id: string): Promise<any> => {
               name: 1,
               image: 1,
               location: 1,
+              email: 1,
+              contact: 1,
             }
           }
         ]
@@ -489,6 +493,9 @@ const getBookingToDB = async (id: string): Promise<any> => {
                   $project: {
                     name: 1,
                     image: 1,
+                    email: 1,
+                    contact: 1,
+                    location: 1,
                   }
                 }
               ]
@@ -530,6 +537,7 @@ const getBookingToDB = async (id: string): Promise<any> => {
 }
 
 
+
 // get all bookings to db
 const getBookingsToDB = async (id: string, query: any): Promise<any> => {
   const user = await UserModel.findById(id);
@@ -550,6 +558,8 @@ const getBookingsToDB = async (id: string, query: any): Promise<any> => {
       throw new ApiError(StatusCodes.NOT_FOUND, 'Provider not found');
     }
     matchUserProvider = { provider: new Types.ObjectId(provider._id) }
+  } else {
+    matchUserProvider = {}
   }
 
   if (query.date) {
@@ -690,6 +700,202 @@ const getBookingsToDB = async (id: string, query: any): Promise<any> => {
   return res;
 }
 
+
+// get all bookings to db
+const getBookingsForAdminFromDB = async (id: string, query: any): Promise<any> => {
+  // const currentHour = new Date().getHours();
+  // const prevHour = new Date().setHours(currentHour - hours);
+
+  const user = await UserModel.findById(id);
+  if (!user) {
+    throw new ApiError(StatusCodes.NOT_FOUND, 'User not found');
+  }
+
+  let matchUserProvider: any = {}
+
+  if (user.role === USER_ROLES.USER) {
+    // console.log("Booking User", user);
+    matchUserProvider = { user: new Types.ObjectId(id) }
+
+  } else if (user.role === USER_ROLES.PROVIDER) {
+    // console.log("Booking Provider", user);
+    const provider = await ProviderModel.findOne({ user: new Types.ObjectId(id) });
+    if (!provider) {
+      throw new ApiError(StatusCodes.NOT_FOUND, 'Provider not found');
+    }
+    matchUserProvider = { provider: new Types.ObjectId(provider._id) }
+  } else {
+    matchUserProvider = {}
+  }
+
+  if (query.date) {
+    matchUserProvider.date = new Date(query.date);
+  }
+  if (query.status) {
+    matchUserProvider.status = query.status;
+  }
+
+  const pipeline: any = [];
+
+  if (query.hours) {
+    const now = new Date();
+    const prevHour = new Date(now.getTime() - query.hours * 60 * 60 * 1000);
+
+    pipeline.push({
+      $match: {
+        slots: {
+          $elemMatch: {
+            start: {
+              $gte: prevHour,
+              $lte: now,
+            },
+          },
+        },
+      },
+    });
+  }
+
+
+
+  pipeline.push(
+    {
+      $match: matchUserProvider
+    }
+  )
+
+  pipeline.push(
+    {
+      $lookup: {
+        from: 'services',
+        localField: 'services',
+        foreignField: '_id',
+        as: 'services',
+        pipeline: [
+          {
+            $lookup: {
+              from: 'categories',
+              localField: 'category',
+              foreignField: '_id',
+              as: 'category',
+              pipeline: [
+                {
+                  $project: {
+                    name: 1,
+                    icon: 1
+                  }
+                },
+                {
+                  $unwind: {
+                    path: '$name',
+                    preserveNullAndEmptyArrays: true,
+                  }
+                }
+
+              ]
+            },
+          },
+          {
+            $unwind: {
+              path: '$category',
+              preserveNullAndEmptyArrays: true,
+            }
+          },
+          {
+            $project: {
+              name: 1,
+              category: 1,
+            }
+          }
+        ]
+      }
+    }
+  )
+
+  pipeline.push(
+    {
+      $lookup: {
+        from: 'users',
+        localField: 'user',
+        foreignField: '_id',
+        as: 'user',
+        pipeline: [
+          {
+            $project: {
+              name: 1,
+              image: 1,
+              location: 1,
+            }
+          }
+        ]
+      }
+    },
+    {
+      $unwind: {
+        path: '$user',
+        preserveNullAndEmptyArrays: true,
+      }
+    },
+    {
+      $lookup: {
+        from: 'providers',
+        localField: 'provider',
+        foreignField: '_id',
+        as: 'provider',
+        pipeline: [
+          {
+            $lookup: {
+              from: 'users',
+              localField: 'user',
+              foreignField: '_id',
+              as: 'user',
+              pipeline: [
+                {
+                  $project: {
+                    name: 1,
+                    image: 1,
+                  }
+                }
+              ]
+            },
+
+          },
+          {
+            $unwind: {
+              path: '$user',
+              preserveNullAndEmptyArrays: true,
+            }
+          },
+          {
+            $addFields: {
+              "name": "$user.name",
+              "image": "$user.image",
+            }
+          },
+          {
+            $project: {
+              name: 1,
+              image: 1,
+              primaryLocation: 1,
+            }
+          }
+        ]
+      }
+    },
+    {
+      $unwind: {
+        path: '$provider',
+        preserveNullAndEmptyArrays: true,
+      }
+    }
+  )
+
+
+  const res = await BookingModel.aggregate(pipeline);
+
+
+  return res;
+}
+
 export const BookingService = {
   createBookingToDB,
   getBookingsToDB,
@@ -698,5 +904,6 @@ export const BookingService = {
   getBookingToDB,
   completeBookingToDB,
   stripePaymentToDB,
-  getOverviewFromDB
+  getOverviewFromDB,
+  getBookingsForAdminFromDB
 };

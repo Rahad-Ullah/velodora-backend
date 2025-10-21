@@ -15,6 +15,7 @@ import { ContactSupportRoutes } from '../app/modules/contactSupport/contactSuppo
 import { ReviewRoutes } from '../app/modules/Review/review.route';
 import { FavListRoutes } from '../app/modules/favList/favList.route';
 import { CreditsRoutes } from '../app/modules/credits/credits.route';
+import { RevenueRoutes } from '../app/modules/revenues/revenue.route';
 const router = express.Router();
 
 const apiRoutes = [
@@ -81,6 +82,10 @@ const apiRoutes = [
   {
     path: '/credits',
     route: CreditsRoutes,
+  },
+  {
+    path: '/revenues',
+    route: RevenueRoutes,
   },
 ];
 

@@ -12,8 +12,8 @@ import pick from '../../../shared/pick';
 // create single user
 const createUser = catchAsync(
   async (req: Request, res: Response, next: NextFunction) => {
-    const { referralCode="", ...userData } = req.body;
-    const result = await UserService.createUserToDB(userData,referralCode);
+    const { referralCode = "", ...userData } = req.body;
+    const result = await UserService.createUserToDB(userData, referralCode);
 
     sendResponse(res, {
       success: true,
@@ -40,7 +40,7 @@ const createUsers = catchAsync(
 
 // get single user by admin
 const getUser = catchAsync(async (req: Request, res: Response) => {
-  
+
   const result = await UserService.getUserFromDB(req.params?.id as string);
 
   sendResponse(res, {
@@ -53,7 +53,7 @@ const getUser = catchAsync(async (req: Request, res: Response) => {
 
 // get single user by admin
 const getEditedUser = catchAsync(async (req: Request, res: Response) => {
-  
+
   const result = await UserService.getEditedUserFromDB(req.params?.id as string);
 
   sendResponse(res, {
@@ -173,7 +173,7 @@ const deleteProfile = catchAsync(
   async (req: Request, res: Response, next: NextFunction) => {
     // console.log("controller- user: ", req.user);
 
-    const result = await UserService.deleteUserFromDB(req.user.id  as string);
+    const result = await UserService.deleteUserFromDB(req.user.id as string);
 
     sendResponse(res, {
       success: true,
@@ -188,7 +188,7 @@ const deleteProfile = catchAsync(
 const giveCredits = catchAsync(
   async (req: Request, res: Response, next: NextFunction) => {
 
-    const result = await UserService.giveCreditFromDB(req.params?.id  as string, req.body.credits);
+    const result = await UserService.giveCreditFromDB(req.params?.id as string, req.body.credits);
 
     sendResponse(res, {
       success: true,
@@ -204,7 +204,7 @@ const activeBlockUser = catchAsync(
   async (req: Request, res: Response, next: NextFunction) => {
     // console.log("controller - user: ", req.params?.id);
 
-    const result = await UserService.activeBlockUserFromDB(req.params?.id  as string);
+    const result = await UserService.activeBlockUserFromDB(req.params?.id as string);
 
     sendResponse(res, {
       success: true,
@@ -220,7 +220,7 @@ const deleteUser = catchAsync(
   async (req: Request, res: Response, next: NextFunction) => {
     // console.log("controller - user: ", req.params?.id);
 
-    const result = await UserService.deleteUserFromDB(req.params?.id  as string);
+    const result = await UserService.deleteUserFromDB(req.params?.id as string);
 
     sendResponse(res, {
       success: true,
@@ -261,4 +261,20 @@ const deleteUpdateProfile = catchAsync(
   }
 );
 
-export const UserController = { createUser, createUsers, getUserProfile, getUser, getEditedUser, getUsers, updateProfile, deleteProfile, updateUserStatus, deleteUser, getUsersAggregation, approveUpdateProfile, deleteUpdateProfile, activeBlockUser, giveCredits };
+//approve user
+const totalUsersProvider = catchAsync(
+  async (req: Request, res: Response, next: NextFunction) => {
+    const year = Number(req.query.year) || Number(new Date().getFullYear());
+
+    const result = await UserService.totalUsersProviderFromDB(year);
+
+    sendResponse(res, {
+      success: true,
+      statusCode: StatusCodes.OK,
+      message: 'User Updated successfully',
+      data: result,
+    });
+  }
+);
+
+export const UserController = { createUser, createUsers, getUserProfile, getUser, getEditedUser, getUsers, updateProfile, deleteProfile, updateUserStatus, deleteUser, getUsersAggregation, approveUpdateProfile, deleteUpdateProfile, activeBlockUser, giveCredits, totalUsersProvider };

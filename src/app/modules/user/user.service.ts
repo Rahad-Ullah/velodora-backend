@@ -13,6 +13,7 @@ import QueryBuilder from '../../builder/QueryBuilder';
 import { ReferralModel } from '../referral/referral.model';
 import { logger } from '../../../shared/logger';
 import { UserTempModel } from './userTemp.model';
+import { CreditsModel } from '../credits/credits.model';
 
 
 //create single user
@@ -156,7 +157,7 @@ const getEditedUserFromDB = async (
   id: string
 ): Promise<any> => {
 
-  const isExistUser = await UserTempModel.findOne({ref: id});
+  const isExistUser = await UserTempModel.findOne({ ref: id });
   if (!isExistUser) {
     throw new ApiError(StatusCodes.BAD_REQUEST, "User doesn't exist!");
   }
@@ -429,6 +430,15 @@ const giveCreditFromDB = async (id: string, credits: number): Promise<any> => {
 
   try {
     const result = await UserModel.findByIdAndUpdate(id, { $set: { credits: isExistUser?.credits + Number(credits) } }, { new: true });
+    console.log("User Credits After: ", result);
+
+    const payload = { user: isExistUser._id, credits: Number(credits) };
+    const resCredits = await CreditsModel.create(payload);
+    console.log("Result Credits: ", resCredits);
+    if (!resCredits) {
+      throw new ApiError(StatusCodes.BAD_REQUEST, "Failed to calculate credits!");
+    }
+
     return { message: `${credits} send to ${isExistUser?.name} Successfully`, data: result };
   } catch (error) {
     throw new ApiError(StatusCodes.BAD_REQUEST, "Oops! Failed to send credits.");
@@ -467,6 +477,53 @@ const hardDeleteUsersFromDB = async () => {
   }
 };
 
+//get total users & providers from db
+const totalUsersProviderFromDB = async (year: number): Promise<any> => {
+  const data = await UserModel.aggregate([
+    {
+      $match: {
+        $expr: {
+          $eq: [{ $year: "$createdAt" }, year],
+        },
+      },
+    },
+    {
+      $group: {
+        _id: null,
+        totalUsers: {
+          $sum: {
+            $cond: [{ $eq: ["$role", "USER"] }, 1, 0],
+          },
+        },
+        totalProviders: {
+          $sum: {
+            $cond: [{ $eq: ["$role", "PROVIDER"] }, 1, 0],
+          },
+        },
+      },
+    },
+    {
+      $addFields: {
+        total: { $add: ["$totalUsers", "$totalProviders"] },
+      },
+    },
+    {
+      $project: {
+        _id: 0,
+        total: 1,
+        totalUsers: 1,
+        totalProviders: 1,
+      },
+    },
+  ]);
+
+  return data[0] || { total: 0, totalUsers: 0, totalProviders: 0 };
+};
+
+
+
+
+
 export const UserService = {
   createUserToDB,
   createUsersToDB,
@@ -482,5 +539,6 @@ export const UserService = {
   approveUpdateProfileToDB,
   deleteUpdateProfileToDB,
   activeBlockUserFromDB,
-  giveCreditFromDB
+  giveCreditFromDB,
+  totalUsersProviderFromDB
 };
