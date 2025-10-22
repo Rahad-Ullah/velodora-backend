@@ -45,5 +45,18 @@ const getProviderReviews = catchAsync(
   }
 );
 
+const getMyRatings = catchAsync(
+  async (req: Request, res: Response) => {
 
-export const ReviewController = { createReview, getMyReviews, getProviderReviews };
+    const result = await ReviewService.getMyRatingsToDB(req.user.id);
+
+    sendResponse(res, {
+      success: true,
+      statusCode: StatusCodes.OK,
+      data: result.data,
+    });
+  }
+);
+
+
+export const ReviewController = { createReview, getMyReviews, getProviderReviews, getMyRatings };

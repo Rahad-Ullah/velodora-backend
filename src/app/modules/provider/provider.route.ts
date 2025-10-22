@@ -117,6 +117,13 @@ router
     ProviderController.deleteProvider
   );
 
+router
+  .route('/online-offline-provider')
+  .patch(
+    auth(USER_ROLES.PROVIDER),
+    ProviderController.onlineOflineProvider
+  )
+
 
 
 export const ProviderRoutes = router;

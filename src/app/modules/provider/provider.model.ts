@@ -63,7 +63,7 @@ const providerSchema = new Schema<TProvider, TProviderModal>(
     },
     isOnline: {
       type: Boolean,
-      default: false,
+      default: true,
     }
   },
   { timestamps: true }

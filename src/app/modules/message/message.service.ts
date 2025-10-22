@@ -49,7 +49,7 @@ const createMessage = async (payload: IMessage): Promise<IMessage> => {
           type: NOTIFICATION_TYPE.ATTACHMENT,
           title: 'Attachment',
           receiver: receiverId,
-          referenceId: result._id.toString(),
+          referenceId: result._id,
         })
       )
     );

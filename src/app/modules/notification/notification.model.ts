@@ -19,7 +19,7 @@ const notificationSchema = new Schema<INotification, TNotificationModel>(
       required: true,
     },
     referenceId: {
-      type: String,
+      type: Schema.Types.ObjectId,
       default: null,
     },
     isRead: {

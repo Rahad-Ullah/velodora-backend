@@ -6,7 +6,7 @@ export type INotification = {
   type: NOTIFICATION_TYPE;
   title: string;
   receiver: Types.ObjectId;
-  referenceId: string;
+  referenceId: Types.ObjectId;
   isRead: boolean;
   createdAt: Date;
   updatedAt: Date;

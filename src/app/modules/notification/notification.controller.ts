@@ -15,7 +15,8 @@ const getMyNotification = catchAsync(async (req: Request, res: Response) => {
     success: true,
     statusCode: StatusCodes.OK,
     message: 'Notification fetched successfully',
-    data: result,
+    data: result?.notifications,
+    pagination: result?.pagination,
   });
 });
 

@@ -183,6 +183,22 @@ const deleteProvider = catchAsync(
   }
 );
 
+//online ofline provider
+const onlineOflineProvider = catchAsync(
+  async (req: Request, res: Response, next: NextFunction) => {
+
+    const id = req.user?.id;
+    const result = await ProviderService.onlineOflineProviderToDB(id!);
+
+    sendResponse(res, {
+      success: true,
+      statusCode: StatusCodes.OK,
+      message: result.message,
+      data: result.data,
+    });
+  }
+);
+
 //active block provider
 const activeBlockProvider = catchAsync(
   async (req: Request, res: Response, next: NextFunction) => {
@@ -214,4 +230,4 @@ const approveEditProvider = catchAsync(
   }
 );
 
-export const ProviderController = { createProvider, getMyProvider, getUserProvider, getUserEditedProvider, getProvider, getProviders, updateProvider, deleteProvider, approveProvider, approveEditProvider, deleteEditProvider, activeBlockProvider };
+export const ProviderController = { createProvider, getMyProvider, getUserProvider, getUserEditedProvider, getProvider, getProviders, updateProvider, deleteProvider, approveProvider, approveEditProvider, deleteEditProvider, activeBlockProvider, onlineOflineProvider };

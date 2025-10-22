@@ -35,7 +35,7 @@ const createReviewToDB = async (userId: string, payload: Partial<IReview>): Prom
     throw new ApiError(StatusCodes.BAD_REQUEST, "Review to Provider failed!");
   }
 
-  return {data:res};
+  return { data: res };
 };
 
 
@@ -58,7 +58,28 @@ const getMyReviewsToDB = async (id: string): Promise<any> => {
   if (!res || res.length === 0) {
     throw new ApiError(StatusCodes.BAD_REQUEST, "Review doesn't exist!");
   }
-  return {data: res[0]}; // since grouping by providerId, only one result
+  return { data: res[0] }; // since grouping by providerId, only one result
+};
+
+// get my ratings
+const getMyRatingsToDB = async (id: string): Promise<any> => {
+  const res = await ReviewModel.aggregate([
+    {
+      $match: { providerId: new Types.ObjectId(id) }
+    },
+    {
+      $group: {
+        _id: "$providerId",
+        averageRating: { $avg: "$rating" },   // calculate average
+        totalReviews: { $sum: 1 },            // count reviews       // keep all review docs
+      }
+    }
+  ]);
+
+  if (!res || res.length === 0) {
+    throw new ApiError(StatusCodes.BAD_REQUEST, "Review doesn't exist!");
+  }
+  return { data: res[0] }; // since grouping by providerId, only one result
 };
 
 
@@ -66,5 +87,6 @@ const getMyReviewsToDB = async (id: string): Promise<any> => {
 
 export const ReviewService = {
   createReviewToDB,
-  getMyReviewsToDB
+  getMyReviewsToDB,
+  getMyRatingsToDB
 };

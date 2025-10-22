@@ -18,5 +18,12 @@ router
     FavListController.createFavList
   );
 
+router
+  .route('/fav-list-with-details')
+  .get(
+    auth(USER_ROLES.USER),
+    FavListController.getFavListUser
+  )
+
 
 export const FavListRoutes = router;

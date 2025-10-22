@@ -16,6 +16,9 @@ import { ReviewRoutes } from '../app/modules/Review/review.route';
 import { FavListRoutes } from '../app/modules/favList/favList.route';
 import { CreditsRoutes } from '../app/modules/credits/credits.route';
 import { RevenueRoutes } from '../app/modules/revenues/revenue.route';
+import { SystemRoutes } from '../app/modules/system/system.route';
+import { NotificationRoutes } from '../app/modules/notification/notification.route';
+import { PromoCodeRoutes } from '../app/modules/promoCode/promoCode.route';
 const router = express.Router();
 
 const apiRoutes = [
@@ -72,6 +75,10 @@ const apiRoutes = [
     route: MessageRoutes,
   },
   {
+    path: '/notifications',
+    route: NotificationRoutes,
+  },
+  {
     path: '/settings',
     route: settingsRouter,
   },
@@ -86,6 +93,14 @@ const apiRoutes = [
   {
     path: '/revenues',
     route: RevenueRoutes,
+  },
+  {
+    path: '/system',
+    route: SystemRoutes,
+  },
+  {
+    path: '/promo-code',
+    route: PromoCodeRoutes,
   },
 ];
 

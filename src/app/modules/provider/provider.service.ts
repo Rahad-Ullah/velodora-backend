@@ -620,6 +620,22 @@ const activeBlockProviderToDB = async (
   return { message: `Provider ${isExistService?.isActive ? 'blocked' : 'unblocked'} successfully!`, data: res };
 };
 
+//Online/Offline Provider
+const onlineOflineProviderToDB = async (
+  id: string
+): Promise<any> => {
+
+  const isExistService = await ProviderModel.findOne({ user: id });
+  if (!isExistService) {
+    throw new ApiError(StatusCodes.BAD_REQUEST, "Provider doesn't exist!");
+  }
+
+  const res = await ProviderModel.findByIdAndUpdate(isExistService._id, { $set: { isOnline: !isExistService?.isOnline } }, { new: true });
+  // console.log("Provider", res);
+
+  return { message: `Provider is ${res?.isOnline ? 'Online' : 'Offline'} now`, data: res };
+};
+
 export const ProviderService = {
   createProviderToDB,
   getMyProviderFromDB,
@@ -632,4 +648,5 @@ export const ProviderService = {
   approveProviderToDB,
   activeBlockProviderToDB,
   getUserEditProviderFromDB,
+  onlineOflineProviderToDB,
 };

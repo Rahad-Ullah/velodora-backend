@@ -33,4 +33,18 @@ const getFavList = catchAsync(
   }
 );
 
-export const FavListController = { createFavList, getFavList };
+//create sub category controller
+const getFavListUser = catchAsync(
+  async (req: Request, res: Response) => {
+
+    const result = await FavListService.getFavListUserFromDB(req.user.id);
+
+    sendResponse(res, {
+      success: true,
+      statusCode: StatusCodes.OK,
+      data: result.data,
+    });
+  }
+);
+
+export const FavListController = { createFavList, getFavList, getFavListUser };

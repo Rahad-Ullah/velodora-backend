@@ -21,7 +21,7 @@ router
 
 
 router.patch('/complete-booking/:id',
-  auth(USER_ROLES.USER),
+  auth(USER_ROLES.PROVIDER),
   BookingController.completeBooking
 )
 

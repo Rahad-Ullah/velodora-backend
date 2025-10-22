@@ -6,10 +6,19 @@ import { BookingModel } from '../app/modules/booking/booking.model';
 import { BOOKING_PAYMENT_STATUS, BOOKING_STATUS } from '../enums/booking';
 import ApiError from '../errors/ApiError';
 import { StatusCodes } from 'http-status-codes';
+import { UserModel } from '../app/modules/user/user.model';
+import { USER_ROLES } from '../enums/user';
+import { sendNotifications } from '../helpers/notificationHelper';
+import { NOTIFICATION_TYPE } from '../app/modules/notification/notification.constants';
 
 
 
 const handlePaymentSuccess = async (session: Stripe.Checkout.Session) => {
+
+      const superAdmin = await UserModel.findOne({ role: USER_ROLES.SUPER_ADMIN });
+
+
+
       const { metadata } = session;
       // console.log('metadata', metadata);
       const bookingId = metadata?.bookingId;
@@ -23,15 +32,22 @@ const handlePaymentSuccess = async (session: Stripe.Checkout.Session) => {
       }
 
       if (metadata?.paymentType === 'bookingPayment') {
-            await BookingModel.findByIdAndUpdate(metadata?.bookingId, {
+            const booking = await BookingModel.findByIdAndUpdate(metadata?.bookingId, {
                   $set: { paymentStatus: BOOKING_PAYMENT_STATUS.PAID },
             });
+            sendNotifications({
+                  type: NOTIFICATION_TYPE.PAYMENT,
+                  title: 'Booking Payment Successful',
+                  receiver: superAdmin!._id,
+                  referenceId: booking!.user,
+            })
       }
 
       return;
 };
 
 const handleStripeWebhook = async (req: Request, res: Response) => {
+      console.log("Webhook called------------------------------------------------It's working");
       const payload = req.body;
       const signature = req.headers['stripe-signature'];
       // console.log('payload', payload);

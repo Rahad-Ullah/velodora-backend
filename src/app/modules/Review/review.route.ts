@@ -19,6 +19,13 @@ router
   );
 
 router
+  .route('/my-ratings')
+  .get(
+    auth(USER_ROLES.PROVIDER),
+    ReviewController.getMyRatings
+  )
+
+router
   .route('/:id')
   .get(
     auth(USER_ROLES.USER, USER_ROLES.PROVIDER, USER_ROLES.ADMIN, USER_ROLES.SUPER_ADMIN),

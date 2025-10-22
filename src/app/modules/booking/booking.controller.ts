@@ -42,8 +42,8 @@ const createBooking = catchAsync(
 //Accept Booking controller
 const completeBooking = catchAsync(
   async (req: Request, res: Response) => {
-    const userId = req.user.id;
-    const providerId = req.params.id;
+    const userId = req.params.id;
+    const providerId = req.user.id;
 
     const result = await BookingService.completeBookingToDB(userId, providerId);
 
