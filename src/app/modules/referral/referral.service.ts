@@ -133,7 +133,6 @@ const getReferralsListFromDB = async ({ referralCode, status, paginationOptions 
   // Save in DB
   const referrals: any = await ReferralModel.aggregate(pipeline);
 
-  console.log(referrals?.pagination)
 
   const meta = referrals[0]?.pagination || {
     total: 0,

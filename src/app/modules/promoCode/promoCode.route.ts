@@ -20,6 +20,10 @@ router
   .get(
     // auth(USER_ROLES.USER),
     PromoCodeController.getPromoCode
+  )
+  .delete(
+    auth(USER_ROLES.SUPER_ADMIN, USER_ROLES.ADMIN),
+    PromoCodeController.deletePromoCode
   );
 
 

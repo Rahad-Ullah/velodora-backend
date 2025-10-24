@@ -9,6 +9,7 @@ type IData<T> = {
     limit: number;
     totalPage: number;
     total: number;
+    unreadNotifications?: number;
   };
   data?: T;
 };

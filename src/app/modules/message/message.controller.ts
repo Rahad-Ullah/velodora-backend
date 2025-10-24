@@ -9,7 +9,6 @@ import { getSingleFilePath } from '../../../shared/getFilePath';
 const createMessage = catchAsync(
   async (req: Request, res: Response, next: NextFunction) => {
     const image = getSingleFilePath(req.files, 'image');
-    // console.log("message controller - image", image);
     const payload = { ...req.body, sender: req.user.id, image };
     const result = await MessageServices.createMessage(payload);
 

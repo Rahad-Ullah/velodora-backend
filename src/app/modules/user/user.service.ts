@@ -16,7 +16,7 @@ import { UserTempModel } from './userTemp.model';
 import { CreditsModel } from '../credits/credits.model';
 
 
-//create single user
+//create single user to db
 const createUserToDB = async (payload: PartialUserWithRequiredEmail, referralCode?: string): Promise<string> => {
   let message = '';
   let createUser: IUser = {} as IUser;
@@ -87,7 +87,7 @@ const createUserToDB = async (payload: PartialUserWithRequiredEmail, referralCod
   return message;
 };
 
-//create seed users
+//create multiple users to db
 const createUsersToDB = async (
   payloads: PartialUserWithRequiredEmail[]
 ): Promise<string[]> => {
@@ -123,18 +123,18 @@ const createUsersToDB = async (
   return messages;
 };
 
-//get user profile
+//get user profile from db
 const getUserProfileFromDB = async (
   user: JwtPayload
 ): Promise<Partial<IUser>> => {
   const { id } = user;
   const isExistUser = await UserModel.isExistUserById(id);
+
   if (!isExistUser) {
     throw new ApiError(StatusCodes.BAD_REQUEST, "User doesn't exist!");
   } else if (isExistUser?.isDeleted === true) {
     throw new ApiError(StatusCodes.BAD_REQUEST, "User is deleted!");
   }
-
 
   return isExistUser;
 };
@@ -152,7 +152,7 @@ const getUserFromDB = async (
   return isExistUser;
 };
 
-//get user profile by admin
+//get edited user(provider) profile by admin
 const getEditedUserFromDB = async (
   id: string
 ): Promise<any> => {
@@ -280,7 +280,7 @@ const getUsersAggregationFromDB = async (
   };
 };
 
-// update profile
+// update profile to db
 const updateProfileToDB = async (
   user: JwtPayload,
   payload: Partial<IUser>
@@ -292,7 +292,6 @@ const updateProfileToDB = async (
   }
 
   if (isExistUser.role === USER_ROLES.PROVIDER) {
-    console.log("update provider", payload);
     const isExistTempUser = await UserTempModel.findOne({ ref: id });
     if (isExistTempUser) {
       throw new ApiError(StatusCodes.BAD_REQUEST, "You have already approval request!");
@@ -324,11 +323,10 @@ const updateProfileToDB = async (
   }
 };
 
-// update profile
+// approve update profile to db
 const approveUpdateProfileToDB = async (
   id: string,
 ): Promise<any> => {
-  // console.log("Temp User Id :", id);
   const isExistUser = await UserTempModel.findOne({ ref: id });
   if (!isExistUser) {
     throw new ApiError(StatusCodes.BAD_REQUEST, "User doesn't exist!");
@@ -352,7 +350,7 @@ const approveUpdateProfileToDB = async (
   return updateUser;
 };
 
-// update profile
+// delete update profile
 const deleteUpdateProfileToDB = async (
   id: string,
 ): Promise<any> => {
@@ -389,7 +387,6 @@ const updateUserStatusToDB = async (
 
 // delete user from db
 const deleteUserFromDB = async (id: string): Promise<Partial<IUser | null>> => {
-  // console.log("user id: ", id);
   const isExistUser = await UserModel.isExistUserById(id);
   if (!isExistUser) {
     throw new ApiError(StatusCodes.BAD_REQUEST, "User doesn't exist!");
@@ -403,9 +400,8 @@ const deleteUserFromDB = async (id: string): Promise<Partial<IUser | null>> => {
   }
 };
 
-// delete user from db
+// active block user from db
 const activeBlockUserFromDB = async (id: string): Promise<any> => {
-  // console.log("user id: ", id);
   const isExistUser = await UserModel.isExistUserById(id);
   if (!isExistUser) {
     throw new ApiError(StatusCodes.BAD_REQUEST, "User doesn't exist!");
@@ -419,22 +415,18 @@ const activeBlockUserFromDB = async (id: string): Promise<any> => {
   }
 };
 
-// delete user from db
+// give credit to user by admin
 const giveCreditFromDB = async (id: string, credits: number): Promise<any> => {
-  console.log("user id: ", id, "credits: ", credits);
   const isExistUser = await UserModel.isExistUserById(id);
   if (!isExistUser) {
     throw new ApiError(StatusCodes.BAD_REQUEST, "User doesn't exist!");
   }
-  console.log("User Credits: ", isExistUser);
 
   try {
     const result = await UserModel.findByIdAndUpdate(id, { $set: { credits: isExistUser?.credits + Number(credits) } }, { new: true });
-    console.log("User Credits After: ", result);
 
     const payload = { user: isExistUser._id, credits: Number(credits) };
     const resCredits = await CreditsModel.create(payload);
-    console.log("Result Credits: ", resCredits);
     if (!resCredits) {
       throw new ApiError(StatusCodes.BAD_REQUEST, "Failed to calculate credits!");
     }
@@ -448,8 +440,7 @@ const giveCreditFromDB = async (id: string, credits: number): Promise<any> => {
 //hard delete users from db after 30 days by Scheduler
 const hardDeleteUsersFromDB = async () => {
   const now = new Date();
-  const cutoff = new Date(now.getTime() - 45 * 24 * 60 * 60 * 1000);
-  // console.log("Hard Delete Users Cutoff Time: ", cutoff);
+  const cutoff = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
 
   try {
     // Find users soft-deleted more than 45 days ago
@@ -519,9 +510,6 @@ const totalUsersProviderFromDB = async (year: number): Promise<any> => {
 
   return data[0] || { total: 0, totalUsers: 0, totalProviders: 0 };
 };
-
-
-
 
 
 export const UserService = {

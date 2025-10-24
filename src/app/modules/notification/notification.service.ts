@@ -1,5 +1,19 @@
 import { Types } from 'mongoose';
 import { NotificationModel } from './notification.model';
+import { readNotifications } from '../../../helpers/notificationHelper';
+
+// ----------------- get notification by user id ----------------- //
+const getUserNotificationAmountFromDB = async (
+  userId: string
+): Promise<any> => {
+
+  const result = await NotificationModel.countDocuments({
+    receiver: new Types.ObjectId(userId),
+    isRead: false
+  });
+
+  return {result};
+};
 
 // ----------------- get notification by user id ----------------- //
 const getUserNotificationFromDB = async (
@@ -18,9 +32,8 @@ const getUserNotificationFromDB = async (
     },
     {
       $facet: {
-        // 👇 First pipeline for notifications with pagination
+        // 1️⃣ Main data: all notifications (read + unread)
         notifications: [
-          { $match: { isRead: false } },
           {
             $lookup: {
               from: 'users',
@@ -33,31 +46,41 @@ const getUserNotificationFromDB = async (
             }
           },
           { $unwind: { path: '$referenceId', preserveNullAndEmptyArrays: true } },
-          { $sort: { createdAt: -1 } },
+          // 🧠 Sort unread first, then by newest date
+          { $sort: { isRead: 1, createdAt: -1 } },
           { $skip: skip },
           { $limit: limit }
         ],
-        // 👇 Third pipeline to get total count (for pagination)
-        totalCount: [
+
+        // 2️⃣ Count total unread notifications
+        unreadCount: [
           { $match: { isRead: false } },
+          { $count: 'count' }
+        ],
+
+        // 3️⃣ Count total notifications
+        totalCount: [
           { $count: 'count' }
         ]
       }
     }
   ]);
 
-  const notifications = result[0].notifications;
-  const totalNotifications = result[0].totalCount[0]?.count || 0;
-  const totalPages = Math.ceil(totalNotifications / limit);
+  // Extract data safely
+  const notifications = result[0]?.notifications || [];
+  const unreadNotifications = result[0]?.unreadCount[0]?.count || 0;
+  const total = result[0]?.totalCount[0]?.count || 0;
+  const totalPage = Math.ceil(total / limit);
 
   return {
     notifications,
     pagination: {
       page,
       limit,
-      totalPages,
-      totalNotifications,
-    }
+      totalPage,
+      total,
+      unreadNotifications,
+    },
   };
 };
 
@@ -73,7 +96,9 @@ const readUserNotificationToDB = async (userId: string): Promise<boolean> => {
     },
   ]);
 
+  await readNotifications(userId);
+
   return true;
 };
 
-export const NotificationServices = { getUserNotificationFromDB, readUserNotificationToDB };
+export const NotificationServices = { getUserNotificationFromDB, readUserNotificationToDB, getUserNotificationAmountFromDB };

@@ -20,6 +20,20 @@ const getMyNotification = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+// get my notifications amount
+const getUserNotificationAmount = catchAsync(async (req: Request, res: Response) => {
+  const result = await NotificationServices.getUserNotificationAmountFromDB(
+    req.user.id
+  );
+
+  sendResponse(res, {
+    success: true,
+    statusCode: StatusCodes.OK,
+    message: 'Notification amount fetched successfully',
+    data: result?.result
+  });
+});
+
 // read my notification
 const readMyNotifications = catchAsync(async (req: Request, res: Response) => {
   const result = await NotificationServices.readUserNotificationToDB(req.user.id);
@@ -32,4 +46,4 @@ const readMyNotifications = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
-export const NotificationController = { getMyNotification, readMyNotifications };
+export const NotificationController = { getMyNotification, readMyNotifications, getUserNotificationAmount };

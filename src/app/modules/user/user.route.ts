@@ -42,7 +42,7 @@ router
 router
   .route('/total-users-providers')
   .get(
-    // auth(USER_ROLES.SUPER_ADMIN, USER_ROLES.ADMIN),
+    auth(USER_ROLES.SUPER_ADMIN, USER_ROLES.ADMIN),
     UserController.totalUsersProvider
   )
 

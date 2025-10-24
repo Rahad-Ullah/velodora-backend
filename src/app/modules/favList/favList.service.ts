@@ -55,7 +55,6 @@ const getFavListToDB = async (userId: string): Promise<any> => {
 const getFavListUserFromDB = async (
   userId: string
 ): Promise<{ data: TProvider[] }> => {
-  console.log("Call getFavListUserFromDB with userId:", userId);
 
   // Aggregation pipeline definition //
   const pipeline: any[] = [];
@@ -166,7 +165,6 @@ const getFavListUserFromDB = async (
   );
 
   const providers = await FavListModel.aggregate(pipeline);
-  console.log("all providers", providers);
 
   return { data: providers[0].providers };
 };

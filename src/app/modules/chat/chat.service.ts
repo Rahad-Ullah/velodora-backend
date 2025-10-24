@@ -48,7 +48,6 @@ const deleteChatFromDB = async (chatId: string) => {
     await MessageModel.deleteMany({ chat: chatId });
   }
 
-  // console.log("Chat : ",isExist);
 
   const result = await ChatModel.findByIdAndDelete(chatId);
   return result;
@@ -59,7 +58,6 @@ const getChatsByIdFromDB = async (
   userId: string,
   query: Record<string, any>
 ) => {
-  // console.log(query.searchTerm, "SearchTerm")
   const chats = await ChatModel.find({ participants: { $in: [userId] } })
     .populate({
       path: 'participants',
@@ -77,7 +75,6 @@ const getChatsByIdFromDB = async (
     .select('participants updatedAt')
     .sort('-updatedAt');
 
-    // console.log(chats)
 
   // Filter out chats where no participants match the search (empty participants)
   const filteredChats = chats?.filter(

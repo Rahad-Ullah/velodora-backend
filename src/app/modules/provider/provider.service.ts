@@ -88,7 +88,6 @@ const getMyProviderFromDB = async (id: string): Promise<any> => {
   if (!isExistService) {
     throw new ApiError(StatusCodes.BAD_REQUEST, "Service doesn't exist!");
   }
-  console.log("Provider Details : ", isExistService);
 
   return { data: isExistService[0] };
 };
@@ -140,7 +139,6 @@ const getUserEditProviderFromDB = async (id: string): Promise<any> => {
   if (!isExistService) {
     throw new ApiError(StatusCodes.BAD_REQUEST, "Service doesn't exist!");
   }
-  console.log("Provider Details : ", isExistService);
 
   return { data: isExistService[0] };
 };
@@ -389,7 +387,6 @@ const getProvidersFromDB = async (
   );
 
   const providers = await ProviderModel.aggregate(pipeline);
-  console.log("all providers", providers);
 
   return { data: providers };
 };
@@ -399,7 +396,6 @@ const updateProviderToDB = async (
   payload: any, providerId: string
 ): Promise<any> => {
 
-  // console.log("Update Service : ", payload);
 
   const isExistProvider = await ProviderModel.findOne({ user: providerId });
   if (!isExistProvider) {
@@ -425,7 +421,6 @@ const updateProviderToDB = async (
     serviceImages: payload.serviceImages
   }
 
-  console.log("Exist Services : ", isExistProvider.services.toString());
 
   const servicesNew = payload.services?.new
     ? await ServiceModel.insertMany(
@@ -446,7 +441,6 @@ const updateProviderToDB = async (
 
   updatedProvider.services = [...servicesUpdate.map((service: any) => service?._id), ...servicesNew.map((service: any) => service?._id), ...servicesExist];
 
-  console.log("Updated Provider : ", updatedProvider)
 
   const res = await ProviderTempModel.create(updatedProvider);
   await UserModel.findByIdAndUpdate(isExistProvider.user, { $set: { isModified: true } }, { new: true });
@@ -506,7 +500,6 @@ const approveEditProviderToDB = async (
     }
   }
 
-  // console.log("New Services : ", newServices);
 
 
   await ProviderModel.findOneAndUpdate({ user: id }, { ...newProvider, services: newServices }, { new: true });
@@ -545,7 +538,6 @@ const deleteEditProviderToDB = async (
 // Approve provider
 const approveProviderToDB = async (id: string): Promise<{ message: string }> => {
 
-  console.log("id", id);
   // 1. Update provider
   const updatedProvider = await ProviderModel.findOneAndUpdate(
     { user: id },
@@ -553,7 +545,6 @@ const approveProviderToDB = async (id: string): Promise<{ message: string }> => 
     { new: true }
   );
 
-  console.log("updatedProvider", updatedProvider);
 
   if (!updatedProvider) {
     throw new ApiError(StatusCodes.BAD_REQUEST, "Provider doesn't exist!");
@@ -614,8 +605,7 @@ const activeBlockProviderToDB = async (
 
   const res = await ProviderModel.findByIdAndUpdate(isExistService._id, { $set: { isActive: !isExistService?.isActive, verified: true } }, { new: true });
   const profile = await UserModel.findByIdAndUpdate(id, { $set: { verifiedService: !isExistService?.isActive } }, { new: true });
-  console.log("Provider", res);
-  console.log("Profile", profile);
+ 
 
   return { message: `Provider ${isExistService?.isActive ? 'blocked' : 'unblocked'} successfully!`, data: res };
 };
@@ -631,7 +621,7 @@ const onlineOflineProviderToDB = async (
   }
 
   const res = await ProviderModel.findByIdAndUpdate(isExistService._id, { $set: { isOnline: !isExistService?.isOnline } }, { new: true });
-  // console.log("Provider", res);
+ 
 
   return { message: `Provider is ${res?.isOnline ? 'Online' : 'Offline'} now`, data: res };
 };

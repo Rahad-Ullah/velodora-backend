@@ -34,7 +34,6 @@ const getSystemFromDB = async (): Promise<any> => {
 
 // update system to db
 const updateSystemToDB = async (payload: any): Promise<any> => {
-  console.log("System payload:", payload);
 
   const isExistSystem = await SystemModel.findOne({});
   if (!isExistSystem) {
@@ -71,9 +70,8 @@ const updateSystemToDB = async (payload: any): Promise<any> => {
   return { message: 'System updated successfully', data: newSystem };
 };
 
-// update system to db
+// on/off system to db
 const onOffSystemToDB = async (payload: string): Promise<any> => {
-  console.log("System payload on/off:", payload);
 
   const isExistSystem = await SystemModel.findOne({});
   if (!isExistSystem) {

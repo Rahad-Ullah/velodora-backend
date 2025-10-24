@@ -19,7 +19,6 @@ router
       try {
         // Parse JSON string from multipart
         // const {serviceImages, ...parsed} = JSON.parse(req.body.data);
-        // console.log("req.body.data", req.body.data);
         const filePaths = getMultipleFilesPath(req.files, 'serviceImages');
 
         // Validate with Zod
@@ -53,7 +52,6 @@ router
           previousServiceImages: req.body.previousServiceImages && JSON.parse(req.body.previousServiceImages),
         });
 
-        console.log("validatedData", validatedData);
 
         req.body = validatedData;
 

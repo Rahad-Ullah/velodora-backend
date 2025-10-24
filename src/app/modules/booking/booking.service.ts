@@ -11,6 +11,8 @@ import { ChatServices } from '../chat/chat.service';
 import stripe from '../../config/stripe.config';
 import config from '../../../config';
 import { RevenueModel } from '../revenues/revenue.model';
+import { sendNotifications } from '../../../helpers/notificationHelper';
+import { NOTIFICATION_TYPE } from '../notification/notification.constants';
 
 
 // Create Stripe Checkout Session //
@@ -74,8 +76,6 @@ const createBookingToDB = async (payload: {
 
   // Check if the services are valid
   const providerServices = provider.services.map((service) => service.toString());
-  // console.log("Create booking - Provider Services : ", providerServices);
-  // console.log("Create booking - Payload Services : ", payload.services);
   payload.services.forEach((service) => {
     if (!providerServices.includes(service)) {
       throw new ApiError(StatusCodes.BAD_REQUEST, 'Invalid service found');
@@ -132,7 +132,6 @@ const createBookingToDB = async (payload: {
 
 
   const res = await BookingModel.create(newPayload);
-  // console.log(res);
   // return res;
 
   const resRevenue = await RevenueModel.create({
@@ -204,7 +203,6 @@ const acceptBookingToDB = async (id: string, userId: string): Promise<any> => {
     throw new ApiError(StatusCodes.INTERNAL_SERVER_ERROR, 'Accept Booking - Failed to create chat');
   }
 
-  console.log(result)
 
   booking.status = BOOKING_STATUS.UPCOMING;
   booking.chatId = new Types.ObjectId(result._id);
@@ -240,8 +238,6 @@ const completeBookingToDB = async (userId: string, providerid: string): Promise<
     throw new ApiError(StatusCodes.INTERNAL_SERVER_ERROR, 'Complete Booking - Failed to delete chat');
   }
 
-  // console.log(result)
-
   booking.status = BOOKING_STATUS.COMPLETED;
   const res = await booking.save();
 
@@ -249,6 +245,13 @@ const completeBookingToDB = async (userId: string, providerid: string): Promise<
   // await user.save();
   await UserModel.findByIdAndUpdate(providerid, {
     $set: { credits: + (booking.amount - booking.amount * 0.15) }
+  })
+
+  sendNotifications({
+    type: NOTIFICATION_TYPE.BOOKING_STATUS,
+    title: 'Booking Completed Successfully',
+    receiver: user._id,
+    referenceId: provider.user,
   })
 
   return res;
@@ -548,11 +551,9 @@ const getBookingsToDB = async (id: string, query: any): Promise<any> => {
   let matchUserProvider: any = {}
 
   if (user.role === USER_ROLES.USER) {
-    // console.log("Booking User", user);
     matchUserProvider = { user: new Types.ObjectId(id) }
 
   } else if (user.role === USER_ROLES.PROVIDER) {
-    // console.log("Booking Provider", user);
     const provider = await ProviderModel.findOne({ user: new Types.ObjectId(id) });
     if (!provider) {
       throw new ApiError(StatusCodes.NOT_FOUND, 'Provider not found');
@@ -714,11 +715,9 @@ const getBookingsForAdminFromDB = async (id: string, query: any): Promise<any> =
   let matchUserProvider: any = {}
 
   if (user.role === USER_ROLES.USER) {
-    // console.log("Booking User", user);
     matchUserProvider = { user: new Types.ObjectId(id) }
 
   } else if (user.role === USER_ROLES.PROVIDER) {
-    // console.log("Booking Provider", user);
     const provider = await ProviderModel.findOne({ user: new Types.ObjectId(id) });
     if (!provider) {
       throw new ApiError(StatusCodes.NOT_FOUND, 'Provider not found');

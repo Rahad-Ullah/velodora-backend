@@ -28,6 +28,7 @@ class QueryBuilder<T> {
   }
 
   //filtering
+  // User.find({ role: 'USER', isActive: true })
   filter() {
     const queryObj = { ...this.query };
     const excludeFields = ['searchTerm', 'sort', 'page', 'limit', 'fields'];
@@ -37,17 +38,15 @@ class QueryBuilder<T> {
     return this;
   }
 
-
   //sorting
   sort(sortableFields?: string[]) {
-    // console.log("sort : ", this?.query?.sort);
 
     let newSort: string[] = [];
 
-    if (sortableFields && sortableFields?.length > 0 ) {
+    if (sortableFields && sortableFields?.length > 0) {
       newSort = sortableFields;
     } else {
-      ["-createdAt"];
+      newSort = ["-createdAt"];
     }
 
     const sortArray: [string, SortOrder][] = [];
@@ -64,7 +63,6 @@ class QueryBuilder<T> {
     return this;
   }
 
-
   //pagination
   paginate() {
     let limit = Number(this?.query?.limit) || 10;
@@ -76,7 +74,9 @@ class QueryBuilder<T> {
     return this;
   }
 
+  //fields filtering
   //"fields filtering": "name,email,location, ...."
+  // User.find().select("name email location");
   fields() {
     let fields = (this?.query?.fields as string)?.split(",").join(" ") || "-__v";
 
@@ -89,6 +89,11 @@ class QueryBuilder<T> {
   }
 
   //populating
+  // .populate(['profile', 'orders'], { profile: 'bio age', orders: 'amount' })
+  // User.find().populate([
+  //   { path: 'profile', select: 'bio age' },
+  //   { path: 'orders', select: 'amount' }
+  // ]);
   populate(populateFields: string[], selectFields: Record<string, unknown>) {
     this.modelQuery = this.modelQuery.populate(
       populateFields.map(field => ({

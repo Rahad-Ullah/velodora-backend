@@ -39,7 +39,6 @@ const createScheduleToDB = async (userId: string, payload: {
     payload.endTime,
     payload.duration
   );
-  // console.log("provider payload in schedule service: ", payload);
 
   let schedule: any;
 
@@ -87,7 +86,7 @@ const openCloseScheduleToDB = async (id: string): Promise<any> => {
 
 //get schedules to db
 export const getSchedulesToDB = async (providerId: string, date?: string): Promise<any> => {
-  console.log("providerId in schedule service:", providerId);
+
 
   const provider = await ProviderModel.findOne({ user: providerId });
 
@@ -115,7 +114,6 @@ export const getSchedulesToDB = async (providerId: string, date?: string): Promi
     endDate.setHours(23, 59, 59, 999);
   }
 
-  console.log("Schedule Date Range:", startDate, "to", endDate);
 
   const schedules = await ScheduleModel.aggregate([
     {
@@ -162,7 +160,6 @@ export const getSchedulesByDateToDB = async (
   providerId: string,
   date?: string
 ): Promise<any> => {
-  console.log("providerId in schedule service:", providerId);
 
   const provider = await ProviderModel.findOne({ _id: providerId });
 
@@ -175,7 +172,6 @@ export const getSchedulesByDateToDB = async (
   const startOfDay = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0);
   const endOfDay = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1, 0, 0, 0);
 
-  console.log("Schedule Date Range:", startOfDay, "to", endOfDay);
 
   const schedules = await ScheduleModel.aggregate([
     {

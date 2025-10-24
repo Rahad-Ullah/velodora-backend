@@ -20,15 +20,14 @@ const handlePaymentSuccess = async (session: Stripe.Checkout.Session) => {
 
 
       const { metadata } = session;
-      // console.log('metadata', metadata);
       const bookingId = metadata?.bookingId;
       const isExistBooking = await BookingModel.findById(bookingId);
       if (!isExistBooking) {
-            throw new ApiError(StatusCodes.NOT_FOUND, 'Booking not found');
+            throw new ApiError(StatusCodes.NOT_FOUND, 'After payment - Booking not found');
       } else if (isExistBooking.status === BOOKING_STATUS.AUTO_CANCELLED) {
-            throw new ApiError(StatusCodes.BAD_REQUEST, 'You take more than 5 minutes to complete the payment. Please contact with support team.');
+            throw new ApiError(StatusCodes.BAD_REQUEST, 'After payment - You take more than 5 minutes to complete the payment. Please contact with support team.');
       } else if (isExistBooking.status !== BOOKING_STATUS.PENDING) {
-            throw new ApiError(StatusCodes.BAD_REQUEST, 'Booking status is not pending');
+            throw new ApiError(StatusCodes.BAD_REQUEST, 'After payment - Booking status is not pending');
       }
 
       if (metadata?.paymentType === 'bookingPayment') {
@@ -50,8 +49,6 @@ const handleStripeWebhook = async (req: Request, res: Response) => {
       console.log("Webhook called------------------------------------------------It's working");
       const payload = req.body;
       const signature = req.headers['stripe-signature'];
-      // console.log('payload', payload);
-      // console.log('signature', signature);
 
       if (!payload) {
             return res.status(400).json({ error: 'Missing payload' });
@@ -63,7 +60,6 @@ const handleStripeWebhook = async (req: Request, res: Response) => {
 
       try {
             const event = stripe.webhooks.constructEvent(payload, signature, config.stripe.webhook_secret as string);
-            console.log('event', event);
 
             switch (event.type) {
                   case 'checkout.session.completed':
@@ -72,18 +68,14 @@ const handleStripeWebhook = async (req: Request, res: Response) => {
                   case 'payment_intent.succeeded':
                         const succeededIntent = event.data.object as Stripe.PaymentIntent;
                         console.log('✅ Payment succeeded:', succeededIntent.id);
-                        console.log('Reason:', succeededIntent.last_payment_error?.message);
                         break;
                   case 'payment_intent.payment_failed':
                         const failedIntent = event.data.object as Stripe.PaymentIntent;
                         console.log('❌ Payment failed:', failedIntent.id);
-                        console.log('Reason:', failedIntent.last_payment_error?.message);
-                        // 👉 Update booking/payment status to "failed"
                         break;
                   case 'charge.failed':
                         const failedCharge = event.data.object as Stripe.Charge;
                         console.log('❌ Charge failed:', failedCharge.id);
-                        console.log('Reason:', failedCharge.failure_message);
                         break;
 
                   case 'checkout.session.async_payment_failed':

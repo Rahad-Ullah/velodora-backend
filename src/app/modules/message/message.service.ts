@@ -23,11 +23,9 @@ const createMessage = async (payload: IMessage): Promise<IMessage> => {
   if (!result) {
     throw new ApiError(400, 'Failed to create message');
   };
-  // console.log("message result", result);
   
   const msgResponse = await MessageModel.findById(result._id).populate('sender', { role: 1, name: 1, image: 1 });
   if(!msgResponse) throw new ApiError(400, 'Failed to get message');
-  // console.log("Message Response", msgResponse);
 
   // emit socket event for new message
   const io = global.io;

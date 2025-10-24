@@ -8,7 +8,6 @@ import { SubCategoryModel } from '../subCategory/subCategory.model';
 
 //create category
 const createServiceToDB = async (payload: Partial<IService>): Promise<any> => {
-  console.log("Create Service payload:", payload);
 
   const isCategoryExist = await CategoryModel.findOne({ _id: payload.category });
   if (!isCategoryExist) {

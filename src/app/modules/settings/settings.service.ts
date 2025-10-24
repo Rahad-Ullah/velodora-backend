@@ -21,9 +21,7 @@ const addSettings = async (data: Partial<ISettings>): Promise<ISettings> => {
 const getSettings = async (
   title?: string,
 ): Promise<Partial<ISettings>> => {
-  // console.log(title);
   const settings = await Settings.findOne().select(title ? title : '');
-  // console.log(settings)
 
   return settings!;
 };
@@ -32,7 +30,6 @@ const getSettings = async (
 const updateSettings = async (
   settingsBody: Partial<ISettings>
 ): Promise<string> => {
-  // console.log('settingsBody,', Object.keys(settingsBody));
   await Settings.findOneAndUpdate({}, settingsBody,);
 
   return `${Object.keys(settingsBody).join(', ').toString()} updated successfully`;

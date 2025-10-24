@@ -11,7 +11,6 @@ const createProvider = catchAsync(
   async (req: Request, res: Response, next: NextFunction) => {
     
     // const filePaths = getMultipleFilesPath(req.files, 'serviceImages');
-    // console.log("filePaths", filePaths);
 
     const provider = {
       ...req.body.data,
@@ -47,7 +46,6 @@ const getProvider = catchAsync(async (req: Request, res: Response) => {
 //get my provider
 const getUserEditedProvider = catchAsync(async (req: Request, res: Response) => {
   const id = req.params.id;
-  console.log("user provider id", id);
   const result = await ProviderService.getUserEditProviderFromDB(id!);
 
   sendResponse(res, {
@@ -61,7 +59,6 @@ const getUserEditedProvider = catchAsync(async (req: Request, res: Response) => 
 //get my provider
 const getUserProvider = catchAsync(async (req: Request, res: Response) => {
   const id = req.params.id;
-  console.log("user provider id", id);
   const result = await ProviderService.getMyProviderFromDB(id!);
 
   sendResponse(res, {
@@ -75,7 +72,6 @@ const getUserProvider = catchAsync(async (req: Request, res: Response) => {
 //get my provider
 const getMyProvider = catchAsync(async (req: Request, res: Response) => {
   const id = req.user.id;
-  console.log("my provider id", id);
   const result = await ProviderService.getMyProviderFromDB(id!);
 
   sendResponse(res, {

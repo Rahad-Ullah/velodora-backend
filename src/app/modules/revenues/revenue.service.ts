@@ -1,6 +1,3 @@
-import { StatusCodes } from 'http-status-codes';
-import ApiError from '../../../errors/ApiError';
-import { IRevenue } from './revenue.interface';
 import { RevenueModel } from './revenue.model';
 import { UserModel } from '../user/user.model';
 import { CreditsModel } from '../credits/credits.model';
@@ -107,8 +104,6 @@ const generalStateFromDB = async (): Promise<any> => {
       },
     },
   ]);
-
-
 
   const result = {
     totalUser: userDatas[0]?.totalUsers || 0,

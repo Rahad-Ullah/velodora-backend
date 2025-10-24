@@ -4,9 +4,8 @@ import catchAsync from '../../../shared/catchAsync';
 import sendResponse from '../../../shared/sendResponse';
 import { ReferralService } from './referral.service';
 
-
+// get referral code controller
 const getReferralCode = catchAsync(async (req: Request, res: Response) => {
-  console.log("Referral Controller - user: ", req.user.id);
   const result = await ReferralService.getReferralFromDB(req.user.id);
 
   sendResponse(res, {
@@ -17,6 +16,7 @@ const getReferralCode = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+// delete referral code controller
 const deleteReferralCode = catchAsync(async (req: Request, res: Response) => {
 
 
@@ -29,6 +29,7 @@ const deleteReferralCode = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+// get referrals list controller
 const getReferralsList = catchAsync(async (req: Request, res: Response) => {
   const paginationOptions = {
     page: req.query.page ? Number(req.query.page) : 1,

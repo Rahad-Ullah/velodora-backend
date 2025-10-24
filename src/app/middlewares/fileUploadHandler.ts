@@ -47,7 +47,6 @@ const fileUploadHandler = () => {
     },
     filename: (req, file, cb) => {
       const fileExt = path.extname(file.originalname);
-      // console.log("fileExt", fileExt);
       const fileName =
         file.originalname
           .replace(fileExt, '')

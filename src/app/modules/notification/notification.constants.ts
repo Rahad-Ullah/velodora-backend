@@ -9,4 +9,5 @@ export enum NOTIFICATION_TYPE {
   SERVICE_STATUS = 'Service Status',
   EDIT_PROVIDER = 'Edit Request from Provider',
   NEW_PROVIDER = 'New Provider Registered',
+  REVIEW = 'New Review',
 }

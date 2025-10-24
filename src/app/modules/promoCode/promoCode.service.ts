@@ -3,6 +3,18 @@ import ApiError from '../../../errors/ApiError';
 import { PromoCodeModel } from './promoCode.model';
 import { TPromoCode } from './promoCode.interface';
 
+// delete promo code from DB
+const deletePromoCodeFromDB = async (id: string): Promise<any> => {
+
+  const isExistPromoCode = await PromoCodeModel.findByIdAndDelete(id)
+
+  if (!isExistPromoCode) {
+    throw new ApiError(StatusCodes.BAD_REQUEST, 'Promo code not found');
+  }
+
+  return { code: isExistPromoCode, message: "Promo code deleted successfully" };
+};
+
 // get promo code from DB
 const getPromoCodeFromDB = async (code: string): Promise<any> => {
 
@@ -20,7 +32,7 @@ const getPromoCodeFromDB = async (code: string): Promise<any> => {
   return { code: isExistPromoCode, message: "Promo code found successfully" };
 };
 
-// create promo code from DB
+// create promo code to DB
 const createPromoCodeToDB = async (payload: TPromoCode): Promise<any> => {
 
   const isExistPromoCode = await PromoCodeModel.findOne({ code: payload.code });
@@ -39,10 +51,11 @@ const createPromoCodeToDB = async (payload: TPromoCode): Promise<any> => {
   return { code: promoCode, message: "Promo code created successfully" };
 };
 
-// create promo code from DB
+// get promo codes from DB
 const getPromoCodesFromDB = async (): Promise<any> => {
 
-  const isExistPromoCodes = await PromoCodeModel.find({});
+  const isExistPromoCodes = await PromoCodeModel.find({})
+    .sort({ createdAt: -1 });
 
   if (!isExistPromoCodes) {
     throw new ApiError(StatusCodes.BAD_REQUEST, 'Promo codes not found');
@@ -55,4 +68,5 @@ export const PromoCodeService = {
   createPromoCodeToDB,
   getPromoCodesFromDB,
   getPromoCodeFromDB,
+  deletePromoCodeFromDB,
 };

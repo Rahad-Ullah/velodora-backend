@@ -22,7 +22,6 @@ const loginUserFromDB = async (payload: ILoginData) => {
   const { email, password, role } = payload;
 
   const isExistUser = await UserModel.findOne({ email }).select('+password');
-  // console.log("Auth Service - loginUserFromDB - isExistUser: ", isExistUser);
 
   if (!isExistUser) {
     throw new ApiError(StatusCodes.BAD_REQUEST, "User doesn't exist!");
@@ -71,7 +70,6 @@ const loginUserFromDB = async (payload: ILoginData) => {
 //send otp
 const sendOtpToDB = async (email: string) => {
   const isExistUser = await UserModel.findOne({ email }).select('+authentication');
-  // console.log(isExistUser);
 
   if (!isExistUser) {
     throw new ApiError(StatusCodes.BAD_REQUEST, "User doesn't exist!");
@@ -283,7 +281,15 @@ const resetPasswordToDB = async (
     },
   };
 
-  await UserModel.findOneAndUpdate({ _id: isExistToken.user }, updateData);
+  const updatedUser = await UserModel.findOneAndUpdate({ _id: isExistToken.user }, updateData);
+  if (!updatedUser) {
+    throw new ApiError(StatusCodes.BAD_REQUEST, 'Failed to Reset Password!');
+  }
+
+  const deleteToken = await ResetTokenModel.findByIdAndDelete(isExistToken._id);
+  if (!deleteToken) {
+    throw new ApiError(StatusCodes.BAD_REQUEST, 'Failed to delete token!');
+  }
 };
 
 //change password
@@ -302,7 +308,7 @@ const changePasswordToDB = async (
     currentPassword &&
     !(await UserModel.isMatchPassword(currentPassword, isExistUser.password))
   ) {
-    throw new ApiError(StatusCodes.BAD_REQUEST, 'Password is incorrect');
+    throw new ApiError(StatusCodes.BAD_REQUEST, 'Old password is incorrect');
   }
 
   //newPassword and current password
@@ -334,7 +340,6 @@ const changePasswordToDB = async (
 
 // Refresh token
 const refreshTokenToDB = async (token: string) => {
-  console.log('token====>', token);
   if (!token) {
     throw new ApiError(StatusCodes.BAD_REQUEST, 'Token not found');
   }
@@ -344,9 +349,8 @@ const refreshTokenToDB = async (token: string) => {
     config.jwt.jwt_refresh_secret as string,
   );
 
-  // console.log('decoded====>', decoded);
   const { email } = decoded;
-  
+
   const activeUser = await UserModel.findOne({ email, isActive: true });
 
 
@@ -355,7 +359,7 @@ const refreshTokenToDB = async (token: string) => {
   }
 
   const jwtPayload = { id: activeUser._id, role: activeUser.role, email: activeUser.email };
-  
+
   const accessToken = jwtHelper.createToken(
     jwtPayload,
     config.jwt.jwt_secret as Secret,

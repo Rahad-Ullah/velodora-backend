@@ -155,7 +155,6 @@ const updateProfile = catchAsync(
 //delete user
 const updateUserStatus = catchAsync(
   async (req: Request, res: Response, next: NextFunction) => {
-    // console.log("controller - user: ", req.params?.id);
 
     const result = await UserService.updateUserStatusToDB(req.params?.id);
 
@@ -171,7 +170,6 @@ const updateUserStatus = catchAsync(
 //delete profile
 const deleteProfile = catchAsync(
   async (req: Request, res: Response, next: NextFunction) => {
-    // console.log("controller- user: ", req.user);
 
     const result = await UserService.deleteUserFromDB(req.user.id as string);
 
@@ -202,7 +200,6 @@ const giveCredits = catchAsync(
 //delete user
 const activeBlockUser = catchAsync(
   async (req: Request, res: Response, next: NextFunction) => {
-    // console.log("controller - user: ", req.params?.id);
 
     const result = await UserService.activeBlockUserFromDB(req.params?.id as string);
 
@@ -218,7 +215,6 @@ const activeBlockUser = catchAsync(
 //delete user
 const deleteUser = catchAsync(
   async (req: Request, res: Response, next: NextFunction) => {
-    // console.log("controller - user: ", req.params?.id);
 
     const result = await UserService.deleteUserFromDB(req.params?.id as string);
 

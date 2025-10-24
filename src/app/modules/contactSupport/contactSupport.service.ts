@@ -34,7 +34,6 @@ const updateContactSupportToDB = async (id: string, reply: string): Promise<any>
   if (res.isReply) {
     throw new ApiError(StatusCodes.BAD_REQUEST, "Already replied! Please Check through your email");
   }
-  // console.log("Contact Support Response: ", res);
 
   // Make sure user is properly populated
   if (!res.user || typeof res.user === 'string' || !('email' in res.user)) {
@@ -131,8 +130,6 @@ const getContactSupportsToDB = async (
   )
 
   const result = await ContactSupportModel.aggregate(pipeline);
-
-  console.log("Contact Support aggregate result: ", result);
 
   const total = result[0]?.total || 0;
   const data = result[0]?.data || [];

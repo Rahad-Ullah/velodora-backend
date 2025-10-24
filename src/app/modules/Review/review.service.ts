@@ -4,6 +4,8 @@ import { ReviewModel } from './review.model';
 import { IReview } from './review.interface';
 import { Types } from 'mongoose';
 import { UserModel } from '../user/user.model';
+import { sendNotifications } from '../../../helpers/notificationHelper';
+import { NOTIFICATION_TYPE } from '../notification/notification.constants';
 
 
 //create contact support
@@ -35,6 +37,13 @@ const createReviewToDB = async (userId: string, payload: Partial<IReview>): Prom
     throw new ApiError(StatusCodes.BAD_REQUEST, "Review to Provider failed!");
   }
 
+  sendNotifications({
+    type: NOTIFICATION_TYPE.REVIEW,
+    title: 'You get a new review from ' + provider.name,
+    receiver: provider._id,
+    referenceId: new Types.ObjectId(userId),
+  })
+
   return { data: res };
 };
 
@@ -55,10 +64,10 @@ const getMyReviewsToDB = async (id: string): Promise<any> => {
     }
   ]);
 
-  if (!res || res.length === 0) {
-    throw new ApiError(StatusCodes.BAD_REQUEST, "Review doesn't exist!");
-  }
-  return { data: res[0] }; // since grouping by providerId, only one result
+  // if (!res || res.length === 0) {
+  //   throw new ApiError(StatusCodes.BAD_REQUEST, "Review doesn't exist!");
+  // }
+  return { data: res[0] || null }; // since grouping by providerId, only one result
 };
 
 // get my ratings
@@ -76,10 +85,10 @@ const getMyRatingsToDB = async (id: string): Promise<any> => {
     }
   ]);
 
-  if (!res || res.length === 0) {
-    throw new ApiError(StatusCodes.BAD_REQUEST, "Review doesn't exist!");
-  }
-  return { data: res[0] }; // since grouping by providerId, only one result
+  // if (!res || res.length === 0) {
+  //   throw new ApiError(StatusCodes.BAD_REQUEST, "Review doesn't exist!");
+  // }
+  return { data: res[0] || null }; // since grouping by providerId, only one result
 };
 
 
