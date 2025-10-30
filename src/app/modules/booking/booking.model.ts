@@ -15,6 +15,12 @@ const BookingSchema = new Schema(
     chatId: { type: Schema.Types.ObjectId, ref: "Chat" , default: null},
     status: { type: String, enum: Object.values(BOOKING_STATUS), default: BOOKING_STATUS.PENDING },
     paymentStatus: { type: String, enum: Object.values(BOOKING_PAYMENT_STATUS), default: BOOKING_PAYMENT_STATUS.UNPAID },
+    subTotal: { type: Number, required: true },
+    promoCode: { type: String },
+    weatherFee: { type: Number, default: 0 },
+    convenienceFee: { type: Number, default: 0 },
+    arrivalFee: { type: Number, default: 0 },
+    discount: { type: Number, default: 0 },
   },
   { timestamps: true }
 );

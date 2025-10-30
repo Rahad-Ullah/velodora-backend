@@ -16,6 +16,7 @@ import generateOTP from '../../../util/generateOTP';
 import { ResetTokenModel } from '../resetToken/resetToken.model';
 import { UserModel } from '../user/user.model';
 import cryptoToken from '../../../util/cryptoToken';
+import e from 'cors';
 
 //login
 const loginUserFromDB = async (payload: ILoginData) => {
@@ -27,7 +28,6 @@ const loginUserFromDB = async (payload: ILoginData) => {
     throw new ApiError(StatusCodes.BAD_REQUEST, "User doesn't exist!");
   } else if (isExistUser?.role !== role) {
     throw new ApiError(StatusCodes.BAD_REQUEST, "Role doesn't match!");
-  } else if (isExistUser?.isDeleted) {
   } else if (!isExistUser?.isActive) {
     throw new ApiError(StatusCodes.BAD_REQUEST, "User is blocked by admin!");
   } else if (isExistUser?.isDeleted) {
@@ -35,13 +35,10 @@ const loginUserFromDB = async (payload: ILoginData) => {
     const expireAt = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
     if ((isExistUser as any).updatedAt < expireAt) {
       throw new ApiError(StatusCodes.BAD_REQUEST, "User is deleted, Please contact admin!");
+    } else {
+      await UserModel.findByIdAndUpdate(isExistUser._id, { $set: { isDeleted: false } }, { new: true });
     }
   }
-
-  if (isExistUser?.isDeleted === true) {
-    await UserModel.findByIdAndUpdate(isExistUser._id, { $set: { isDeleted: false } }, { new: true });
-  }
-
   //check match password
   if (
     password && !(await UserModel.isMatchPassword(password, isExistUser.password))

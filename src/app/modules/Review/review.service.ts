@@ -6,6 +6,7 @@ import { Types } from 'mongoose';
 import { UserModel } from '../user/user.model';
 import { sendNotifications } from '../../../helpers/notificationHelper';
 import { NOTIFICATION_TYPE } from '../notification/notification.constants';
+import { ProviderModel } from '../provider/provider.model';
 
 
 //create contact support
@@ -48,30 +49,99 @@ const createReviewToDB = async (userId: string, payload: Partial<IReview>): Prom
 };
 
 
-// get my reviews
+
 const getMyReviewsToDB = async (id: string): Promise<any> => {
   const res = await ReviewModel.aggregate([
     {
-      $match: { providerId: new Types.ObjectId(id) }
+      $match: { providerId: new Types.ObjectId(id) },
+    },
+    {
+      $lookup: {
+        from: "users",
+        localField: "userId",
+        foreignField: "_id",
+        as: "user",
+        pipeline: [
+          {
+            $project: {
+              name: 1,
+              image: 1,
+              email: 1,
+              _id: 1,
+            },
+          },
+        ],
+      },
+    },
+    {
+      $unwind: {
+        path: "$user",
+        preserveNullAndEmptyArrays: true,
+      },
     },
     {
       $group: {
         _id: "$providerId",
-        averageRating: { $avg: "$rating" },   // calculate average
-        totalReviews: { $sum: 1 },            // count reviews
-        reviews: { $push: "$$ROOT" }          // keep all review docs
-      }
-    }
+        averageRating: { $avg: "$rating" },
+        totalReviews: { $sum: 1 },
+        reviews: {
+          $push: {
+            _id: "$_id",
+            rating: "$rating",
+            comment: "$comment",
+            createdAt: "$createdAt",
+            user: "$user", // include populated user here
+          },
+        },
+      },
+    },
   ]);
 
-  // if (!res || res.length === 0) {
-  //   throw new ApiError(StatusCodes.BAD_REQUEST, "Review doesn't exist!");
-  // }
   return { data: res[0] || null }; // since grouping by providerId, only one result
 };
 
+
 // get my ratings
 const getMyRatingsToDB = async (id: string): Promise<any> => {
+  const provider = await ProviderModel.aggregate([
+    { $match: { user: new Types.ObjectId(id) } },
+    {
+      $lookup: {
+        from: "services",
+        localField: "services",
+        foreignField: "_id",
+        as: "services",
+        pipeline: [
+          {
+            $lookup: {
+              from: "categories",
+              localField: "category",
+              foreignField: "_id",
+              as: "category",
+            },
+          },
+          {
+            $unwind: {
+              path: "$category",
+              preserveNullAndEmptyArrays: true,
+            },
+          },
+          {
+            $addFields: {
+              category: "$category.name",
+            }
+          },
+          { $project: { category: 1 } }
+        ],
+      }
+    },
+    {
+      $project: {
+        services: 1
+      }
+    }
+  ])
+
   const res = await ReviewModel.aggregate([
     {
       $match: { providerId: new Types.ObjectId(id) }
@@ -84,11 +154,7 @@ const getMyRatingsToDB = async (id: string): Promise<any> => {
       }
     }
   ]);
-
-  // if (!res || res.length === 0) {
-  //   throw new ApiError(StatusCodes.BAD_REQUEST, "Review doesn't exist!");
-  // }
-  return { data: res[0] || null }; // since grouping by providerId, only one result
+  return { data: {...provider[0]?.services[0], ...res[0] } };
 };
 
 

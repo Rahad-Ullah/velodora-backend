@@ -24,6 +24,7 @@ const stripePayment = catchAsync(
 const createBooking = catchAsync(
   async (req: Request, res: Response) => {
     const user = req.user.id;
+    console.log("Booking controller body:", req.body);
 
 
 
@@ -32,8 +33,8 @@ const createBooking = catchAsync(
     sendResponse(res, {
       success: true,
       statusCode: StatusCodes.OK,
-      message: "Please pay for the booking",
-      data: result,
+      message: result.message,
+      data: result.data,
     });
   }
 );
@@ -147,7 +148,8 @@ const getBookingsAllByAdmin = catchAsync(
     sendResponse(res, {
       success: true,
       statusCode: StatusCodes.OK,
-      data: result,
+      data: result?.data,
+      pagination: result?.meta,
     });
   }
 );
@@ -162,7 +164,8 @@ const getBookingsByAdmin = catchAsync(
     sendResponse(res, {
       success: true,
       statusCode: StatusCodes.OK,
-      data: result,
+      data: result.data,
+      pagination: result.meta,
     });
   }
 );

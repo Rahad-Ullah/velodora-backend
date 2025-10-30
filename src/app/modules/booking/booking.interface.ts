@@ -13,6 +13,12 @@ export type TBooking = {
   chatId: Types.ObjectId;
   status: BOOKING_STATUS;
   paymentStatus: BOOKING_PAYMENT_STATUS;
+  subTotal: number;
+  promoCode?: string;
+  weatherFee?: number;
+  convenienceFee?: number;
+  arrivalFee?: number;
+  discount?: number;
 };
 
 export type TBookingModel = Model<TBooking>;

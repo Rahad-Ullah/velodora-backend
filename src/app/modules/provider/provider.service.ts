@@ -346,6 +346,29 @@ const getProvidersFromDB = async (
     { $match: timeMatch },
     {
       $lookup: {
+        from: "reviews",
+        let: { providerId: "$user" }, // <-- use current provider's userId
+        pipeline: [
+          {
+            $match: {
+              $expr: { $eq: ["$providerId", "$$providerId"] },
+            },
+          },
+          {
+            $group: {
+              _id: "$providerId",
+              averageRating: { $avg: "$rating" },
+              totalReviews: { $sum: 1 },
+            },
+          },
+        ],
+        as: "reviews",
+      },
+    },
+    { $unwind: { path: "$reviews", preserveNullAndEmptyArrays: true } },
+
+    {
+      $lookup: {
         from: "users",
         localField: "user",
         foreignField: "_id",
@@ -382,6 +405,13 @@ const getProvidersFromDB = async (
         distance: 1,
         serviceDistance: 1,
         isActive: 1,
+        reviews: {
+          $cond: {
+            if: { $ne: ["$reviews", null] }, // if reviews field exists (not null)
+            then: "$reviews",
+            else: "$$REMOVE", // removes field entirely from result
+          },
+        },
       },
     }
   );
@@ -390,6 +420,7 @@ const getProvidersFromDB = async (
 
   return { data: providers };
 };
+
 
 //update provider
 const updateProviderToDB = async (
@@ -605,7 +636,7 @@ const activeBlockProviderToDB = async (
 
   const res = await ProviderModel.findByIdAndUpdate(isExistService._id, { $set: { isActive: !isExistService?.isActive, verified: true } }, { new: true });
   const profile = await UserModel.findByIdAndUpdate(id, { $set: { verifiedService: !isExistService?.isActive } }, { new: true });
- 
+
 
   return { message: `Provider ${isExistService?.isActive ? 'blocked' : 'unblocked'} successfully!`, data: res };
 };
@@ -621,7 +652,7 @@ const onlineOflineProviderToDB = async (
   }
 
   const res = await ProviderModel.findByIdAndUpdate(isExistService._id, { $set: { isOnline: !isExistService?.isOnline } }, { new: true });
- 
+
 
   return { message: `Provider is ${res?.isOnline ? 'Online' : 'Offline'} now`, data: res };
 };

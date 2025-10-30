@@ -6,13 +6,8 @@ import sendResponse from '../../../shared/sendResponse';
 import { StatusCodes } from 'http-status-codes';
 
 const addSetting = catchAsync(async (req, res) => {
-  const settingData = {
-    privacyPolicy: '',
-    providerUsagePolicy: '',
-    termsAndConditions: '',
-  };
 
-  const result = await settingsService.addSettings(settingData);
+  const result = await settingsService.addSettings();
 
   sendResponse(res, {
     statusCode: StatusCodes.OK,

@@ -38,6 +38,7 @@ const createFavListToDB = async (userId: string, providerId: string): Promise<an
 
   return res;
 };
+
 // get my fav lists
 const getFavListToDB = async (userId: string): Promise<any> => {
 
@@ -51,17 +52,17 @@ const getFavListToDB = async (userId: string): Promise<any> => {
 };
 
 
-// get all providers from DB
+
+// get all favorite providers by user
 const getFavListUserFromDB = async (
   userId: string
 ): Promise<{ data: TProvider[] }> => {
-
-  // Aggregation pipeline definition //
-  const pipeline: any[] = [];
-
-
-  pipeline.push(
-    { $match: { userId: new mongoose.Types.ObjectId(userId) } },
+  const pipeline: any[] = [
+    {
+      $match: {
+        userId: new mongoose.Types.ObjectId(userId),
+      },
+    },
     {
       $lookup: {
         from: "providers",
@@ -69,6 +70,7 @@ const getFavListUserFromDB = async (
         foreignField: "_id",
         as: "providers",
         pipeline: [
+          // --------------------- include related services --------------------- //
           {
             $lookup: {
               from: "services",
@@ -76,7 +78,6 @@ const getFavListUserFromDB = async (
               foreignField: "_id",
               as: "services",
               pipeline: [
-                // { $match: serviceMatch },
                 { $project: { category: 1, subCategory: 1, price: 1 } },
                 {
                   $lookup: {
@@ -97,23 +98,13 @@ const getFavListUserFromDB = async (
                     pipeline: [{ $project: { name: 1 } }],
                   },
                 },
-                { $unwind: "$subCategory" },
+                { $unwind: "$subCategory"},
               ],
             },
           },
           { $match: { "services.0": { $exists: true } } },
-          // { $unwind: "$services"},
-          {
-            $lookup: {
-              from: "schedules",
-              localField: "_id",
-              foreignField: "provider",
-              as: "schedules",
-              // pipeline: [{ $match: dateMatch }],
-            },
-          },
-          { $match: { "schedules.0": { $exists: true } } },
-          // { $match: timeMatch },
+
+          // --------------------- user info --------------------- //
           {
             $lookup: {
               from: "users",
@@ -124,6 +115,32 @@ const getFavListUserFromDB = async (
             },
           },
           { $unwind: "$user" },
+
+          // --------------------- reviews (rating + total) --------------------- //
+          {
+            $lookup: {
+              from: "reviews",
+              let: { providerId: "$user._id" },
+              pipeline: [
+                {
+                  $match: {
+                    $expr: { $eq: ["$providerId", "$$providerId"] },
+                  },
+                },
+                {
+                  $group: {
+                    _id: "$providerId",
+                    averageRating: { $avg: "$rating" },
+                    totalReviews: { $sum: 1 },
+                  },
+                },
+              ],
+              as: "reviews",
+            },
+          },
+          { $unwind: { path: "$reviews", preserveNullAndEmptyArrays: true } },
+
+          // --------------------- flatten service fields --------------------- //
           {
             $addFields: {
               firstService: { $arrayElemAt: ["$services", 0] },
@@ -138,6 +155,8 @@ const getFavListUserFromDB = async (
               price: "$firstService.price",
             },
           },
+
+          // --------------------- final projection --------------------- //
           {
             $project: {
               isOnline: 1,
@@ -152,22 +171,29 @@ const getFavListUserFromDB = async (
               distance: 1,
               serviceDistance: 1,
               isActive: 1,
+              reviews: 1,
             },
-          }
-        ]
-      }
+          },
+        ],
+      },
     },
     {
       $project: {
         providers: 1,
       },
-    }
-  );
+    },
+  ];
 
-  const providers = await FavListModel.aggregate(pipeline);
+  const result = await FavListModel.aggregate(pipeline);
 
-  return { data: providers[0].providers };
+  // if no favorites found, handle gracefully
+  if (!result.length || !result[0].providers) {
+    return { data: [] };
+  }
+
+  return { data: result[0].providers };
 };
+
 
 export const FavListService = {
   createFavListToDB,

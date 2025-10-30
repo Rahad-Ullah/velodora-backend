@@ -13,6 +13,8 @@ import config from '../../../config';
 import { RevenueModel } from '../revenues/revenue.model';
 import { sendNotifications } from '../../../helpers/notificationHelper';
 import { NOTIFICATION_TYPE } from '../notification/notification.constants';
+import { ReviewService } from '../Review/review.service';
+import { RsdCreditsTransformation } from '../../../helpers/rsdCreditsConver';
 
 
 // Create Stripe Checkout Session //
@@ -47,7 +49,6 @@ const stripePaymentToDB = async (): Promise<any> => {
   }
 }
 
-
 //create booking to db
 const createBookingToDB = async (payload: {
   user: string;
@@ -59,7 +60,15 @@ const createBookingToDB = async (payload: {
     end: string;
   }[];
   amount: number;
+  subTotal: number;
+  promoCode?: string;
+  weatherFee: number;
+  convenienceFee: number;
+  arrivalFee: number;
+  discount: number;
 }): Promise<any> => {
+
+  console.log("Create booking : ", payload)
 
   const date = new Date(payload.date);
   const userSlots = payload.slots.map((slot) => ({
@@ -131,12 +140,27 @@ const createBookingToDB = async (payload: {
   const newPayload = { ...payload, date, slots: userSlots, schedule: providerSchedule!._id };
 
 
-  const res = await BookingModel.create(newPayload);
+  const resBooking = await BookingModel.create(newPayload);
   // return res;
+
+  if (!resBooking) {
+    throw new ApiError(StatusCodes.INTERNAL_SERVER_ERROR, 'Failed to create booking');
+  }
+
+  const user = await UserModel.findById(payload.user);
+  if (!user) {
+    throw new ApiError(StatusCodes.NOT_FOUND, 'User not found');
+  }
+  const creditsToRsd = await RsdCreditsTransformation.creditsToRsd(user.credits!);
+  const rsdToCredits = await RsdCreditsTransformation.rsdToCredits(payload.amount);
+
+  const restCredits = user.credits! - rsdToCredits < 0 ? 0 : user.credits! - rsdToCredits;
+  await UserModel.findByIdAndUpdate(user._id.toString(), { credits: restCredits });
+  // await user.save();
 
   const resRevenue = await RevenueModel.create({
     user: new mongoose.Types.ObjectId(payload.user),
-    revenue: payload.amount * 15 / 100,
+    revenue: payload.weatherFee + payload.convenienceFee + payload.arrivalFee,
   });
 
   if (!resRevenue) {
@@ -144,11 +168,25 @@ const createBookingToDB = async (payload: {
   }
 
 
+
+  if (user.credits! - rsdToCredits > 0) {
+    const booking = await BookingModel.findByIdAndUpdate(resBooking._id, {
+      $set: { paymentStatus: BOOKING_PAYMENT_STATUS.PAID },
+    });
+    if (!booking) {
+      throw new ApiError(StatusCodes.INTERNAL_SERVER_ERROR, 'Failed to update booking payment status');
+    }
+
+    return { data: null, message: "Booking created successfully." };
+
+  }
+
+
   // Create Stripe Checkout Session //
   try {
     // Create Stripe Checkout Session //
     const price = await stripe.prices.create({
-      unit_amount: Number(payload.amount) * 100,
+      unit_amount: Number(payload.amount - creditsToRsd) * 100,
       currency: 'usd',
       product_data: {
         name: 'Booking Payment',
@@ -162,19 +200,18 @@ const createBookingToDB = async (payload: {
       cancel_url: `${config.frontend_url}/payment-failed`,
       line_items: [{ price: price.id, quantity: 1 }],
       metadata: {
-        bookingId: res._id.toString(),
-        amount: payload.amount,
+        bookingId: resBooking._id.toString(),
+        amount: payload.amount - creditsToRsd,
         paymentType: 'bookingPayment'
       },
     });
 
 
-    return session.url;
+    return { data: session.url, message: "Please pay for the booking" };
   } catch (err) {
     throw new ApiError(StatusCodes.INTERNAL_SERVER_ERROR, 'Failed to create stripe checkout session');
   }
 };
-
 
 // Accept booking to db
 const acceptBookingToDB = async (id: string, userId: string): Promise<any> => {
@@ -257,7 +294,6 @@ const completeBookingToDB = async (userId: string, providerid: string): Promise<
   return res;
 }
 
-
 // Cancel Booking to db
 const cancelBookingToDB = async (id: string, userId: string): Promise<any> => {
   const user = await UserModel.findById(userId);
@@ -306,8 +342,6 @@ const cancelBookingToDB = async (id: string, userId: string): Promise<any> => {
   return res;
 }
 
-
-// get overview from db
 // get overview from db
 const getOverviewFromDB = async (
   id: string,
@@ -400,9 +434,19 @@ const getOverviewFromDB = async (
   };
 };
 
-
 // get all bookings to db
 const getBookingToDB = async (id: string): Promise<any> => {
+  const booking: any = await BookingModel.findById(id);
+  if (!booking) {
+    throw new ApiError(StatusCodes.NOT_FOUND, 'Booking not found');
+  }
+  console.log("Booking : ", booking);
+
+  const provider: any = await ProviderModel.findById(booking?.provider?.toString());
+  console.log("Provider : ", provider);
+
+  const ratings: any = await ReviewService.getMyRatingsToDB(provider?.user?.toString());
+
   const res = await BookingModel.aggregate([
     {
       $match: {
@@ -535,14 +579,17 @@ const getBookingToDB = async (id: string): Promise<any> => {
     }
   ]);
 
-
-  return res;
+  // return res
+  return [{ ...res[0], ratings: ratings.data }];
 }
-
-
 
 // get all bookings to db
 const getBookingsToDB = async (id: string, query: any): Promise<any> => {
+  const page = query.page ? parseInt(query.page as string, 10) : 1;
+  const limit = 10;
+  const skip = (page - 1) * limit;
+  // const currentHour = new Date().getHours();
+  // const prevHour = new Date().setHours(currentHour - hours);
   const user = await UserModel.findById(id);
   if (!user) {
     throw new ApiError(StatusCodes.NOT_FOUND, 'User not found');
@@ -694,16 +741,39 @@ const getBookingsToDB = async (id: string, query: any): Promise<any> => {
         path: '$provider',
         preserveNullAndEmptyArrays: true,
       }
+    },
+    {
+      $facet: {
+        data: [
+          { $skip: skip },
+          { $limit: limit },
+        ],
+        totalCount: [
+          { $count: "count" }
+        ]
+      }
     }
   ])
 
+  const resData = res[0]?.data;
+  const totalCount = res[0].totalCount[0] ? res[0].totalCount[0].count : 0;
 
-  return res;
+  const meta = {
+    page: page,
+    limit: limit,
+    total: totalCount,
+    totalPages: Math.ceil(totalCount / limit),
+  };
+
+
+  return { data: resData, meta: meta };
 }
-
 
 // get all bookings to db
 const getBookingsForAdminFromDB = async (id: string, query: any): Promise<any> => {
+  const page = query.page ? parseInt(query.page as string, 10) : 1;
+  const limit = 10;
+  const skip = (page - 1) * limit;
   // const currentHour = new Date().getHours();
   // const prevHour = new Date().setHours(currentHour - hours);
 
@@ -888,11 +958,34 @@ const getBookingsForAdminFromDB = async (id: string, query: any): Promise<any> =
     }
   )
 
+  pipeline.push({
+    $facet: {
+      data: [
+        { $skip: skip },
+        { $limit: limit }
+      ],
+      totalCount: [
+        { $count: "count" }
+      ]
+    }
+  });
+
+
 
   const res = await BookingModel.aggregate(pipeline);
 
+  const resData = res[0].data;
+  const totalCount = res[0].totalCount[0] ? res[0].totalCount[0].count : 0;
 
-  return res;
+  const meta = {
+    page: page,
+    limit: limit,
+    total: totalCount,
+    totalPages: Math.ceil(totalCount / limit),
+  };
+
+
+  return { data: resData, meta: meta };
 }
 
 export const BookingService = {

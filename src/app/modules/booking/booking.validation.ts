@@ -15,6 +15,12 @@ const createBookingZodSchema = z.object({
       })
     ).min(1, 'At least one slot is required'),
     amount: z.coerce.number({ required_error: 'Amount is required' }),
+    subTotal: z.coerce.number({ required_error: 'SubTotal is required' }),
+    promoCode: z.string().optional(),
+    weatherFee: z.number().optional(),
+    convenienceFee: z.number().optional(),
+    arrivalFee: z.number().optional(),
+    discount: z.number().optional()
   }),
 });
 

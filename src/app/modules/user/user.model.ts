@@ -15,7 +15,6 @@ const userSchema = new Schema<IUser, TUserModal>(
     },
     name: {
       type: String,
-      required: true,
     },
     image: {
       type: String,
@@ -30,15 +29,12 @@ const userSchema = new Schema<IUser, TUserModal>(
     },
     contact: {
       type: String,
-      required: true,
     },
     location: {
       type: String,
-      required: true,
     },
     password: {
       type: String,
-      required: true,
       select: 0,
       minlength: 6,
     },

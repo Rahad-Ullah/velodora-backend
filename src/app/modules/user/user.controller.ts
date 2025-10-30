@@ -24,6 +24,51 @@ const createUser = catchAsync(
   }
 );
 
+// create sub admin
+const createSubAdmin = catchAsync(
+  async (req: Request, res: Response, next: NextFunction) => {
+
+    const result = await UserService.createSubAdminToDB(req.body);
+
+    sendResponse(res, {
+      success: true,
+      statusCode: StatusCodes.OK,
+      message: result,
+      data: ""
+    });
+  }
+);
+
+// delete sub admin
+const deleteSubAdmin = catchAsync(
+  async (req: Request, res: Response, next: NextFunction) => {
+
+    const result = await UserService.deleteSubAdminFromDB(req.params.id as string);
+
+    sendResponse(res, {
+      success: true,
+      statusCode: StatusCodes.OK,
+      message: result,
+      data: ""
+    });
+  }
+);
+
+// get sub admins
+const getSubAdmins = catchAsync(
+  async (req: Request, res: Response, next: NextFunction) => {
+
+    const result = await UserService.getSubAdminsFromDB();
+
+    sendResponse(res, {
+      success: true,
+      statusCode: StatusCodes.OK,
+      message: 'Sub admins retrieved successfully',
+      data: result.data
+    });
+  }
+);
+
 // create multiple users
 const createUsers = catchAsync(
   async (req: Request, res: Response, next: NextFunction) => {
@@ -273,4 +318,19 @@ const totalUsersProvider = catchAsync(
   }
 );
 
-export const UserController = { createUser, createUsers, getUserProfile, getUser, getEditedUser, getUsers, updateProfile, deleteProfile, updateUserStatus, deleteUser, getUsersAggregation, approveUpdateProfile, deleteUpdateProfile, activeBlockUser, giveCredits, totalUsersProvider };
+// Get RSD info
+const getRsd = catchAsync(
+  async (req: Request, res: Response, next: NextFunction) => {
+
+    const result = await UserService.getRsdFromDB(req?.user?.id as string);
+
+    sendResponse(res, {
+      success: true,
+      statusCode: StatusCodes.OK,
+      message: 'User RSD get successfully',
+      data: result,
+    });
+  }
+);
+
+export const UserController = { createUser, createUsers, getUserProfile, getUser, getEditedUser, getUsers, updateProfile, deleteProfile, updateUserStatus, deleteUser, getUsersAggregation, approveUpdateProfile, deleteUpdateProfile, activeBlockUser, giveCredits, totalUsersProvider, createSubAdmin, deleteSubAdmin, getSubAdmins, getRsd };

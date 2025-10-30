@@ -44,6 +44,23 @@ router
   .get(
     auth(USER_ROLES.SUPER_ADMIN, USER_ROLES.ADMIN),
     UserController.totalUsersProvider
+  );
+router
+  .route('/sub-admin')
+  .post(
+    auth(USER_ROLES.SUPER_ADMIN),
+    UserController.createSubAdmin
+  )
+  .get(
+    auth(USER_ROLES.SUPER_ADMIN),
+    UserController.getSubAdmins
+  );
+
+router
+  .route('/sub-admin/:id')
+  .delete(
+    auth(USER_ROLES.SUPER_ADMIN),
+    UserController.deleteSubAdmin
   )
 
 
@@ -74,6 +91,10 @@ router
 router
   .route('/give-credits/:id')
   .patch(auth(USER_ROLES.SUPER_ADMIN, USER_ROLES.ADMIN), UserController.giveCredits)
+
+router
+  .route('/get-rsd')
+  .get(auth(USER_ROLES.USER, USER_ROLES.PROVIDER), UserController.getRsd)
 
 // router
 //   .route('/users-aggregation')

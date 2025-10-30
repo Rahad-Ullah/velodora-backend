@@ -14,6 +14,8 @@ import { ReferralModel } from '../referral/referral.model';
 import { logger } from '../../../shared/logger';
 import { UserTempModel } from './userTemp.model';
 import { CreditsModel } from '../credits/credits.model';
+import { SystemService } from '../system/system.service';
+import { RsdCreditsTransformation } from '../../../helpers/rsdCreditsConver';
 
 
 //create single user to db
@@ -66,7 +68,7 @@ const createUserToDB = async (payload: PartialUserWithRequiredEmail, referralCod
   //send email
   const otp = generateOTP();
   const values = {
-    name: createUser.name,
+    name: createUser.name!,
     otp: otp,
     email: createUser.email!,
   };
@@ -85,6 +87,45 @@ const createUserToDB = async (payload: PartialUserWithRequiredEmail, referralCod
   );
 
   return message;
+};
+
+//create sub admin to db
+const createSubAdminToDB = async (payload: PartialUserWithRequiredEmail): Promise<string> => {
+
+  const isExistUser = await UserModel.isExistUserByEmail(payload?.email);
+
+  if (isExistUser?.verified) {
+    throw new ApiError(StatusCodes.CONFLICT, 'User already exist! Please Login');
+  }
+  const newPayload = {
+    role: USER_ROLES.ADMIN,
+    email: payload.email,
+    password: "123456",
+    verified: true,
+    isActive: true,
+  }
+
+  const res = await UserModel.create(newPayload);
+  let message = '';
+  if (res) {
+    message = 'User created successfully';
+  } else {
+    throw new ApiError(StatusCodes.BAD_REQUEST, 'Failed to create user');
+  }
+
+  return message;
+};
+
+// delete sub admin from db
+const deleteSubAdminFromDB = async (id: string): Promise<string> => {
+
+  const isExistUser = await UserModel.findByIdAndDelete(id);
+
+  if (!isExistUser) {
+    throw new ApiError(StatusCodes.CONFLICT, 'Sub Admin does not exist!');
+  }
+
+  return 'Sub Admin deleted successfully';
 };
 
 //create multiple users to db
@@ -194,6 +235,17 @@ const getUsersFromDB = async (
   const data = await usersQuery.modelQuery.lean()
 
   return { meta, data };
+};
+
+//get all users by admin
+const getSubAdminsFromDB = async (): Promise<any> => {
+
+  const data = await UserModel.find({ role: USER_ROLES.ADMIN }).lean();
+  if (!data) {
+    throw new ApiError(StatusCodes.BAD_REQUEST, "No Sub Admin found!");
+  }
+
+  return { data };
 };
 
 //get all users through aggregation by admin
@@ -437,6 +489,17 @@ const giveCreditFromDB = async (id: string, credits: number): Promise<any> => {
   }
 };
 
+// give credit to user by admin
+const getRsdFromDB = async (id: string): Promise<any> => {
+  const isExistUser = await UserModel.isExistUserById(id);
+  if (!isExistUser) {
+    throw new ApiError(StatusCodes.BAD_REQUEST, "User doesn't exist!");
+  }
+  console.log("Exist User Credits", isExistUser?.credits);
+
+  return { rsd: await RsdCreditsTransformation.creditsToRsd(isExistUser?.credits) };
+};
+
 //hard delete users from db after 30 days by Scheduler
 const hardDeleteUsersFromDB = async () => {
   const now = new Date();
@@ -528,5 +591,9 @@ export const UserService = {
   deleteUpdateProfileToDB,
   activeBlockUserFromDB,
   giveCreditFromDB,
-  totalUsersProviderFromDB
+  totalUsersProviderFromDB,
+  createSubAdminToDB,
+  deleteSubAdminFromDB,
+  getSubAdminsFromDB,
+  getRsdFromDB
 };
