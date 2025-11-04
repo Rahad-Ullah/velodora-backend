@@ -4,6 +4,7 @@ import catchAsync from '../../../shared/catchAsync';
 import sendResponse from '../../../shared/sendResponse';
 import pick from '../../../shared/pick';
 import { ProviderService} from './provider.service';
+import { IPaginationMeta } from '../../../types/pagination';
 
 
 //create provider
@@ -85,7 +86,7 @@ const getMyProvider = catchAsync(async (req: Request, res: Response) => {
 //get all providers
 const getProviders = catchAsync(async (req: Request, res: Response) => {
   // Define which query fields are filters
-  const filterableFields = ['searchTerm', 'categoryId', 'minPrice', 'maxPrice', 'date', 'time', 'location','userLng', 'userLat'];
+  const filterableFields = ['searchTerm', 'categoryId', 'subCategoryId', 'minPrice', 'maxPrice', 'date', 'time', 'location','userLng', 'userLat', 'isOnline', 'verified', 'isActive', 'page', 'limit'];
 
   // Pick only allowed filters from req.query
   const filterOptions = pick(req.query, filterableFields);
@@ -98,7 +99,8 @@ const getProviders = catchAsync(async (req: Request, res: Response) => {
     success: true,
     statusCode: StatusCodes.OK,
     message: 'Providers retrieved successfully',
-    data: result.data
+    data: result.data,
+    pagination: result.meta as IPaginationMeta,
   });
 });
 

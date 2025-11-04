@@ -42,7 +42,7 @@ const getCategory = catchAsync(async (req: Request, res: Response) => {
 //get all categories controller
 const getCategories = catchAsync(async (req: Request, res: Response) => {
   // Define which query fields are filters
-  const filterableFields = ['searchTerm', 'page'];
+  const filterableFields = ['searchTerm', 'page', 'limit'];
 
   // Pick only allowed filters from req.query
   const filterOptions = pick(req.query, filterableFields);

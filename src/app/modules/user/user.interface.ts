@@ -8,12 +8,14 @@ export type IUser = {
   image?: string;
   email: string;
   contact?: string;
+  countryCode?: string;
   location?: string;
   password: string;
   credits?: number;
   isActive?: Boolean;
   verified?: boolean;
   verifiedService?: boolean;
+  isService?: boolean;
   isDeleted?: boolean;
   isModified?: boolean;
   authentication?: {
@@ -21,6 +23,10 @@ export type IUser = {
     oneTimeCode: number;
     expireAt: Date;
   };
+  stripeAccountInfo?:{
+    stripeAccountId: string;
+    stripeLoginUrl: string;
+  }
 };
 
 export type PartialUserWithRequiredEmail = Partial<Omit<IUser, 'email'>> & Pick<IUser, 'email'>;

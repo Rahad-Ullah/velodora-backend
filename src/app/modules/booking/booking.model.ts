@@ -21,6 +21,8 @@ const BookingSchema = new Schema(
     convenienceFee: { type: Number, default: 0 },
     arrivalFee: { type: Number, default: 0 },
     discount: { type: Number, default: 0 },
+    useCredits: { type: Number, default: 0 },
+    revenueId: { type: Schema.Types.ObjectId, ref: "Revenue", default: null },
   },
   { timestamps: true }
 );

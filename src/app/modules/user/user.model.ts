@@ -30,6 +30,9 @@ const userSchema = new Schema<IUser, TUserModal>(
     contact: {
       type: String,
     },
+    countryCode: {
+      type: String,
+    },
     location: {
       type: String,
     },
@@ -51,6 +54,10 @@ const userSchema = new Schema<IUser, TUserModal>(
       default: false,
     },
     verifiedService: {
+      type: Boolean,
+      default: false,
+    },
+    isService: {
       type: Boolean,
       default: false,
     },
@@ -79,6 +86,19 @@ const userSchema = new Schema<IUser, TUserModal>(
       },
       select: 0,
     },
+    stripeAccountInfo: {
+      type: {
+        stripeAccountId: {
+          type: String,
+          default: null,
+        },
+        stripeLoginUrl: {
+          type: String,
+          default: null,
+        },
+      },
+      select: 0,
+    }
   },
   { timestamps: true }
 );

@@ -133,7 +133,8 @@ const getBookings = catchAsync(
     sendResponse(res, {
       success: true,
       statusCode: StatusCodes.OK,
-      data: result,
+      data: result?.data,
+      pagination: result?.meta,
     });
   }
 );

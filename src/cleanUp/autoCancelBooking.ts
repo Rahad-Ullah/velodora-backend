@@ -4,6 +4,7 @@ import ApiError from "../errors/ApiError";
 import { BOOKING_PAYMENT_STATUS, BOOKING_STATUS } from "../enums/booking";
 import { ProviderModel } from "../app/modules/provider/provider.model";
 import { ScheduleModel } from "../app/modules/schedule/schedule.model";
+import { UserModel } from "../app/modules/user/user.model";
 
 export const autoCancelBookings = async () => {
   const currentTime = new Date();
@@ -38,6 +39,12 @@ export const autoCancelBookings = async () => {
       schedule.available_slots.push(...booking.slots);
       schedule.count = Math.max(schedule.count - 1, 0);
       await schedule.save();
+
+
+      const user = await UserModel.findByIdAndUpdate(booking.user, {
+        $inc: { 'credits': booking?.useCredits }
+      });
+      console.log("Restore user credits", user);
 
       // ❌ Delete booking
       const result = await BookingModel.findByIdAndDelete(booking._id);

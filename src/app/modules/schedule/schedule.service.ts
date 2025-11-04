@@ -20,6 +20,10 @@ const createScheduleToDB = async (userId: string, payload: {
     throw new ApiError(StatusCodes.BAD_REQUEST, 'Date must be greater than current date');
   }
 
+  if (payload.startTime >= payload.endTime) {
+    throw new ApiError(StatusCodes.BAD_REQUEST, 'End time must be greater than start time');
+  }
+
   const provider = await ProviderModel.findOne({ user: userId });
   if (!provider) {
     throw new ApiError(StatusCodes.NOT_FOUND, 'Provider not found');
@@ -57,7 +61,7 @@ const createScheduleToDB = async (userId: string, payload: {
     })
   };
 
-  return {data: schedule};
+  return { data: schedule };
 };
 
 //get schedule to db
@@ -68,7 +72,7 @@ const getScheduleToDB = async (id: string): Promise<any> => {
     throw new ApiError(StatusCodes.NOT_FOUND, 'Schedule not found');
   }
 
-  return {data: schedule};
+  return { data: schedule };
 };
 
 //get schedule to db
@@ -81,7 +85,7 @@ const openCloseScheduleToDB = async (id: string): Promise<any> => {
   schedule.isActive = !schedule.isActive;
   await schedule.save();
 
-  return {data: schedule};
+  return { data: schedule };
 };
 
 //get schedules to db
@@ -154,7 +158,6 @@ export const getSchedulesToDB = async (providerId: string, date?: string): Promi
   return { data: schedules };
 };
 
-
 //get schedule by date to db
 export const getSchedulesByDateToDB = async (
   providerId: string,
@@ -185,10 +188,10 @@ export const getSchedulesByDateToDB = async (
     }
   ]);
 
-  if (!schedules || schedules.length === 0) {
+  if (!schedules || schedules.length <= 0) {
     throw new ApiError(
       StatusCodes.NOT_FOUND,
-      "Schedules not found for the given date"
+      "Schedule not found for the given date"
     );
   }
 

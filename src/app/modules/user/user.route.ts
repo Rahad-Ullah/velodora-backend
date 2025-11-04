@@ -27,6 +27,21 @@ router
     }
   );
 
+router
+  .route('/update-profile-image')
+  .patch(
+    auth(USER_ROLES.PROVIDER),
+    fileUploadHandler(),
+    (req: Request, res: Response, next: NextFunction) => {
+      if (req.body.data) {
+        req.body = UserValidation.updateUserZodSchema.parse(
+          JSON.parse(req.body.data)
+        );
+      }
+      return UserController.updateProfileImage(req, res, next);
+    }
+  );
+
 
 router
   .route('/users')
@@ -45,6 +60,14 @@ router
     auth(USER_ROLES.SUPER_ADMIN, USER_ROLES.ADMIN),
     UserController.totalUsersProvider
   );
+
+router
+  .route('/withdraw-to-provider')
+  .post(
+    auth(USER_ROLES.PROVIDER),
+    UserController.withdrawAmountToProviderAccount
+  );
+
 router
   .route('/sub-admin')
   .post(

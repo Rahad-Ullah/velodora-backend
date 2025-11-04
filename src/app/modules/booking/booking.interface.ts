@@ -19,6 +19,8 @@ export type TBooking = {
   convenienceFee?: number;
   arrivalFee?: number;
   discount?: number;
+  useCredits?: number;
+  revenueId?: Types.ObjectId;
 };
 
 export type TBookingModel = Model<TBooking>;

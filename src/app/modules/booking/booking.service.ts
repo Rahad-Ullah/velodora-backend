@@ -18,47 +18,242 @@ import { RsdCreditsTransformation } from '../../../helpers/rsdCreditsConver';
 
 
 // Create Stripe Checkout Session //
-const stripePaymentToDB = async (): Promise<any> => {
-  // Create Stripe Checkout Session //
+
+export const stripePaymentToDB = async (): Promise<any> => {
   try {
-    // Create Stripe Checkout Session //
+    // ✅ Calculate 10-minute expiry in seconds
+    const expiresAt = Math.floor(Date.now() / 1000) + 30 * 60;
+
+    // ✅ Create price object
     const price = await stripe.prices.create({
-      unit_amount: Number(10) * 100,
-      currency: 'usd',
+      unit_amount: Number(50000) * 100,
+      currency: "usd",
       product_data: {
-        name: 'Booking Payment',
+        name: "Booking Payment",
       },
     });
 
-    const session = await stripe.checkout.sessions.create({
-      payment_method_types: ['card'],
-      mode: 'payment',
+    // ✅ Build base session payload
+    const sessionPayload: any = {
+      payment_method_types: ["card"],
+      mode: "payment",
       success_url: `${config.frontend_url}/payment-success`,
       cancel_url: `${config.frontend_url}/payment-failed`,
       line_items: [{ price: price.id, quantity: 1 }],
       metadata: {
         bookingId: "68f25bae247ed432390a7606",
         amount: 10,
-        paymentType: 'bookingPayment'
+        paymentType: "bookingPayment",
       },
-    });
+    };
+
+    // ✅ Add expiration if supported by your Stripe version
+    try {
+      sessionPayload.expires_at = expiresAt;
+    } catch {
+      console.warn("⚠️ Stripe SDK version may not support expires_at — continuing without it.");
+    }
+
+    // ✅ Create checkout session
+    const session = await stripe.checkout.sessions.create(sessionPayload);
 
     return session.url;
-  } catch (err) {
-    throw new ApiError(StatusCodes.INTERNAL_SERVER_ERROR, 'Failed to create stripe checkout session');
+  } catch (err: any) {
+    // ✅ Log detailed error
+    console.error("Stripe error details:", err);
+
+    // ✅ Return clear message
+    throw new ApiError(
+      StatusCodes.INTERNAL_SERVER_ERROR,
+      err?.message || "Failed to create stripe checkout session"
+    );
   }
-}
+};
+
+
 
 //create booking to db
+// const createBookingToDB = async (payload: {
+//   user: string;
+//   provider: string;
+//   services: string[];
+//   date: string;
+//   slots: {
+//     start: string;
+//     end: string;
+//   }[];
+//   amount: number;
+//   subTotal: number;
+//   promoCode?: string;
+//   weatherFee: number;
+//   convenienceFee: number;
+//   arrivalFee: number;
+//   discount: number;
+// }): Promise<any> => {
+
+//   console.log("Create booking : ", payload)
+
+//   const date = new Date(payload.date);
+//   const userSlots = payload.slots.map((slot) => ({
+//     start: new Date(slot.start),
+//     end: new Date(slot.end),
+//   }));
+
+
+//   // Check if the provider exists
+//   const provider = await ProviderModel.findOne({ _id: payload.provider });
+//   if (!provider) {
+//     throw new ApiError(StatusCodes.NOT_FOUND, 'Provider not found');
+//   }
+
+//   // Check if the services are valid
+//   const providerServices = provider.services.map((service) => service.toString());
+//   payload.services.forEach((service) => {
+//     if (!providerServices.includes(service)) {
+//       throw new ApiError(StatusCodes.BAD_REQUEST, 'Invalid service found');
+//     }
+//   });
+
+//   // Check if the date is valid
+//   const providerSchedule = await ScheduleModel.findOne(
+//     {
+//       provider: new mongoose.Types.ObjectId(payload.provider),
+//       date: date,
+//     }
+//   )
+
+//   if (!providerSchedule) {
+//     throw new ApiError(StatusCodes.BAD_REQUEST, 'Invalid date found');
+//   }
+
+//   const providerSlots = providerSchedule?.available_slots.map((schedule: any) => {
+//     return {
+//       start: schedule.start,
+//       end: schedule.end,
+//     };
+//   }) || [];
+
+//   // ✅ Check if all userSlots exist in providerSlots
+//   const allExist = payload.slots.every(userSlot =>
+//     providerSlots.some(
+//       (providerSlot) =>
+//         new Date(providerSlot.start).getTime() === new Date(userSlot.start).getTime() &&
+//         new Date(providerSlot.end).getTime() === new Date(userSlot.end).getTime()
+//     )
+//   );
+
+//   if (!allExist) {
+//     throw new ApiError(StatusCodes.BAD_REQUEST, 'Invalid slot found');
+//   }
+
+//   const providerRemaingSlots = providerSlots.filter((providerSlot) => {
+//     return !payload.slots.some(
+//       (userSlot) =>
+//         new Date(providerSlot.start).getTime() === new Date(userSlot.start).getTime() &&
+//         new Date(providerSlot.end).getTime() === new Date(userSlot.end).getTime()
+//     );
+//   });
+
+//   providerSchedule!.available_slots = providerRemaingSlots;
+//   providerSchedule!.count = providerSchedule!.count + 1;
+
+//   await providerSchedule!.save();
+
+
+//   const newPayload = { ...payload, date, slots: userSlots, schedule: providerSchedule!._id };
+
+
+//   const resBooking = await BookingModel.create(newPayload);
+//   // return res;
+
+//   if (!resBooking) {
+//     throw new ApiError(StatusCodes.INTERNAL_SERVER_ERROR, 'Failed to create booking');
+//   }
+
+//   const user = await UserModel.findById(payload.user);
+//   if (!user) {
+//     throw new ApiError(StatusCodes.NOT_FOUND, 'User not found');
+//   }
+//   const creditsToRsd = await RsdCreditsTransformation.creditsToRsd(user.credits!);
+//   const rsdToCredits = await RsdCreditsTransformation.rsdToCredits(payload.amount);
+
+//   const restCredits = user.credits! - rsdToCredits < 0 ? 0 : user.credits! - rsdToCredits;
+//   await UserModel.findByIdAndUpdate(user._id.toString(), { credits: restCredits });
+//   // await user.save();
+
+//   const resRevenue = await RevenueModel.create({
+//     user: new mongoose.Types.ObjectId(payload.user),
+//     revenue: payload.weatherFee + payload.convenienceFee + payload.arrivalFee,
+//   });
+
+//   if (!resRevenue) {
+//     throw new ApiError(StatusCodes.INTERNAL_SERVER_ERROR, 'Failed to cut revenue');
+//   }
+
+
+
+//   if (user.credits! - rsdToCredits > 0) {
+//     const booking = await BookingModel.findByIdAndUpdate(resBooking._id, {
+//       $set: { paymentStatus: BOOKING_PAYMENT_STATUS.PAID },
+//     });
+//     if (!booking) {
+//       throw new ApiError(StatusCodes.INTERNAL_SERVER_ERROR, 'Failed to update booking payment status');
+//     }
+
+//     return { data: null, message: "Booking created successfully." };
+
+//   }
+
+
+//   // Create Stripe Checkout Session //
+//   try {
+//     // Create Stripe Checkout Session //
+//     const price = await stripe.prices.create({
+//       unit_amount: Number(payload.amount - creditsToRsd) * 100,
+//       currency: 'usd',
+//       product_data: {
+//         name: 'Booking Payment',
+//       },
+//     });
+
+//     const session = await stripe.checkout.sessions.create({
+//       payment_method_types: ['card'],
+//       mode: 'payment',
+//       success_url: `${config.frontend_url}/payment-success`,
+//       cancel_url: `${config.frontend_url}/payment-failed`,
+//       line_items: [{ price: price.id, quantity: 1 }],
+//       metadata: {
+//         bookingId: resBooking._id.toString(),
+//         amount: payload.amount - creditsToRsd,
+//         paymentType: 'bookingPayment'
+//       },
+//     });
+
+
+//     return { data: session.url, message: "Please pay for the booking" };
+//   } catch (err) {
+//     throw new ApiError(StatusCodes.INTERNAL_SERVER_ERROR, 'Failed to create stripe checkout session');
+//   }
+// };
+// import mongoose from "mongoose";
+// import { StatusCodes } from "http-status-codes";
+// import { ApiError } from "../errors/ApiError";
+// import { BookingModel } from "../models/booking.model";
+// import { ProviderModel } from "../models/provider.model";
+// import { ScheduleModel } from "../models/schedule.model";
+// import { UserModel } from "../models/user.model";
+// import { RevenueModel } from "../models/revenue.model";
+// import { RsdCreditsTransformation } from "../utils/RsdCreditsTransformation";
+// import { BOOKING_PAYMENT_STATUS } from "../constants/booking";
+// import stripe from "../lib/stripe";
+// import config from "../config";
+
 const createBookingToDB = async (payload: {
   user: string;
   provider: string;
   services: string[];
   date: string;
-  slots: {
-    start: string;
-    end: string;
-  }[];
+  slots: { start: string; end: string }[];
   amount: number;
   subTotal: number;
   promoCode?: string;
@@ -67,149 +262,155 @@ const createBookingToDB = async (payload: {
   arrivalFee: number;
   discount: number;
 }): Promise<any> => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
 
-  console.log("Create booking : ", payload)
-
-  const date = new Date(payload.date);
-  const userSlots = payload.slots.map((slot) => ({
-    start: new Date(slot.start),
-    end: new Date(slot.end),
-  }));
-
-
-  // Check if the provider exists
-  const provider = await ProviderModel.findOne({ _id: payload.provider });
-  if (!provider) {
-    throw new ApiError(StatusCodes.NOT_FOUND, 'Provider not found');
-  }
-
-  // Check if the services are valid
-  const providerServices = provider.services.map((service) => service.toString());
-  payload.services.forEach((service) => {
-    if (!providerServices.includes(service)) {
-      throw new ApiError(StatusCodes.BAD_REQUEST, 'Invalid service found');
-    }
-  });
-
-  // Check if the date is valid
-  const providerSchedule = await ScheduleModel.findOne(
-    {
-      provider: new mongoose.Types.ObjectId(payload.provider),
-      date: date,
-    }
-  )
-
-  if (!providerSchedule) {
-    throw new ApiError(StatusCodes.BAD_REQUEST, 'Invalid date found');
-  }
-
-  const providerSlots = providerSchedule?.available_slots.map((schedule: any) => {
-    return {
-      start: schedule.start,
-      end: schedule.end,
-    };
-  }) || [];
-
-  // ✅ Check if all userSlots exist in providerSlots
-  const allExist = payload.slots.every(userSlot =>
-    providerSlots.some(
-      (providerSlot) =>
-        new Date(providerSlot.start).getTime() === new Date(userSlot.start).getTime() &&
-        new Date(providerSlot.end).getTime() === new Date(userSlot.end).getTime()
-    )
-  );
-
-  if (!allExist) {
-    throw new ApiError(StatusCodes.BAD_REQUEST, 'Invalid slot found');
-  }
-
-  const providerRemaingSlots = providerSlots.filter((providerSlot) => {
-    return !payload.slots.some(
-      (userSlot) =>
-        new Date(providerSlot.start).getTime() === new Date(userSlot.start).getTime() &&
-        new Date(providerSlot.end).getTime() === new Date(userSlot.end).getTime()
-    );
-  });
-
-  providerSchedule!.available_slots = providerRemaingSlots;
-  providerSchedule!.count = providerSchedule!.count + 1;
-
-  await providerSchedule!.save();
-
-
-  const newPayload = { ...payload, date, slots: userSlots, schedule: providerSchedule!._id };
-
-
-  const resBooking = await BookingModel.create(newPayload);
-  // return res;
-
-  if (!resBooking) {
-    throw new ApiError(StatusCodes.INTERNAL_SERVER_ERROR, 'Failed to create booking');
-  }
-
-  const user = await UserModel.findById(payload.user);
-  if (!user) {
-    throw new ApiError(StatusCodes.NOT_FOUND, 'User not found');
-  }
-  const creditsToRsd = await RsdCreditsTransformation.creditsToRsd(user.credits!);
-  const rsdToCredits = await RsdCreditsTransformation.rsdToCredits(payload.amount);
-
-  const restCredits = user.credits! - rsdToCredits < 0 ? 0 : user.credits! - rsdToCredits;
-  await UserModel.findByIdAndUpdate(user._id.toString(), { credits: restCredits });
-  // await user.save();
-
-  const resRevenue = await RevenueModel.create({
-    user: new mongoose.Types.ObjectId(payload.user),
-    revenue: payload.weatherFee + payload.convenienceFee + payload.arrivalFee,
-  });
-
-  if (!resRevenue) {
-    throw new ApiError(StatusCodes.INTERNAL_SERVER_ERROR, 'Failed to cut revenue');
-  }
-
-
-
-  if (user.credits! - rsdToCredits > 0) {
-    const booking = await BookingModel.findByIdAndUpdate(resBooking._id, {
-      $set: { paymentStatus: BOOKING_PAYMENT_STATUS.PAID },
-    });
-    if (!booking) {
-      throw new ApiError(StatusCodes.INTERNAL_SERVER_ERROR, 'Failed to update booking payment status');
-    }
-
-    return { data: null, message: "Booking created successfully." };
-
-  }
-
-
-  // Create Stripe Checkout Session //
   try {
-    // Create Stripe Checkout Session //
+    console.log("Create booking : ", payload);
+
+    const date = new Date(payload.date);
+    const userSlots = payload.slots.map((slot) => ({
+      start: new Date(slot.start),
+      end: new Date(slot.end),
+    }));
+
+    // ✅ Check provider
+    const provider = await ProviderModel.findById(payload.provider).session(session);
+    if (!provider) {
+      throw new ApiError(StatusCodes.NOT_FOUND, "Provider not found");
+    }
+
+    // ✅ Validate services
+    const providerServices = provider.services.map((s) => s.toString());
+    payload.services.forEach((service) => {
+      if (!providerServices.includes(service)) {
+        throw new ApiError(StatusCodes.BAD_REQUEST, "Invalid service found");
+      }
+    });
+
+    // ✅ Validate date
+    const providerSchedule = await ScheduleModel.findOne({
+      provider: new mongoose.Types.ObjectId(payload.provider),
+      date,
+    }).session(session);
+
+    if (!providerSchedule) {
+      throw new ApiError(StatusCodes.BAD_REQUEST, "Invalid date found");
+    }
+
+    const providerSlots =
+      providerSchedule.available_slots.map((s: any) => ({
+        start: s.start,
+        end: s.end,
+      })) || [];
+
+    // ✅ Check all userSlots exist
+    const allExist = payload.slots.every((userSlot) =>
+      providerSlots.some(
+        (p) =>
+          new Date(p.start).getTime() === new Date(userSlot.start).getTime() &&
+          new Date(p.end).getTime() === new Date(userSlot.end).getTime()
+      )
+    );
+
+    if (!allExist) {
+      throw new ApiError(StatusCodes.BAD_REQUEST, "Invalid slot found");
+    }
+
+    // ✅ Update remaining slots
+    const remainingSlots = providerSlots.filter(
+      (p) =>
+        !payload.slots.some(
+          (u) =>
+            new Date(p.start).getTime() === new Date(u.start).getTime() &&
+            new Date(p.end).getTime() === new Date(u.end).getTime()
+        )
+    );
+
+    providerSchedule.available_slots = remainingSlots;
+    providerSchedule.count = providerSchedule.count + 1;
+    await providerSchedule.save({ session });
+
+    // ✅ Create booking
+    const newPayload = { ...payload, date, slots: userSlots, schedule: providerSchedule._id };
+    const booking = await BookingModel.create([newPayload], { session });
+    const resBooking = booking[0];
+
+    if (!resBooking) {
+      throw new ApiError(StatusCodes.INTERNAL_SERVER_ERROR, "Failed to create booking");
+    }
+
+    // ✅ Update user credits
+    const user = await UserModel.findById(payload.user).session(session);
+    if (!user) {
+      throw new ApiError(StatusCodes.NOT_FOUND, "User not found");
+    }
+
+    const creditsToRsd = await RsdCreditsTransformation.creditsToRsd(user.credits!);
+    const rsdToCredits = await RsdCreditsTransformation.rsdToCredits(payload.amount);
+
+    const restCredits = user.credits! - rsdToCredits < 0 ? 0 : user.credits! - rsdToCredits;
+    await UserModel.findByIdAndUpdate(user._id, { credits: restCredits }, { session });
+
+
+    await BookingModel.findByIdAndUpdate(
+      resBooking._id,
+      {
+        // revenueId: revenue[0]?._id,
+        useCredits: user.credits! - rsdToCredits < 0 ? user.credits : rsdToCredits
+      },
+      { session }
+    );
+
+
+    // ✅ Handle payment with credits
+    if (user.credits! - rsdToCredits > 0) {
+      await BookingModel.findByIdAndUpdate(
+        resBooking._id,
+        {
+          paymentStatus: BOOKING_PAYMENT_STATUS.PAID,
+        },
+        { session }
+      );
+
+      await session.commitTransaction();
+      session.endSession();
+
+      return { data: null, message: "Booking created successfully (paid via credits)." };
+    }
+
+    // ✅ Create Stripe Checkout Session
     const price = await stripe.prices.create({
       unit_amount: Number(payload.amount - creditsToRsd) * 100,
-      currency: 'usd',
-      product_data: {
-        name: 'Booking Payment',
-      },
+      currency: "usd",
+      product_data: { name: "Booking Payment" },
     });
 
-    const session = await stripe.checkout.sessions.create({
-      payment_method_types: ['card'],
-      mode: 'payment',
+    const expiresAt = Math.floor(Date.now() / 1000) + 30 * 60;
+
+    const sessionStripe = await stripe.checkout.sessions.create({
+      payment_method_types: ["card"],
+      mode: "payment",
       success_url: `${config.frontend_url}/payment-success`,
       cancel_url: `${config.frontend_url}/payment-failed`,
       line_items: [{ price: price.id, quantity: 1 }],
       metadata: {
         bookingId: resBooking._id.toString(),
         amount: payload.amount - creditsToRsd,
-        paymentType: 'bookingPayment'
+        paymentType: "bookingPayment",
       },
+      expires_at: expiresAt
     });
 
+    await session.commitTransaction();
+    session.endSession();
 
-    return { data: session.url, message: "Please pay for the booking" };
+    return { data: sessionStripe.url, message: "Please pay for the booking" };
   } catch (err) {
-    throw new ApiError(StatusCodes.INTERNAL_SERVER_ERROR, 'Failed to create stripe checkout session');
+    await session.abortTransaction();
+    session.endSession();
+    console.error("Transaction failed:", err);
+    throw err;
   }
 };
 
@@ -245,6 +446,18 @@ const acceptBookingToDB = async (id: string, userId: string): Promise<any> => {
   booking.chatId = new Types.ObjectId(result._id);
   const res = await booking.save();
 
+  // ✅ Record revenue
+  const revenue: any = await RevenueModel.create(
+    {
+      user: new mongoose.Types.ObjectId(booking?.user),
+      revenue: booking.weatherFee! + booking.convenienceFee! + booking.arrivalFee! - booking.discount!,
+    },
+  );
+
+  if (!revenue) {
+    throw new ApiError(StatusCodes.INTERNAL_SERVER_ERROR, "Failed to cut revenue");
+  }
+
   return res;
 }
 
@@ -261,6 +474,12 @@ const completeBookingToDB = async (userId: string, providerid: string): Promise<
     throw new ApiError(StatusCodes.NOT_FOUND, 'Booking - Provider not found');
   }
 
+  const bookings = await BookingModel.find({
+    user: new Types.ObjectId(userId),
+    provider: new Types.ObjectId(provider._id),
+    status: BOOKING_STATUS.UPCOMING
+  });
+
   const booking = await BookingModel.findOne({
     user: new Types.ObjectId(userId),
     provider: new Types.ObjectId(provider._id),
@@ -270,9 +489,11 @@ const completeBookingToDB = async (userId: string, providerid: string): Promise<
     throw new ApiError(StatusCodes.NOT_FOUND, 'Booking not found');
   }
 
-  const result = await ChatServices.deleteChatFromDB(booking.chatId.toString());
-  if (!result) {
-    throw new ApiError(StatusCodes.INTERNAL_SERVER_ERROR, 'Complete Booking - Failed to delete chat');
+  if (bookings.length <= 1) {
+    const result = await ChatServices.deleteChatFromDB(booking.chatId.toString());
+    if (!result) {
+      throw new ApiError(StatusCodes.INTERNAL_SERVER_ERROR, 'Complete Booking - Failed to delete chat');
+    }
   }
 
   booking.status = BOOKING_STATUS.COMPLETED;
@@ -302,7 +523,7 @@ const cancelBookingToDB = async (id: string, userId: string): Promise<any> => {
     throw new ApiError(StatusCodes.UNAUTHORIZED, 'You are not authorized');
   }
 
-  const booking = await BookingModel.findById(id);
+  const booking: any = await BookingModel.findById(id);
   if (!booking) {
     throw new ApiError(StatusCodes.NOT_FOUND, 'Booking not found');
   }
@@ -330,12 +551,38 @@ const cancelBookingToDB = async (id: string, userId: string): Promise<any> => {
 
 
   if (user.role === USER_ROLES.USER) {
-    await UserModel.findByIdAndUpdate(booking.user, {
-      $inc: { credits: +(Number(booking.amount) - (Number(booking.amount) * 15 / 100)) }
-    })
+    const date = new Date();
+    const currentTime = date.getTime(); // current time in ms
+    const bookingTime = new Date(booking?.createdAt).getTime(); // booking creation time in ms
+
+    // Calculate time difference in hours
+    const timeDiffInHours = (currentTime - bookingTime) / (1000 * 60 * 60);
+
+    if (timeDiffInHours <= 2) {
+
+      const chargeAmount = booking.amount * 0.7;
+      const revenueAmount = booking.amount * 0.3;
+
+      await UserModel.findByIdAndUpdate(booking.user, {
+        $inc: { credits: await RsdCreditsTransformation.rsdToCredits(chargeAmount) }
+      });
+      // ✅ Record revenue
+      await RevenueModel.create(
+        {
+          user: booking.user,
+          revenue: revenueAmount,
+        },
+      );
+    } else {
+      // If booking older than 2 hours, full amount credited
+      await UserModel.findByIdAndUpdate(booking.user, {
+        $inc: { credits: await RsdCreditsTransformation.rsdToCredits(booking.amount) }
+      });
+    }
+
   } else if (user.role === USER_ROLES.PROVIDER) {
     await UserModel.findByIdAndUpdate(booking.user, {
-      $inc: { credits: + Number(booking.amount) }
+      $inc: { 'credits': await RsdCreditsTransformation.rsdToCredits(booking.amount) }
     })
   }
 
@@ -745,6 +992,7 @@ const getBookingsToDB = async (id: string, query: any): Promise<any> => {
     {
       $facet: {
         data: [
+          { $sort: { createdAt: -1 } },
           { $skip: skip },
           { $limit: limit },
         ],

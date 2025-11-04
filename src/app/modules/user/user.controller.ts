@@ -177,6 +177,27 @@ const getUsersAggregation = catchAsync(async (req: Request, res: Response) => {
 });
 
 //update profile
+const updateProfileImage = catchAsync(
+  async (req: Request, res: Response, next: NextFunction) => {
+    const user = req.user;
+    let image = getSingleFilePath(req.files, 'image');
+
+    const data = {
+      image,
+      ...req.body,
+    };
+    const result = await UserService.updateProfileImageToDB(user, data);
+
+    sendResponse(res, {
+      success: true,
+      statusCode: StatusCodes.OK,
+      message: 'Profile updated successfully',
+      data: result,
+    });
+  }
+);
+
+//update profile
 const updateProfile = catchAsync(
   async (req: Request, res: Response, next: NextFunction) => {
     const user = req.user;
@@ -333,4 +354,19 @@ const getRsd = catchAsync(
   }
 );
 
-export const UserController = { createUser, createUsers, getUserProfile, getUser, getEditedUser, getUsers, updateProfile, deleteProfile, updateUserStatus, deleteUser, getUsersAggregation, approveUpdateProfile, deleteUpdateProfile, activeBlockUser, giveCredits, totalUsersProvider, createSubAdmin, deleteSubAdmin, getSubAdmins, getRsd };
+// Get RSD info
+const withdrawAmountToProviderAccount= catchAsync(
+  async (req: Request, res: Response, next: NextFunction) => {
+
+    const result = await UserService.withdrawAmountToProviderAccountFromDB(req?.user);
+
+    sendResponse(res, {
+      success: true,
+      statusCode: StatusCodes.OK,
+      message: result?.message,
+      data: result?.url ?? "",
+    });
+  }
+);
+
+export const UserController = { createUser, createUsers, getUserProfile, getUser, getEditedUser, getUsers, updateProfile, updateProfileImage, deleteProfile, updateUserStatus, deleteUser, getUsersAggregation, approveUpdateProfile, deleteUpdateProfile, activeBlockUser, giveCredits, totalUsersProvider, createSubAdmin, deleteSubAdmin, getSubAdmins, getRsd,withdrawAmountToProviderAccount };

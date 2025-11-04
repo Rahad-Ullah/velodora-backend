@@ -10,6 +10,7 @@ import { UserModel } from '../app/modules/user/user.model';
 import { USER_ROLES } from '../enums/user';
 import { sendNotifications } from '../helpers/notificationHelper';
 import { NOTIFICATION_TYPE } from '../app/modules/notification/notification.constants';
+import { handleStripeConnectedAccount } from '../handlers/handleStripeConnectedAccount';
 
 
 
@@ -77,7 +78,10 @@ const handleStripeWebhook = async (req: Request, res: Response) => {
                         const failedCharge = event.data.object as Stripe.Charge;
                         console.log('❌ Charge failed:', failedCharge.id);
                         break;
-
+                  case 'account.updated':
+                        const updatedAccount = event.data.object as Stripe.Account;
+                        await handleStripeConnectedAccount(updatedAccount);
+                        break;
                   case 'checkout.session.async_payment_failed':
                         console.log('❌ Async Payment Failed:', event.data.object.id);
                         break;

@@ -20,7 +20,7 @@ const createBookingZodSchema = z.object({
     weatherFee: z.number().optional(),
     convenienceFee: z.number().optional(),
     arrivalFee: z.number().optional(),
-    discount: z.number().optional()
+    discount: z.number().optional(),
   }),
 });
 

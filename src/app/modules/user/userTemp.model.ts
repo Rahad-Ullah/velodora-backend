@@ -22,6 +22,9 @@ const userTempSchema = new Schema<IUser, TUserModal>(
     contact: {
       type: String,
     },
+    countryCode: {
+      type: String,
+    },
     location: {
       type: String,
     },

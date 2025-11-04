@@ -14,8 +14,8 @@ import { ReferralModel } from '../referral/referral.model';
 import { logger } from '../../../shared/logger';
 import { UserTempModel } from './userTemp.model';
 import { CreditsModel } from '../credits/credits.model';
-import { SystemService } from '../system/system.service';
 import { RsdCreditsTransformation } from '../../../helpers/rsdCreditsConver';
+import stripe from '../../config/stripe.config';
 
 
 //create single user to db
@@ -177,7 +177,7 @@ const getUserProfileFromDB = async (
     throw new ApiError(StatusCodes.BAD_REQUEST, "User is deleted!");
   }
 
-  return isExistUser;
+  return isExistUser
 };
 
 //get user profile by admin
@@ -348,12 +348,13 @@ const updateProfileToDB = async (
     if (isExistTempUser) {
       throw new ApiError(StatusCodes.BAD_REQUEST, "You have already approval request!");
     }
-    const { name, contact, location, image } = payload; //email, role, password can't be updated here.
+    const { name, contact, countryCode, location, image } = payload; //email, role, password can't be updated here.
     const data = {
       ref: id,
       name: name ?? isExistUser.name,
       email: isExistUser.email,
       contact: contact ?? isExistUser.contact,
+      countryCode: countryCode ?? isExistUser.countryCode,
       location: location ?? isExistUser.location,
       image: image ?? isExistUser.image
     }
@@ -375,6 +376,29 @@ const updateProfileToDB = async (
   }
 };
 
+// update profile to db
+const updateProfileImageToDB = async (
+  user: JwtPayload,
+  payload: Partial<IUser>
+): Promise<any> => {
+  const { id } = user;
+  const isExistUser = await UserModel.isExistUserById(id);
+  if (!isExistUser) {
+    throw new ApiError(StatusCodes.BAD_REQUEST, "User doesn't exist!");
+  }
+
+  if (payload?.image && isExistUser?.image) {
+    unlinkFile(isExistUser.image);
+  }
+
+  const { email, password, role, ...newPayload } = payload;
+  const updateDoc = await UserModel.findOneAndUpdate({ _id: id }, newPayload, {
+    new: true,
+  });
+
+  return updateDoc;
+};
+
 // approve update profile to db
 const approveUpdateProfileToDB = async (
   id: string,
@@ -391,8 +415,8 @@ const approveUpdateProfileToDB = async (
 
   isExistUser.image && isOriginalUser.image && unlinkFile(isOriginalUser.image);
 
-  const { name, email, contact, location, image } = isExistUser;
-  const updateUser = await UserModel.findOneAndUpdate({ _id: isExistUser.ref }, { name, email, contact, location, image }, {
+  const { name, email, contact, countryCode, location, image } = isExistUser;
+  const updateUser = await UserModel.findOneAndUpdate({ _id: isExistUser.ref }, { name, email, contact, countryCode, location, image }, {
     new: true,
   });
 
@@ -574,6 +598,75 @@ const totalUsersProviderFromDB = async (year: number): Promise<any> => {
   return data[0] || { total: 0, totalUsers: 0, totalProviders: 0 };
 };
 
+//withdraw amount to provider account
+const withdrawAmountToProviderAccountFromDB = async (user:JwtPayload)=>{
+  const User = await UserModel.findById(user.id).select('+stripeAccountInfo').lean()
+  if(User?.stripeAccountInfo?.stripeAccountId && User?.stripeAccountInfo?.stripeLoginUrl){
+
+    const amount = 10
+
+    const transfers = await stripe.transfers.create({
+      amount: amount*100,
+      currency: "usd",
+      destination: User?.stripeAccountInfo?.stripeAccountId
+    })
+
+    if(!transfers){
+      throw new ApiError(StatusCodes.BAD_REQUEST, "Oops! Failed to create stripe connected account.")
+    }
+
+    return {
+      message:`${amount} transfered to stripe account successfully!`,
+    }
+
+  }
+
+  const conSession = await stripe.accounts.create({
+    type: "express",
+    country: "US",
+    capabilities: {
+      card_payments: { requested: true },
+      transfers: { requested: true },
+    },
+    business_profile:{
+      name:User?.name!,
+      support_email:User?.email!,
+      support_phone:User?.contact!,
+      url:"https://example.com/support",
+
+    },
+    business_type: "individual",
+    individual: {
+      first_name: User?.name,
+      email: User?.email!,
+    } 
+    
+  })
+
+  const accountLink = await stripe.accountLinks.create({
+    account: conSession.id,
+    refresh_url: 'https://example.com/reauth',
+    return_url: 'https://example.com/return',
+    type: "account_onboarding",
+  });
+
+  if(!accountLink.url){
+    throw new ApiError(StatusCodes.BAD_REQUEST, "Oops! Failed to create stripe connected account.")
+  }
+
+  await UserModel.findByIdAndUpdate(user.id, {
+    $set: {
+      "stripeAccountInfo.stripeAccountId": conSession.id,
+      "stripeAccountInfo.stripeLoginUrl": accountLink.url,
+    },
+  });
+
+  return {
+    message:`Create stripe connected account!`,
+    url: accountLink.url
+  }
+}
+
 
 export const UserService = {
   createUserToDB,
@@ -583,6 +676,7 @@ export const UserService = {
   getEditedUserFromDB,
   getUsersFromDB,
   updateProfileToDB,
+  updateProfileImageToDB,
   updateUserStatusToDB,
   deleteUserFromDB,
   hardDeleteUsersFromDB,
@@ -595,5 +689,6 @@ export const UserService = {
   createSubAdminToDB,
   deleteSubAdminFromDB,
   getSubAdminsFromDB,
-  getRsdFromDB
+  getRsdFromDB,
+  withdrawAmountToProviderAccountFromDB
 };

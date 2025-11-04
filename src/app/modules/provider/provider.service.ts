@@ -8,10 +8,15 @@ import { ProviderTempModel } from './providerTemp.model';
 import { unlinkFile, unlinkFiles } from '../../../shared/unlinkFile';
 import { SERVICE_STATUS } from '../../../enums/service';
 import { UserModel } from '../user/user.model';
+import { BookingModel } from '../booking/booking.model';
+import { BOOKING_PAYMENT_STATUS, BOOKING_STATUS } from '../../../enums/booking';
+import { IPaginationMeta, IPaginationOptions } from '../../../types/pagination';
+import { JwtPayload } from 'jsonwebtoken';
 
 type TProviderFilters = {
   searchTerm?: string;
   categoryId?: string;
+  subCategoryId?: string;
   minPrice?: number;
   maxPrice?: number;
   location?: string;
@@ -19,6 +24,11 @@ type TProviderFilters = {
   time?: string;
   userLng?: number;
   userLat?: number;
+  isOnline?: string;
+  verified?: string;
+  isActive?: string;
+  page?: number;
+  limit?: number;
 };
 
 //create provider
@@ -204,18 +214,32 @@ const getProviderFromDB = async (id: string): Promise<any> => {
 // get all providers from DB
 const getProvidersFromDB = async (
   filterOptions: TProviderFilters
-): Promise<{ data: TProvider[] }> => {
+): Promise<{ data: TProvider[], meta: IPaginationOptions }> => {
   const {
     searchTerm,
     categoryId,
+    subCategoryId,
     minPrice,
     maxPrice,
     location,
     date,
     time,
     userLng,
-    userLat
+    userLat,
   } = filterOptions;
+  const page = Number(filterOptions.page) || 1;
+  const limit = Number(filterOptions.limit) || 10;
+  const skip = (page - 1) * limit;
+
+  const isOnline: boolean = filterOptions?.isOnline === 'true' ? true : false;
+  const verified: boolean = filterOptions?.verified === 'true' ? true : false;
+  const isActive: boolean = filterOptions?.isActive === 'true' ? true : false;
+
+  console.log(filterOptions?.isOnline, filterOptions?.verified, filterOptions?.isActive)
+
+  console.log("isOnline : ", isOnline)
+  console.log("isActive : ", isActive)
+  console.log("verified : ", verified)
 
   // Build service filter dynamically
   const serviceMatch: any = {};
@@ -223,6 +247,19 @@ const getProvidersFromDB = async (
   let primaryLocation: any = {};
   let dateMatch: any = {};
   let timeMatch: any = {};
+
+
+
+  // match date
+  if (date) {
+    const startOfDay = new Date(date);
+    startOfDay.setHours(0, 0, 0, 0);
+
+    const endOfDay = new Date(date);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    dateMatch = { date: { $gte: startOfDay, $lte: endOfDay } };
+  }
 
   // match time
   if (time) {
@@ -237,17 +274,6 @@ const getProvidersFromDB = async (
     };
   }
 
-  // match date
-  if (date) {
-    const startOfDay = new Date(date);
-    startOfDay.setHours(0, 0, 0, 0);
-
-    const endOfDay = new Date(date);
-    endOfDay.setHours(23, 59, 59, 999);
-
-    dateMatch = { date: { $gte: startOfDay, $lte: endOfDay } };
-  }
-
   // match primaryLocation
   if (location) {
     primaryLocation = { primaryLocation: { $regex: location, $options: "i" } };
@@ -258,7 +284,12 @@ const getProvidersFromDB = async (
     serviceMatch.category = new mongoose.Types.ObjectId(categoryId);
   }
 
-  // match searchTerm
+  // match sub category
+  if (subCategoryId) {
+    serviceMatch.subCategory = new mongoose.Types.ObjectId(subCategoryId);
+  }
+
+  // match searchTerm work on category and subCategory name
   if (searchTerm) {
     searchTermMatch["$or"] = [
       { "category.name": { $regex: searchTerm, $options: "i" } },
@@ -279,6 +310,30 @@ const getProvidersFromDB = async (
 
   // Aggregation pipeline definition //
   const pipeline: any[] = [];
+
+  if (isOnline) {
+    pipeline.push({
+      $match: {
+        isOnline: isOnline
+      }
+    });
+  }
+
+  if (isActive) {
+    pipeline.push({
+      $match: {
+        isActive: isActive
+      }
+    });
+  }
+
+  if (verified) {
+    pipeline.push({
+      $match: {
+        verified: verified
+      }
+    });
+  }
 
   // ✅ Add geoNear first only if userLat & userLng exist
   if (userLat !== undefined && userLng !== undefined) {
@@ -413,14 +468,29 @@ const getProvidersFromDB = async (
           },
         },
       },
+    },
+    {
+      $facet: {
+        data: [{ $skip: skip }, { $limit: limit }],
+        total: [{ $count: "count" }]
+      }
     }
   );
 
   const providers = await ProviderModel.aggregate(pipeline);
+  const total = Number(providers[0].total[0]?.count);
+  const totalPage = Math.ceil(providers[0].total[0]?.count / limit);
 
-  return { data: providers };
+
+  const meta = {
+    total: total ?? 0,
+    page: page,
+    limit: limit,
+    totalPage: totalPage ?? 0
+  }
+
+  return { data: providers[0].data, meta: meta };
 };
-
 
 //update provider
 const updateProviderToDB = async (
@@ -544,7 +614,7 @@ const approveEditProviderToDB = async (
   })
 
 
-  return { message: "Service approved successfully!" };
+  return { message: "Service edit request approved successfully!" };
 };
 
 //delete provider
@@ -584,7 +654,7 @@ const approveProviderToDB = async (id: string): Promise<{ message: string }> => 
   // 2. Update related user
   const updatedUser = await UserModel.findByIdAndUpdate(
     updatedProvider.user,
-    { $set: { isActive: true, verifiedService: true } },
+    { $set: { isActive: true, verifiedService: true, isService: true } },
     { new: true }
   );
 
@@ -651,11 +721,20 @@ const onlineOflineProviderToDB = async (
     throw new ApiError(StatusCodes.BAD_REQUEST, "Provider doesn't exist!");
   }
 
+  if (isExistService?.isOnline) {
+    const isPendingBooking = await BookingModel.find({ provider: isExistService._id, status: BOOKING_STATUS.PENDING, paymentStatus: BOOKING_PAYMENT_STATUS.PAID }).lean();
+
+    if (isPendingBooking.length > 0) {
+      throw new ApiError(StatusCodes.BAD_REQUEST, "You have pending booking!");
+    }
+  }
+
   const res = await ProviderModel.findByIdAndUpdate(isExistService._id, { $set: { isOnline: !isExistService?.isOnline } }, { new: true });
 
 
   return { message: `Provider is ${res?.isOnline ? 'Online' : 'Offline'} now`, data: res };
 };
+
 
 export const ProviderService = {
   createProviderToDB,
