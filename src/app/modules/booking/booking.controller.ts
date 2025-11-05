@@ -24,7 +24,6 @@ const stripePayment = catchAsync(
 const createBooking = catchAsync(
   async (req: Request, res: Response) => {
     const user = req.user.id;
-    console.log("Booking controller body:", req.body);
 
 
 

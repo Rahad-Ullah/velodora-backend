@@ -17,8 +17,7 @@ import { ReviewService } from '../Review/review.service';
 import { RsdCreditsTransformation } from '../../../helpers/rsdCreditsConver';
 
 
-// Create Stripe Checkout Session //
-
+// Create Stripe Checkout Session
 export const stripePaymentToDB = async (): Promise<any> => {
   try {
     // ✅ Calculate 10-minute expiry in seconds
@@ -26,7 +25,7 @@ export const stripePaymentToDB = async (): Promise<any> => {
 
     // ✅ Create price object
     const price = await stripe.prices.create({
-      unit_amount: Number(50000) * 100,
+      unit_amount: Number(50) * 100,
       currency: "usd",
       product_data: {
         name: "Booking Payment",
@@ -41,7 +40,7 @@ export const stripePaymentToDB = async (): Promise<any> => {
       cancel_url: `${config.frontend_url}/payment-failed`,
       line_items: [{ price: price.id, quantity: 1 }],
       metadata: {
-        bookingId: "68f25bae247ed432390a7606",
+        bookingId: "69085059eca16f23096e4ec9",
         amount: 10,
         paymentType: "bookingPayment",
       },
@@ -70,184 +69,7 @@ export const stripePaymentToDB = async (): Promise<any> => {
   }
 };
 
-
-
 //create booking to db
-// const createBookingToDB = async (payload: {
-//   user: string;
-//   provider: string;
-//   services: string[];
-//   date: string;
-//   slots: {
-//     start: string;
-//     end: string;
-//   }[];
-//   amount: number;
-//   subTotal: number;
-//   promoCode?: string;
-//   weatherFee: number;
-//   convenienceFee: number;
-//   arrivalFee: number;
-//   discount: number;
-// }): Promise<any> => {
-
-//   console.log("Create booking : ", payload)
-
-//   const date = new Date(payload.date);
-//   const userSlots = payload.slots.map((slot) => ({
-//     start: new Date(slot.start),
-//     end: new Date(slot.end),
-//   }));
-
-
-//   // Check if the provider exists
-//   const provider = await ProviderModel.findOne({ _id: payload.provider });
-//   if (!provider) {
-//     throw new ApiError(StatusCodes.NOT_FOUND, 'Provider not found');
-//   }
-
-//   // Check if the services are valid
-//   const providerServices = provider.services.map((service) => service.toString());
-//   payload.services.forEach((service) => {
-//     if (!providerServices.includes(service)) {
-//       throw new ApiError(StatusCodes.BAD_REQUEST, 'Invalid service found');
-//     }
-//   });
-
-//   // Check if the date is valid
-//   const providerSchedule = await ScheduleModel.findOne(
-//     {
-//       provider: new mongoose.Types.ObjectId(payload.provider),
-//       date: date,
-//     }
-//   )
-
-//   if (!providerSchedule) {
-//     throw new ApiError(StatusCodes.BAD_REQUEST, 'Invalid date found');
-//   }
-
-//   const providerSlots = providerSchedule?.available_slots.map((schedule: any) => {
-//     return {
-//       start: schedule.start,
-//       end: schedule.end,
-//     };
-//   }) || [];
-
-//   // ✅ Check if all userSlots exist in providerSlots
-//   const allExist = payload.slots.every(userSlot =>
-//     providerSlots.some(
-//       (providerSlot) =>
-//         new Date(providerSlot.start).getTime() === new Date(userSlot.start).getTime() &&
-//         new Date(providerSlot.end).getTime() === new Date(userSlot.end).getTime()
-//     )
-//   );
-
-//   if (!allExist) {
-//     throw new ApiError(StatusCodes.BAD_REQUEST, 'Invalid slot found');
-//   }
-
-//   const providerRemaingSlots = providerSlots.filter((providerSlot) => {
-//     return !payload.slots.some(
-//       (userSlot) =>
-//         new Date(providerSlot.start).getTime() === new Date(userSlot.start).getTime() &&
-//         new Date(providerSlot.end).getTime() === new Date(userSlot.end).getTime()
-//     );
-//   });
-
-//   providerSchedule!.available_slots = providerRemaingSlots;
-//   providerSchedule!.count = providerSchedule!.count + 1;
-
-//   await providerSchedule!.save();
-
-
-//   const newPayload = { ...payload, date, slots: userSlots, schedule: providerSchedule!._id };
-
-
-//   const resBooking = await BookingModel.create(newPayload);
-//   // return res;
-
-//   if (!resBooking) {
-//     throw new ApiError(StatusCodes.INTERNAL_SERVER_ERROR, 'Failed to create booking');
-//   }
-
-//   const user = await UserModel.findById(payload.user);
-//   if (!user) {
-//     throw new ApiError(StatusCodes.NOT_FOUND, 'User not found');
-//   }
-//   const creditsToRsd = await RsdCreditsTransformation.creditsToRsd(user.credits!);
-//   const rsdToCredits = await RsdCreditsTransformation.rsdToCredits(payload.amount);
-
-//   const restCredits = user.credits! - rsdToCredits < 0 ? 0 : user.credits! - rsdToCredits;
-//   await UserModel.findByIdAndUpdate(user._id.toString(), { credits: restCredits });
-//   // await user.save();
-
-//   const resRevenue = await RevenueModel.create({
-//     user: new mongoose.Types.ObjectId(payload.user),
-//     revenue: payload.weatherFee + payload.convenienceFee + payload.arrivalFee,
-//   });
-
-//   if (!resRevenue) {
-//     throw new ApiError(StatusCodes.INTERNAL_SERVER_ERROR, 'Failed to cut revenue');
-//   }
-
-
-
-//   if (user.credits! - rsdToCredits > 0) {
-//     const booking = await BookingModel.findByIdAndUpdate(resBooking._id, {
-//       $set: { paymentStatus: BOOKING_PAYMENT_STATUS.PAID },
-//     });
-//     if (!booking) {
-//       throw new ApiError(StatusCodes.INTERNAL_SERVER_ERROR, 'Failed to update booking payment status');
-//     }
-
-//     return { data: null, message: "Booking created successfully." };
-
-//   }
-
-
-//   // Create Stripe Checkout Session //
-//   try {
-//     // Create Stripe Checkout Session //
-//     const price = await stripe.prices.create({
-//       unit_amount: Number(payload.amount - creditsToRsd) * 100,
-//       currency: 'usd',
-//       product_data: {
-//         name: 'Booking Payment',
-//       },
-//     });
-
-//     const session = await stripe.checkout.sessions.create({
-//       payment_method_types: ['card'],
-//       mode: 'payment',
-//       success_url: `${config.frontend_url}/payment-success`,
-//       cancel_url: `${config.frontend_url}/payment-failed`,
-//       line_items: [{ price: price.id, quantity: 1 }],
-//       metadata: {
-//         bookingId: resBooking._id.toString(),
-//         amount: payload.amount - creditsToRsd,
-//         paymentType: 'bookingPayment'
-//       },
-//     });
-
-
-//     return { data: session.url, message: "Please pay for the booking" };
-//   } catch (err) {
-//     throw new ApiError(StatusCodes.INTERNAL_SERVER_ERROR, 'Failed to create stripe checkout session');
-//   }
-// };
-// import mongoose from "mongoose";
-// import { StatusCodes } from "http-status-codes";
-// import { ApiError } from "../errors/ApiError";
-// import { BookingModel } from "../models/booking.model";
-// import { ProviderModel } from "../models/provider.model";
-// import { ScheduleModel } from "../models/schedule.model";
-// import { UserModel } from "../models/user.model";
-// import { RevenueModel } from "../models/revenue.model";
-// import { RsdCreditsTransformation } from "../utils/RsdCreditsTransformation";
-// import { BOOKING_PAYMENT_STATUS } from "../constants/booking";
-// import stripe from "../lib/stripe";
-// import config from "../config";
-
 const createBookingToDB = async (payload: {
   user: string;
   provider: string;
@@ -266,7 +88,6 @@ const createBookingToDB = async (payload: {
   session.startTransaction();
 
   try {
-    console.log("Create booking : ", payload);
 
     const date = new Date(payload.date);
     const userSlots = payload.slots.map((slot) => ({
@@ -502,7 +323,7 @@ const completeBookingToDB = async (userId: string, providerid: string): Promise<
   // user.credits = user.credits + (booking.amount - (booking.amount * 0.15));
   // await user.save();
   await UserModel.findByIdAndUpdate(providerid, {
-    $set: { credits: + (booking.amount - booking.amount * 0.15) }
+    $inc: { credits: booking.subTotal }
   })
 
   sendNotifications({
@@ -687,10 +508,8 @@ const getBookingToDB = async (id: string): Promise<any> => {
   if (!booking) {
     throw new ApiError(StatusCodes.NOT_FOUND, 'Booking not found');
   }
-  console.log("Booking : ", booking);
 
   const provider: any = await ProviderModel.findById(booking?.provider?.toString());
-  console.log("Provider : ", provider);
 
   const ratings: any = await ReviewService.getMyRatingsToDB(provider?.user?.toString());
 
@@ -1235,6 +1054,7 @@ const getBookingsForAdminFromDB = async (id: string, query: any): Promise<any> =
 
   return { data: resData, meta: meta };
 }
+
 
 export const BookingService = {
   createBookingToDB,

@@ -29,5 +29,5 @@ const sendEmail = async (values: ISendEmail) => {
 };
 
 export const emailHelper = {
-  sendEmail,
+  sendEmail
 };

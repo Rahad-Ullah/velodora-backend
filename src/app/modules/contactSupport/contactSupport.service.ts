@@ -10,6 +10,11 @@ import { emailHelper } from '../../../helpers/emailHelper';
 //create contact support
 const createContactSupportToDB = async (userId: string, payload: Partial<IContactSupport>): Promise<any> => {
 
+  const isExistContactSupport = await ContactSupportModel.findOne({ user: new Types.ObjectId(userId), isReply: false });
+  if (isExistContactSupport) {
+    throw new ApiError(StatusCodes.BAD_REQUEST, "Your already have pending contact support! Please wait for admin response to you mail!");
+  }
+
   const newContactSupport = {
     user: new Types.ObjectId(userId),
     sub: payload.sub,
@@ -82,6 +87,7 @@ const getContactSupportsToDB = async (
   }
 
   pipeline.push(
+    { $sort: { createdAt: -1 } },
     {
       $lookup: {
         from: 'users',

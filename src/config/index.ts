@@ -17,18 +17,19 @@ export default {
   },
   email: {
     from: process.env.EMAIL_FROM,
-    user: process.env.EMAIL_USER,
     port: process.env.EMAIL_PORT,
     host: process.env.EMAIL_HOST,
     pass: process.env.EMAIL_PASS,
   },
   super_admin: {
     email: process.env.SUPER_ADMIN_EMAIL,
+    email_second: process.env.SUPER_ADMIN_EMAIL_SECOND,
     password: process.env.SUPER_ADMIN_PASSWORD,
   },
   stripe: {
     secret_key: process.env.STRIPE_SECRET_KEY,
     public_key: process.env.STRIPE_PUBLIC_KEY,
-    webhook_secret: process.env.STRIPE_WEBHOOK_SECRET,
+    webhook_secret_payment: process.env.STRIPE_WEBHOOK_SECRET_PAYMENT,
+    webhook_secret_withdraw: process.env.STRIPE_WEBHOOK_SECRET_WITHDRAW,
   },
 };

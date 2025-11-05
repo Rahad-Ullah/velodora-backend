@@ -41,10 +41,9 @@ export const autoCancelBookings = async () => {
       await schedule.save();
 
 
-      const user = await UserModel.findByIdAndUpdate(booking.user, {
+      await UserModel.findByIdAndUpdate(booking.user, {
         $inc: { 'credits': booking?.useCredits }
       });
-      console.log("Restore user credits", user);
 
       // ❌ Delete booking
       const result = await BookingModel.findByIdAndDelete(booking._id);

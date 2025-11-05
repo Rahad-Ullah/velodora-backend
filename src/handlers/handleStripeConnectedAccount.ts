@@ -4,6 +4,8 @@ import { UserModel } from "../app/modules/user/user.model";
 import stripe from "../app/config/stripe.config";
 
 export const handleStripeConnectedAccount = async (data:Stripe.Account) => {
+  console.log("handleStripeConnectedAccount---------------", data)
+
   const session = await mongoose.startSession();
  try {
   session.startTransaction()
@@ -21,10 +23,7 @@ export const handleStripeConnectedAccount = async (data:Stripe.Account) => {
 
   const loginUrl = await stripe.accounts.createLoginLink(data.id)
 
-  await UserModel.findOneAndUpdate({email},{stripeAccountInfo:{stripeAccountId:data.id,stripeLoginUrl:loginUrl.url}})
-
-
-
+  await UserModel.findOneAndUpdate({email},{stripeAccountInfo:{stripeAccountId:data.id, stripeLoginUrl:loginUrl.url}})
 
   await session.commitTransaction()
   await session.endSession()

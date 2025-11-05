@@ -519,7 +519,6 @@ const getRsdFromDB = async (id: string): Promise<any> => {
   if (!isExistUser) {
     throw new ApiError(StatusCodes.BAD_REQUEST, "User doesn't exist!");
   }
-  console.log("Exist User Credits", isExistUser?.credits);
 
   return { rsd: await RsdCreditsTransformation.creditsToRsd(isExistUser?.credits) };
 };
@@ -601,6 +600,10 @@ const totalUsersProviderFromDB = async (year: number): Promise<any> => {
 //withdraw amount to provider account
 const withdrawAmountToProviderAccountFromDB = async (user:JwtPayload)=>{
   const User = await UserModel.findById(user.id).select('+stripeAccountInfo').lean()
+  if(!User){
+    throw new ApiError(StatusCodes.BAD_REQUEST, "User not found")
+  }
+
   if(User?.stripeAccountInfo?.stripeAccountId && User?.stripeAccountInfo?.stripeLoginUrl){
 
     const amount = 10
@@ -624,6 +627,7 @@ const withdrawAmountToProviderAccountFromDB = async (user:JwtPayload)=>{
   const conSession = await stripe.accounts.create({
     type: "express",
     country: "US",
+    email: User?.email,
     capabilities: {
       card_payments: { requested: true },
       transfers: { requested: true },
@@ -632,21 +636,20 @@ const withdrawAmountToProviderAccountFromDB = async (user:JwtPayload)=>{
       name:User?.name!,
       support_email:User?.email!,
       support_phone:User?.contact!,
-      url:"https://example.com/support",
+      url:"https://nk6567-dashboard.vercel.app",
 
     },
     business_type: "individual",
     individual: {
       first_name: User?.name,
       email: User?.email!,
-    } 
-    
+    }
   })
 
   const accountLink = await stripe.accountLinks.create({
     account: conSession.id,
-    refresh_url: 'https://example.com/reauth',
-    return_url: 'https://example.com/return',
+    refresh_url: 'https://nk6567-dashboard.vercel.app/account-create-failed',
+    return_url: 'https://nk6567-dashboard.vercel.app/account-create-successful',
     type: "account_onboarding",
   });
 
@@ -654,12 +657,12 @@ const withdrawAmountToProviderAccountFromDB = async (user:JwtPayload)=>{
     throw new ApiError(StatusCodes.BAD_REQUEST, "Oops! Failed to create stripe connected account.")
   }
 
-  await UserModel.findByIdAndUpdate(user.id, {
-    $set: {
-      "stripeAccountInfo.stripeAccountId": conSession.id,
-      "stripeAccountInfo.stripeLoginUrl": accountLink.url,
-    },
-  });
+  // await UserModel.findByIdAndUpdate(user.id, {
+  //   $set: {
+  //     "stripeAccountInfo.stripeAccountId": conSession.id,
+  //     "stripeAccountInfo.stripeLoginUrl": accountLink.url,
+  //   },
+  // });
 
   return {
     message:`Create stripe connected account!`,

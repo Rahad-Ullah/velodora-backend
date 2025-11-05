@@ -235,12 +235,6 @@ const getProvidersFromDB = async (
   const verified: boolean = filterOptions?.verified === 'true' ? true : false;
   const isActive: boolean = filterOptions?.isActive === 'true' ? true : false;
 
-  console.log(filterOptions?.isOnline, filterOptions?.verified, filterOptions?.isActive)
-
-  console.log("isOnline : ", isOnline)
-  console.log("isActive : ", isActive)
-  console.log("verified : ", verified)
-
   // Build service filter dynamically
   const serviceMatch: any = {};
   let searchTermMatch: any = {};
