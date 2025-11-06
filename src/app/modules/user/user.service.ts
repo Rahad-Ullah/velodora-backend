@@ -598,30 +598,32 @@ const totalUsersProviderFromDB = async (year: number): Promise<any> => {
 };
 
 //withdraw amount to provider account
-const withdrawAmountToProviderAccountFromDB = async (user:JwtPayload)=>{
+const withdrawFromDB = async (user: JwtPayload) => {
   const User = await UserModel.findById(user.id).select('+stripeAccountInfo').lean()
-  if(!User){
+  if (!User) {
     throw new ApiError(StatusCodes.BAD_REQUEST, "User not found")
   }
 
-  if(User?.stripeAccountInfo?.stripeAccountId && User?.stripeAccountInfo?.stripeLoginUrl){
+  if (User?.stripeAccountInfo?.stripeAccountId && User?.stripeAccountInfo?.stripeLoginUrl) {
 
-    const amount = 10
+    // const userBalance = 10
+    const userBalance = await RsdCreditsTransformation.creditsToRsd(User?.credits as number);
 
     const transfers = await stripe.transfers.create({
-      amount: amount*100,
+      amount: userBalance * 100,
       currency: "usd",
       destination: User?.stripeAccountInfo?.stripeAccountId
     })
 
-    if(!transfers){
+    if (!transfers) {
       throw new ApiError(StatusCodes.BAD_REQUEST, "Oops! Failed to create stripe connected account.")
     }
 
-    return {
-      message:`${amount} transfered to stripe account successfully!`,
-    }
+    await UserModel.updateOne({ _id: user.id }, { $set: { credits: 0 } })
 
+    return {
+      message: `${userBalance} transfered to stripe account successfully!`,
+    }
   }
 
   const conSession = await stripe.accounts.create({
@@ -632,11 +634,11 @@ const withdrawAmountToProviderAccountFromDB = async (user:JwtPayload)=>{
       card_payments: { requested: true },
       transfers: { requested: true },
     },
-    business_profile:{
-      name:User?.name!,
-      support_email:User?.email!,
-      support_phone:User?.contact!,
-      url:"https://nk6567-dashboard.vercel.app",
+    business_profile: {
+      name: User?.name!,
+      support_email: User?.email!,
+      support_phone: User?.contact!,
+      url: "https://nk6567-dashboard.vercel.app",
 
     },
     business_type: "individual",
@@ -653,7 +655,7 @@ const withdrawAmountToProviderAccountFromDB = async (user:JwtPayload)=>{
     type: "account_onboarding",
   });
 
-  if(!accountLink.url){
+  if (!accountLink.url) {
     throw new ApiError(StatusCodes.BAD_REQUEST, "Oops! Failed to create stripe connected account.")
   }
 
@@ -665,7 +667,7 @@ const withdrawAmountToProviderAccountFromDB = async (user:JwtPayload)=>{
   // });
 
   return {
-    message:`Create stripe connected account!`,
+    message: `Create stripe connected account!`,
     url: accountLink.url
   }
 }
@@ -693,5 +695,5 @@ export const UserService = {
   deleteSubAdminFromDB,
   getSubAdminsFromDB,
   getRsdFromDB,
-  withdrawAmountToProviderAccountFromDB
+  withdrawFromDB
 };

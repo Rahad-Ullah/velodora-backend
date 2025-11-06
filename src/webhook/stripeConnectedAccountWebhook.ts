@@ -5,27 +5,24 @@ import Stripe from 'stripe';
 import { handleStripeConnectedAccount } from '../handlers/handleStripeConnectedAccount';
 
 
-const handleWithdrawStripeWebhook = async (req: Request, res: Response) => {
-      console.log("Withdraw ---- Webhook called ------------------------------------------------ It's working");
+const stripeConnectedAccountWebhook = async (req: Request, res: Response) => {
+      console.log("Stripe connected account webhook called ------------------------------------------------ It's working");
       const payload = req.body;
       const signature = req.headers['stripe-signature'];
 
       if (!payload) {
-            return res.status(400).json({ error: 'Missing payload' });
+            return res.status(400).json({ error: 'Missing connected account payload' });
       }
 
       if (!signature) {
-            return res.status(400).json({ error: 'Missing stripe-signature header' });
+            return res.status(400).json({ error: 'Missing connected account stripe signature header' });
       }
 
       try {
             const event = stripe.webhooks.constructEvent(payload, signature, config.stripe.webhook_secret_withdraw as string);
+            const eventType: string = event.type;
 
-            switch (event.type) {
-                  case 'charge.failed':
-                        const failedCharge = event.data.object as Stripe.Charge;
-                        console.log('❌ Charge failed:', failedCharge.id);
-                        break;
+            switch (eventType) {
                   case 'account.updated':
                         const updatedAccount = event.data.object as Stripe.Account;
                         await handleStripeConnectedAccount(updatedAccount);
@@ -34,7 +31,7 @@ const handleWithdrawStripeWebhook = async (req: Request, res: Response) => {
                         console.log(`⚠️ Unhandled event type: ${event.type}`);
             }
 
-            return res.status(200).json({ received: true });
+            return res.status(200).json({ updated: true });
       } catch (error) {
             console.error('Webhook error:', error);
             return res.status(400).json({ error: `Webhook error: ${(error as Error).message}` });
@@ -42,4 +39,4 @@ const handleWithdrawStripeWebhook = async (req: Request, res: Response) => {
 };
 
 
-export default handleWithdrawStripeWebhook;
+export default stripeConnectedAccountWebhook;

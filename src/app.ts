@@ -6,13 +6,13 @@ import router from './routes';
 import { Morgan } from './shared/morgen';
 const app = express();
 import "./util/cleanupDaily";
-import handlePaymentStripeWebhook from './webhook/handlePaymentStripeWebhook';
-import handleWithdrawStripeWebhook from './webhook/handleWithdrawStripeWebhook';
+import stripePaymentWebhook from './webhook/stripePaymentWebhook';
+import stripeConnectedAccountWebhook from './webhook/stripeConnectedAccountWebhook';
 
 
 
-app.post('/api/v1/stripe/webhook/make-payment', express.raw({ type: 'application/json' }), handlePaymentStripeWebhook);
-app.post('/api/v1/stripe/webhook/withdraw', express.raw({ type: 'application/json' }), handleWithdrawStripeWebhook);
+app.post('/api/v1/stripe/webhook/make-payment', express.raw({ type: 'application/json' }), stripePaymentWebhook);
+app.post('/api/v1/stripe/webhook/connected-account', express.raw({ type: 'application/json' }), stripeConnectedAccountWebhook);
 
 //morgan
 app.use(Morgan.successHandler);

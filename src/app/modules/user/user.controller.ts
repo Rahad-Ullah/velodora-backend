@@ -355,10 +355,10 @@ const getRsd = catchAsync(
 );
 
 // Get RSD info
-const withdrawAmountToProviderAccount= catchAsync(
+const withdraw= catchAsync(
   async (req: Request, res: Response, next: NextFunction) => {
 
-    const result = await UserService.withdrawAmountToProviderAccountFromDB(req?.user);
+    const result = await UserService.withdrawFromDB(req?.user);
 
     sendResponse(res, {
       success: true,
@@ -369,4 +369,4 @@ const withdrawAmountToProviderAccount= catchAsync(
   }
 );
 
-export const UserController = { createUser, createUsers, getUserProfile, getUser, getEditedUser, getUsers, updateProfile, updateProfileImage, deleteProfile, updateUserStatus, deleteUser, getUsersAggregation, approveUpdateProfile, deleteUpdateProfile, activeBlockUser, giveCredits, totalUsersProvider, createSubAdmin, deleteSubAdmin, getSubAdmins, getRsd,withdrawAmountToProviderAccount };
+export const UserController = { createUser, createUsers, getUserProfile, getUser, getEditedUser, getUsers, updateProfile, updateProfileImage, deleteProfile, updateUserStatus, deleteUser, getUsersAggregation, approveUpdateProfile, deleteUpdateProfile, activeBlockUser, giveCredits, totalUsersProvider, createSubAdmin, deleteSubAdmin, getSubAdmins, getRsd,withdraw };

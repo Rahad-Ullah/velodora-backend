@@ -65,7 +65,7 @@ router
   .route('/withdraw-to-provider')
   .post(
     auth(USER_ROLES.PROVIDER),
-    UserController.withdrawAmountToProviderAccount
+    UserController.withdraw
   );
 
 router
