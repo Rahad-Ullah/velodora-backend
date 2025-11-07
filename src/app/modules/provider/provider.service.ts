@@ -10,8 +10,7 @@ import { SERVICE_STATUS } from '../../../enums/service';
 import { UserModel } from '../user/user.model';
 import { BookingModel } from '../booking/booking.model';
 import { BOOKING_PAYMENT_STATUS, BOOKING_STATUS } from '../../../enums/booking';
-import { IPaginationMeta, IPaginationOptions } from '../../../types/pagination';
-import { JwtPayload } from 'jsonwebtoken';
+import { IPaginationOptions } from '../../../types/pagination';
 
 type TProviderFilters = {
   searchTerm?: string;
@@ -31,24 +30,47 @@ type TProviderFilters = {
   limit?: number;
 };
 
+
 //create provider
-const createProviderToDB = async (providerInfo: Partial<TProvider>, servicesInfo: Partial<TProvider>): Promise<any> => {
+const createProviderToDB = async (
+  providerInfo: Partial<TProvider>,
+  servicesInfo: Partial<TProvider>
+): Promise<any> => {
+  const session = await mongoose.startSession();
 
-  const isExistProvider = await ProviderModel.findOne({ user: providerInfo.user });
-  if (isExistProvider) {
+  try {
+    session.startTransaction();
+
+    // ✅ Check if provider already exists
+    const isExistProvider = await ProviderModel.findOne({ user: providerInfo.user }).session(session);
+    if (isExistProvider) {
+      throw new ApiError(StatusCodes.BAD_REQUEST, "Provider already exists! Please check your profile.");
+    }
+
+    // ✅ Insert services
+    const servicesResult = await ServiceModel.insertMany(servicesInfo, { session });
+    const servicesId = servicesResult.map((service) => service._id);
+
+    // ✅ Create provider with linked services
+    const providerData = { ...providerInfo, isActive: false, services: servicesId };
+    const provider = await ProviderModel.create([providerData], { session });
+
+    // ✅ Commit transaction
+    await session.commitTransaction();
+
+    return { data: provider[0], message: "Provider created successfully" };
+  } catch (error) {
+    // ❌ Rollback if anything fails
+    await session.abortTransaction();
+
+    // cleanup any uploaded images
     providerInfo.serviceImages && unlinkFiles(providerInfo.serviceImages);
-    throw new ApiError(StatusCodes.BAD_REQUEST, "Provider already exist! Please Check your profile.");
+
+    throw error;
+  } finally {
+    // ✅ Always end session
+    session.endSession();
   }
-
-  // const user = req.user;
-
-  const servicesResult = await ServiceModel.insertMany(servicesInfo);
-  const servicesId = servicesResult.map((service) => service._id);
-
-  const provider = { ...providerInfo, isActive: false, services: servicesId }
-  const res = await ProviderModel.create(provider);
-
-  return { data: res, message: "Provider created successfully" };
 };
 
 //get single provider from DB
@@ -488,176 +510,266 @@ const getProvidersFromDB = async (
 
 //update provider
 const updateProviderToDB = async (
-  payload: any, providerId: string
+  payload: any,
+  providerId: string
 ): Promise<any> => {
+  const session = await mongoose.startSession();
+  try {
+    session.startTransaction();
 
+    // ✅ Check if provider exists
+    const isExistProvider = await ProviderModel.findOne({ user: providerId }).session(session);
+    if (!isExistProvider) {
+      throw new ApiError(StatusCodes.BAD_REQUEST, "Provider(service) doesn't exist!");
+    } else if (!isExistProvider?.isActive) {
+      throw new ApiError(StatusCodes.BAD_REQUEST, "Right now your service is not active!");
+    }
 
-  const isExistProvider = await ProviderModel.findOne({ user: providerId });
-  if (!isExistProvider) {
-    throw new ApiError(StatusCodes.BAD_REQUEST, "Provider(service) doesn't exist!");
-  } else if (!isExistProvider?.isActive) {
-    throw new ApiError(StatusCodes.BAD_REQUEST, "Right now your service is not active!");
-  }
+    // ✅ Check if provider has a pending edit request
+    const isExistEditedProvider = await ProviderTempModel.findOne({ ref: isExistProvider._id }).session(session);
+    if (isExistEditedProvider) {
+      payload.newServiceImages && unlinkFiles(payload.newServiceImages);
+      throw new ApiError(StatusCodes.BAD_REQUEST, "You have already approval request!");
+    }
 
-  const isExistEditedProvider = await ProviderTempModel.findOne({ ref: isExistProvider._id });
-  if (isExistEditedProvider) {
+    // ✅ Authorization check
+    if (isExistProvider?.user.toString() !== providerId) {
+      throw new ApiError(StatusCodes.BAD_REQUEST, "You are not authorized to update this service!");
+    }
+
+    // ✅ Prepare updated provider data
+    let updatedProvider: any = {
+      ...payload.data,
+      user: isExistProvider?.user,
+      ref: isExistProvider?._id,
+    };
+
+    if (payload.newServiceImages) {
+      updatedProvider.serviceImages = payload.newServiceImages;
+    }
+
+    // ✅ Insert new services
+    const servicesNew = payload.services?.new
+      ? await ServiceModel.insertMany(
+        payload.services.new.map((service: any) => ({
+          ...service,
+          status: SERVICE_STATUS.NEW,
+        })),
+        { session }
+      )
+      : [];
+
+    // ✅ Insert updated services
+    const servicesUpdate = payload.services?.update
+      ? await ServiceModel.insertMany(
+        payload.services.update.map((service: any) => ({
+          ...service,
+          status: SERVICE_STATUS.EDITED,
+        })),
+        { session }
+      )
+      : [];
+
+    // ✅ Keep existing services (not updated)
+    const servicesExist = isExistProvider.services.filter(
+      (serviceId) =>
+        !servicesUpdate
+          .map((service: any) => service.ref?.toString?.())
+          .includes(serviceId.toString())
+    );
+
+    updatedProvider.services = [
+      ...servicesUpdate.map((service: any) => service._id),
+      ...servicesNew.map((service: any) => service._id),
+      ...servicesExist,
+    ];
+
+    // ✅ Create temp provider (pending approval)
+    const res = await ProviderTempModel.create([updatedProvider], { session });
+
+    // ✅ Mark user as modified
+    await UserModel.findByIdAndUpdate(
+      isExistProvider.user,
+      { $set: { isModified: true } },
+      { new: true, session }
+    );
+
+    // ✅ Commit transaction
+    await session.commitTransaction();
+
+    return {
+      data: res[0],
+      message: "Service update request sent successfully!",
+    };
+  } catch (error) {
+    // ❌ Rollback transaction and cleanup
+    await session.abortTransaction();
     payload.newServiceImages && unlinkFiles(payload.newServiceImages);
-    throw new ApiError(StatusCodes.BAD_REQUEST, "You have already approval request!");
+    throw new ApiError(StatusCodes.BAD_REQUEST, "Service update request failed!");
+  } finally {
+    await session.endSession();
   }
-
-  if (isExistProvider?.user.toString() !== providerId) {
-    throw new ApiError(StatusCodes.BAD_REQUEST, "You are not authorized to update this service!");
-  }
-
-  let updatedProvider = {
-    ...payload.data,
-    user: isExistProvider?.user,
-    ref: isExistProvider?._id,
-    serviceImages: payload.serviceImages
-  }
-
-
-  const servicesNew = payload.services?.new
-    ? await ServiceModel.insertMany(
-      payload.services.new.map((service: any) => ({
-        ...service,
-        status: SERVICE_STATUS.NEW,
-      }))
-    ) : [];
-
-  const servicesUpdate = payload.services?.update ? await ServiceModel.insertMany(
-    payload.services.update.map((service: any) => ({
-      ...service,
-      status: SERVICE_STATUS.EDITED,
-    }))
-  ) : [];
-
-  const servicesExist = isExistProvider.services.filter((serviceId) => !servicesUpdate.map((service: any) => service.ref.toString()).includes(serviceId.toString()));
-
-  updatedProvider.services = [...servicesUpdate.map((service: any) => service?._id), ...servicesNew.map((service: any) => service?._id), ...servicesExist];
-
-
-  const res = await ProviderTempModel.create(updatedProvider);
-  await UserModel.findByIdAndUpdate(isExistProvider.user, { $set: { isModified: true } }, { new: true });
-
-
-  return { data: res, message: "Service updated request sent successfully!" };
 };
 
-//delete provider
-const approveEditProviderToDB = async (
-  id: string
-): Promise<any> => {
+//approve edited provider
+const approveEditProviderToDB = async (id: string): Promise<any> => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
 
-  const isExistProviderTemp = await ProviderTempModel.findOne({ user: id });
-  if (!isExistProviderTemp) {
-    throw new ApiError(StatusCodes.BAD_REQUEST, "New Provider doesn't exist!");
-  }
-
-  const isExistProvider = await ProviderModel.findOne({ user: id });
-  if (!isExistProvider) {
-    throw new ApiError(StatusCodes.BAD_REQUEST, "Old Provider doesn't exist!");
-  }
-
-  const newProvider = {
-    location: isExistProviderTemp.location,
-    user: isExistProviderTemp.user,
-    aboutMe: isExistProviderTemp.aboutMe,
-    serviceLanguage: isExistProviderTemp.serviceLanguage,
-    primaryLocation: isExistProviderTemp.primaryLocation,
-    serviceDistance: isExistProviderTemp.serviceDistance,
-    pricePerHour: isExistProviderTemp.pricePerHour,
-    serviceImages: isExistProviderTemp.serviceImages,
-    isRead: isExistProviderTemp.isRead,
-    isActive: true,
-    verified: true,
-  }
-
-  let newServices: Types.ObjectId[] = [];
-
-  for (const serviceId of isExistProviderTemp.services) {
-    const service: any = await ServiceModel.findById(serviceId);
-
-    if (service && (service.status === SERVICE_STATUS.NEW || service.status === SERVICE_STATUS.OLD)) {
-      newServices.push(service._id);
-    } else if (service.status === SERVICE_STATUS.EDITED) {
-      await ServiceModel.findByIdAndUpdate(
-        service.ref,
-        {
-          category: service.category,
-          subCategory: service.subCategory,
-          price: service.price,
-          status: SERVICE_STATUS.OLD,
-        },
-        { new: true }
-      );
-      newServices.push(service.ref);
+  try {
+    const isExistProviderTemp = await ProviderTempModel.findOne({ user: id }).session(session);
+    if (!isExistProviderTemp) {
+      throw new ApiError(StatusCodes.BAD_REQUEST, "Provider update request doesn't exist!");
     }
+
+    const isExistProvider = await ProviderModel.findOne({ user: id }).session(session);
+    if (!isExistProvider) {
+      throw new ApiError(StatusCodes.BAD_REQUEST, "Old Provider doesn't exist!");
+    }
+
+    const newProvider = {
+      location: isExistProviderTemp.location ?? isExistProvider.location,
+      user: isExistProviderTemp.user ?? isExistProvider.user,
+      aboutMe: isExistProviderTemp.aboutMe ?? isExistProvider.aboutMe,
+      serviceLanguage: isExistProviderTemp.serviceLanguage ?? isExistProvider.serviceLanguage,
+      primaryLocation: isExistProviderTemp.primaryLocation ?? isExistProvider.primaryLocation,
+      serviceDistance: isExistProviderTemp.serviceDistance ?? isExistProvider.serviceDistance,
+      pricePerHour: isExistProviderTemp.pricePerHour ?? isExistProvider.pricePerHour,
+      serviceImages: isExistProviderTemp.serviceImages ?? isExistProvider.serviceImages,
+      isRead: isExistProviderTemp.isRead ?? isExistProvider.isRead,
+      isActive: true,
+      verified: true,
+    };
+
+    let newServices: Types.ObjectId[] = [];
+
+    for (const serviceId of isExistProviderTemp.services) {
+      const service: any = await ServiceModel.findById(serviceId).session(session);
+
+      if (service && (service.status === SERVICE_STATUS.NEW || service.status === SERVICE_STATUS.OLD)) {
+        newServices.push(service._id);
+      } else if (service && service.status === SERVICE_STATUS.EDITED) {
+        await ServiceModel.findByIdAndUpdate(
+          service.ref,
+          {
+            category: service.category,
+            subCategory: service.subCategory,
+            price: service.price,
+            status: SERVICE_STATUS.OLD,
+          },
+          { new: true, session }
+        );
+        newServices.push(service.ref);
+      }
+    }
+
+    await ProviderModel.findOneAndUpdate(
+      { user: id },
+      { ...newProvider, services: newServices },
+      { new: true, session }
+    );
+
+    await UserModel.findByIdAndUpdate(
+      id,
+      { $set: { isModified: false } },
+      { new: true, session }
+    );
+
+    await ProviderTempModel.findOneAndDelete({ user: id }).session(session);
+
+    // Commit transaction before unlinking files
+    await session.commitTransaction();
+    session.endSession();
+
+    // Clean up old images (outside transaction)
+    try {
+      isExistProvider.serviceImages.forEach((serviceImage) => {
+        if (!isExistProviderTemp.serviceImages.includes(serviceImage)) {
+          unlinkFile(serviceImage);
+        }
+      });
+    } catch (cleanupErr) {
+      console.error("File cleanup failed:", cleanupErr);
+    }
+
+    return { message: "Service edit request approved successfully!" };
+
+  } catch (error) {
+    await session.abortTransaction();
+    session.endSession();
+    throw new ApiError(StatusCodes.INTERNAL_SERVER_ERROR, "Failed to approve edited provider!");
   }
-
-
-
-  await ProviderModel.findOneAndUpdate({ user: id }, { ...newProvider, services: newServices }, { new: true });
-  await UserModel.findByIdAndUpdate(id, { $set: { isModified: false } }, { new: true });
-  await ProviderTempModel.findOneAndDelete({ user: id });
-
-
-  // unlink files here
-  isExistProvider.serviceImages.forEach((serviceImage) => {
-    !isExistProviderTemp.serviceImages.includes(serviceImage) && unlinkFile(serviceImage);
-  })
-
-
-  return { message: "Service edit request approved successfully!" };
 };
 
 //delete provider
 const deleteEditProviderToDB = async (
   id: string
 ): Promise<any> => {
+  const session = await mongoose.startSession();
 
-  const isExistProviderTemp = await ProviderTempModel.findOneAndDelete({ user: id });
-  if (!isExistProviderTemp) {
-    throw new ApiError(StatusCodes.BAD_REQUEST, "Edit Provider doesn't exist!");
+  try {
+    const isExistProviderTemp = await ProviderTempModel.findOneAndDelete({ user: id }).session(session);
+    if (!isExistProviderTemp) {
+      throw new ApiError(StatusCodes.BAD_REQUEST, "Edit Provider doesn't exist!");
+    }
+
+    // unlink files here
+    if (isExistProviderTemp?.serviceImages) {
+      unlinkFiles(isExistProviderTemp.serviceImages);
+    }
+    await UserModel.findByIdAndUpdate(id, { $set: { isModified: false } }, { new: true, session });
+
+    // Commit transaction before unlinking files
+    await session.commitTransaction();
+    session.endSession();
+
+    return { message: "Service deleted successfully!" };
+  } catch (error) {
+    await session.abortTransaction();
+    session.endSession();
+    throw new ApiError(StatusCodes.INTERNAL_SERVER_ERROR, "Failed to delete edited provider!");
   }
-
-  // unlink files here
-  if (isExistProviderTemp?.serviceImages) {
-    unlinkFiles(isExistProviderTemp.serviceImages);
-  }
-  await UserModel.findByIdAndUpdate(id, { $set: { isModified: false } }, { new: true });
-
-  return { message: "Service deleted successfully!" };
 };
 
 // Approve provider
 const approveProviderToDB = async (id: string): Promise<{ message: string }> => {
+  const session = await mongoose.startSession();
+  try {
+    session.startTransaction();
+    // 1. Update provider
+    const updatedProvider = await ProviderModel.findOneAndUpdate(
+      { user: id },
+      { $set: { isActive: true, verified: true } },
+      { new: true, session }
+    );
 
-  // 1. Update provider
-  const updatedProvider = await ProviderModel.findOneAndUpdate(
-    { user: id },
-    { $set: { isActive: true, verified: true } },
-    { new: true }
-  );
 
+    if (!updatedProvider) {
+      throw new ApiError(StatusCodes.BAD_REQUEST, "Provider doesn't exist!");
+    }
 
-  if (!updatedProvider) {
-    throw new ApiError(StatusCodes.BAD_REQUEST, "Provider doesn't exist!");
+    // 2. Update related user
+    const updatedUser = await UserModel.findByIdAndUpdate(
+      updatedProvider.user,
+      { $set: { isActive: true, verifiedService: true, isService: true } },
+      { new: true, session }
+    );
+
+    if (!updatedUser) {
+      throw new ApiError(StatusCodes.BAD_REQUEST, "User doesn't exist!");
+    }
+
+    // Commit transaction before unlinking files
+    await session.commitTransaction();
+    session.endSession();
+
+    // 3. Return success message
+    return { message: "Approved successfully!" };
+  } catch (error) {
+    await session.abortTransaction();
+    session.endSession();
+    throw new ApiError(StatusCodes.INTERNAL_SERVER_ERROR, "Failed to approve provider!");
   }
-
-  // 2. Update related user
-  const updatedUser = await UserModel.findByIdAndUpdate(
-    updatedProvider.user,
-    { $set: { isActive: true, verifiedService: true, isService: true } },
-    { new: true }
-  );
-
-  if (!updatedUser) {
-    throw new ApiError(StatusCodes.BAD_REQUEST, "User doesn't exist!");
-  }
-
-  // 3. Return success message
-  return { message: "Approved successfully!" };
 };
 
 //delete provider
@@ -687,6 +799,7 @@ const deleteProviderToDB = async (
 const activeBlockProviderToDB = async (
   id: string
 ): Promise<any> => {
+  const session = await mongoose.startSession();
 
   const isExistService = await ProviderModel.findOne({ user: id });
   if (!isExistService) {
@@ -698,11 +811,23 @@ const activeBlockProviderToDB = async (
     throw new ApiError(StatusCodes.BAD_REQUEST, "User doesn't exist!");
   }
 
-  const res = await ProviderModel.findByIdAndUpdate(isExistService._id, { $set: { isActive: !isExistService?.isActive, verified: true } }, { new: true });
-  const profile = await UserModel.findByIdAndUpdate(id, { $set: { verifiedService: !isExistService?.isActive } }, { new: true });
+  try {
+    session.startTransaction();
+
+    const res = await ProviderModel.findByIdAndUpdate(isExistService._id, { $set: { isActive: !isExistService?.isActive, verified: true } }, { new: true, session });
+    await UserModel.findByIdAndUpdate(id, { $set: { verifiedService: !isExistService?.isActive } }, { new: true, session });
+
+    await session.commitTransaction();
+    session.endSession();
+
+    return { message: `Provider ${isExistService?.isActive ? 'blocked' : 'unblocked'} successfully!`, data: res };
+  } catch (error) {
+    await session.abortTransaction();
+    session.endSession();
+    throw new ApiError(StatusCodes.INTERNAL_SERVER_ERROR, "Failed to Active/Block provider!");
+  }
 
 
-  return { message: `Provider ${isExistService?.isActive ? 'blocked' : 'unblocked'} successfully!`, data: res };
 };
 
 //Online/Offline Provider
