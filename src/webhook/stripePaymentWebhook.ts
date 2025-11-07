@@ -2,7 +2,6 @@ import { Request, Response } from 'express';
 import stripe from '../app/config/stripe.config';
 import config from '../config';
 import Stripe from 'stripe';
-import { handleStripeConnectedAccount } from '../handlers/handleStripeConnectedAccount';
 import { handlePaymentSuccess } from '../handlers/handlePaymentSuccess';
 
 
@@ -25,10 +24,6 @@ const stripePaymentWebhook = async (req: Request, res: Response) => {
             switch (event.type) {
                   case 'checkout.session.completed':
                         await handlePaymentSuccess(event.data.object as Stripe.Checkout.Session);
-                        break;
-                  case 'checkout.session.expired':
-                        const expiredSession = event.data.object as Stripe.Checkout.Session;
-                        console.log('⚠️ Expired session:', expiredSession.id);
                         break;
                   default:
                         console.log(`⚠️ Unhandled event type: ${event.type}`);

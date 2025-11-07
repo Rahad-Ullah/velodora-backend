@@ -26,6 +26,7 @@ export type IUser = {
   stripeAccountInfo?:{
     stripeAccountId: string;
     stripeLoginUrl: string;
+    isAccountReady: boolean;
   }
 };
 

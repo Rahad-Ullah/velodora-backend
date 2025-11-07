@@ -16,6 +16,7 @@ import { UserTempModel } from './userTemp.model';
 import { CreditsModel } from '../credits/credits.model';
 import { RsdCreditsTransformation } from '../../../helpers/rsdCreditsConver';
 import stripe from '../../config/stripe.config';
+import mongoose from 'mongoose';
 
 
 //create single user to db
@@ -597,80 +598,168 @@ const totalUsersProviderFromDB = async (year: number): Promise<any> => {
   return data[0] || { total: 0, totalUsers: 0, totalProviders: 0 };
 };
 
-//withdraw amount to provider account
+//withdraw amount to provider account from admin account
 const withdrawFromDB = async (user: JwtPayload) => {
-  const User = await UserModel.findById(user.id).select('+stripeAccountInfo').lean()
-  if (!User) {
-    throw new ApiError(StatusCodes.BAD_REQUEST, "User not found")
-  }
+  const session = await mongoose.startSession();
+  try {
+    session.startTransaction();
 
-  if (User?.stripeAccountInfo?.stripeAccountId && User?.stripeAccountInfo?.stripeLoginUrl) {
+    const User = await UserModel.findById(user.id)
+      .select("+stripeAccountInfo")
+      .session(session)
+      .lean();
 
-    // const userBalance = 10
-    const userBalance = await RsdCreditsTransformation.creditsToRsd(User?.credits as number);
-
-    const transfers = await stripe.transfers.create({
-      amount: userBalance * 100,
-      currency: "usd",
-      destination: User?.stripeAccountInfo?.stripeAccountId
-    })
-
-    if (!transfers) {
-      throw new ApiError(StatusCodes.BAD_REQUEST, "Oops! Failed to create stripe connected account.")
+    if (!User) {
+      throw new ApiError(StatusCodes.BAD_REQUEST, "Withdraw - User not found");
     }
 
-    await UserModel.updateOne({ _id: user.id }, { $set: { credits: 0 } })
+    // ✅ CASE 1: Account ready to withdraw
+    if (
+      User?.stripeAccountInfo?.stripeAccountId &&
+      User?.stripeAccountInfo?.stripeLoginUrl &&
+      User?.stripeAccountInfo?.isAccountReady
+    ) {
+      const userBalance = await RsdCreditsTransformation.creditsToRsd(User?.credits as number);
+
+      const balance = await stripe.balance.retrieve();
+      const availableBalance = balance.available?.[0]?.amount || 0;
+
+      if (availableBalance < userBalance * 100) {
+        throw new ApiError(StatusCodes.BAD_REQUEST, "Insufficient platform funds to make transfer.");
+      }
+
+      const transfer = await stripe.transfers.create({
+        amount: userBalance * 100,
+        currency: "usd",
+        destination: User?.stripeAccountInfo?.stripeAccountId,
+      });
+
+      if (!transfer) {
+        throw new ApiError(
+          StatusCodes.BAD_REQUEST,
+          "Failed to transfer funds to connected account."
+        );
+      }
+
+      await UserModel.updateOne(
+        { _id: user.id },
+        { $set: { credits: 0 } },
+        { session }
+      );
+
+      await session.commitTransaction();
+      session.endSession();
+
+      return {
+        message: `${userBalance} transferred to Stripe account successfully!`,
+      };
+    }
+
+    // ✅ CASE 2: Account exists but not ready
+    if (
+      User?.stripeAccountInfo?.stripeAccountId &&
+      User?.stripeAccountInfo?.stripeLoginUrl &&
+      !User?.stripeAccountInfo?.isAccountReady
+    ) {
+
+      const accountLink = await stripe.accountLinks.create({
+        account: User.stripeAccountInfo.stripeAccountId!,
+        refresh_url: "https://nk6567-dashboard.vercel.app/account-create-failed",
+        return_url: "https://nk6567-dashboard.vercel.app/account-create-successful",
+        type: "account_onboarding",
+        // collect: 'eventually_due', // optional
+      });
+
+      if (!accountLink.url) {
+        throw new ApiError(
+          StatusCodes.BAD_REQUEST,
+          "Failed to create Stripe onboarding link."
+        );
+      }
+
+      await UserModel.findByIdAndUpdate(
+        user.id,
+        {
+          $set: {
+            "stripeAccountInfo.stripeLoginUrl": accountLink.url,
+          },
+        },
+        { session }
+      );
+
+      await session.commitTransaction();
+      session.endSession();
+
+      return {
+        message: "Created Stripe connected account onboarding link!",
+        url: accountLink.url,
+      };
+    }
+
+    // ✅ CASE 3: No Stripe account yet → create one
+    const createAccount = await stripe.accounts.create({
+      type: "express",
+      country: "US",
+      email: User?.email,
+      capabilities: {
+        card_payments: { requested: true },
+        transfers: { requested: true },
+      },
+      business_profile: {
+        name: User?.name!,
+        support_email: User?.email!,
+        support_phone: User?.contact!,
+        url: "https://nk6567-dashboard.vercel.app",
+      },
+      business_type: "individual",
+      individual: {
+        first_name: User?.name,
+        email: User?.email!,
+      },
+    });
+
+    const accountLink = await stripe.accountLinks.create({
+      account: createAccount.id,
+      refresh_url: "https://nk6567-dashboard.vercel.app/account-create-failed",
+      return_url:
+        "https://nk6567-dashboard.vercel.app/account-create-successful",
+      type: "account_onboarding",
+    });
+
+    if (!accountLink.url) {
+      throw new ApiError(
+        StatusCodes.BAD_REQUEST,
+        "Failed to create Stripe onboarding link."
+      );
+    }
+
+    await UserModel.findByIdAndUpdate(
+      user.id,
+      {
+        $set: {
+          "stripeAccountInfo.stripeAccountId": createAccount.id,
+          "stripeAccountInfo.stripeLoginUrl": accountLink.url,
+          "stripeAccountInfo.isAccountReady": false,
+        },
+      },
+      { session }
+    );
+
+    await session.commitTransaction();
+    session.endSession();
 
     return {
-      message: `${userBalance} transfered to stripe account successfully!`,
-    }
+      message: "Created new Stripe connected account!",
+      url: accountLink.url,
+    };
+  } catch (error) {
+    await session.abortTransaction();
+    session.endSession();
+    console.error("withdrawFromDB error:", error);
+    throw error;
   }
+};
 
-  const conSession = await stripe.accounts.create({
-    type: "express",
-    country: "US",
-    email: User?.email,
-    capabilities: {
-      card_payments: { requested: true },
-      transfers: { requested: true },
-    },
-    business_profile: {
-      name: User?.name!,
-      support_email: User?.email!,
-      support_phone: User?.contact!,
-      url: "https://nk6567-dashboard.vercel.app",
-
-    },
-    business_type: "individual",
-    individual: {
-      first_name: User?.name,
-      email: User?.email!,
-    }
-  })
-
-  const accountLink = await stripe.accountLinks.create({
-    account: conSession.id,
-    refresh_url: 'https://nk6567-dashboard.vercel.app/account-create-failed',
-    return_url: 'https://nk6567-dashboard.vercel.app/account-create-successful',
-    type: "account_onboarding",
-  });
-
-  if (!accountLink.url) {
-    throw new ApiError(StatusCodes.BAD_REQUEST, "Oops! Failed to create stripe connected account.")
-  }
-
-  // await UserModel.findByIdAndUpdate(user.id, {
-  //   $set: {
-  //     "stripeAccountInfo.stripeAccountId": conSession.id,
-  //     "stripeAccountInfo.stripeLoginUrl": accountLink.url,
-  //   },
-  // });
-
-  return {
-    message: `Create stripe connected account!`,
-    url: accountLink.url
-  }
-}
 
 
 export const UserService = {

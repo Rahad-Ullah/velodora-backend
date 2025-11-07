@@ -96,6 +96,10 @@ const userSchema = new Schema<IUser, TUserModal>(
           type: String,
           default: null,
         },
+        isAccountReady: {
+          type: Boolean,
+          default: false,
+        },
       },
       select: 0,
     }

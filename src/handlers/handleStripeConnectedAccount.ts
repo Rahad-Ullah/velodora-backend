@@ -10,20 +10,26 @@ export const handleStripeConnectedAccount = async (data: Stripe.Account) => {
   try {
     session.startTransaction()
 
-    const email = data.email
+    const email = data?.email
 
     if (!email) {
-      throw new Error('Email not found')
+      throw new Error('Connected account email not found');
     }
 
-    const user = await UserModel.findOne({ email })
+    const user = await UserModel.findOne({ email });
     if (!user) {
-      throw new Error('User not found')
+      throw new Error('Connected account user not found')
     }
+
+    const isAccountReady =
+      data.details_submitted &&
+      data.charges_enabled &&
+      data.payouts_enabled &&
+      !data.requirements?.disabled_reason;
 
     const loginUrl = await stripe.accounts.createLoginLink(data.id)
 
-    await UserModel.findOneAndUpdate({ email }, { stripeAccountInfo: { stripeAccountId: data.id, stripeLoginUrl: loginUrl.url } })
+    await UserModel.findOneAndUpdate({ email }, { stripeAccountInfo: { stripeAccountId: data.id, stripeLoginUrl: loginUrl.url, isAccountReady: isAccountReady } })
 
     await session.commitTransaction()
     await session.endSession()

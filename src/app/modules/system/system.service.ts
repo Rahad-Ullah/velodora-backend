@@ -1,7 +1,6 @@
 import { StatusCodes } from 'http-status-codes';
 import ApiError from '../../../errors/ApiError';
 import { SystemModel } from './system.model';
-import { ISystem } from './system.interface';
 
 
 // create system to db

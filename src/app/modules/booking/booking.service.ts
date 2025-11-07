@@ -15,12 +15,13 @@ import { sendNotifications } from '../../../helpers/notificationHelper';
 import { NOTIFICATION_TYPE } from '../notification/notification.constants';
 import { ReviewService } from '../Review/review.service';
 import { RsdCreditsTransformation } from '../../../helpers/rsdCreditsConver';
+import { SystemModel } from '../system/system.model';
 
 
-// Create Stripe Checkout Session
-export const stripePaymentToDB = async (): Promise<any> => {
+// Create Stripe Test Payment
+const stripePaymentToDB = async (): Promise<any> => {
   try {
-    // ✅ Calculate 10-minute expiry in seconds
+    // ✅ Calculate 30-minute expiry in seconds
     const expiresAt = Math.floor(Date.now() / 1000) + 30 * 60;
 
     // ✅ Create price object
@@ -40,32 +41,18 @@ export const stripePaymentToDB = async (): Promise<any> => {
       cancel_url: `${config.frontend_url}/payment-failed`,
       line_items: [{ price: price.id, quantity: 1 }],
       metadata: {
-        bookingId: "69085059eca16f23096e4ec9",
         amount: 10,
-        paymentType: "bookingPayment",
+        paymentType: "testPayment",
       },
+      expires_at: expiresAt
     };
-
-    // ✅ Add expiration if supported by your Stripe version
-    try {
-      sessionPayload.expires_at = expiresAt;
-    } catch {
-      console.warn("⚠️ Stripe SDK version may not support expires_at — continuing without it.");
-    }
 
     // ✅ Create checkout session
     const session = await stripe.checkout.sessions.create(sessionPayload);
 
     return session.url;
   } catch (err: any) {
-    // ✅ Log detailed error
-    console.error("Stripe error details:", err);
-
-    // ✅ Return clear message
-    throw new ApiError(
-      StatusCodes.INTERNAL_SERVER_ERROR,
-      err?.message || "Failed to create stripe checkout session"
-    );
+    throw new ApiError(StatusCodes.INTERNAL_SERVER_ERROR, err?.message || "Failed to create stripe checkout session");
   }
 };
 
@@ -177,7 +164,6 @@ const createBookingToDB = async (payload: {
     await BookingModel.findByIdAndUpdate(
       resBooking._id,
       {
-        // revenueId: revenue[0]?._id,
         useCredits: user.credits! - rsdToCredits < 0 ? user.credits : rsdToCredits
       },
       { session }
@@ -237,178 +223,255 @@ const createBookingToDB = async (payload: {
 
 // Accept booking to db
 const acceptBookingToDB = async (id: string, userId: string): Promise<any> => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
 
-  const booking = await BookingModel.findById(id);
-  if (!booking) {
-    throw new ApiError(StatusCodes.NOT_FOUND, 'Booking not found');
+  try {
+    // ✅ Fetch booking
+    const booking = await BookingModel.findById(id).session(session);
+    if (!booking) {
+      throw new ApiError(StatusCodes.NOT_FOUND, 'Booking not found');
+    }
+
+    if (booking.status !== BOOKING_STATUS.PENDING) {
+      throw new ApiError(
+        StatusCodes.BAD_REQUEST,
+        'Booking is not pending. So you can not accept it'
+      );
+    }
+
+    // ✅ Fetch provider
+    const provider = await ProviderModel.findById(booking.provider).session(session);
+    if (!provider) {
+      throw new ApiError(StatusCodes.NOT_FOUND, 'Provider not found');
+    }
+
+    // ✅ Authorization check
+    if (userId !== provider.user.toString()) {
+      throw new ApiError(StatusCodes.UNAUTHORIZED, 'You are not authorized user to accept this booking');
+    }
+
+    // ✅ Create chat inside the transaction
+    const result = await ChatServices.createChatIntoDB(
+      userId,
+      {
+        participants: [booking.user],
+        session, // <-- pass mongoose session (your service must support it)
+      }
+    );
+
+    if (!result) {
+      throw new ApiError(StatusCodes.INTERNAL_SERVER_ERROR, 'Accept Booking - Failed to create chat');
+    }
+
+    // ✅ Update booking
+    booking.status = BOOKING_STATUS.UPCOMING;
+    booking.chatId = new Types.ObjectId(result._id);
+    const res = await booking.save({ session });
+
+    // ✅ Record revenue
+    const revenue = await RevenueModel.create(
+      [
+        {
+          user: new mongoose.Types.ObjectId(booking.user),
+          revenue: booking.weatherFee! + booking.convenienceFee! + booking.arrivalFee! - booking.discount!,
+        },
+      ],
+      { session }
+    );
+
+    if (!revenue) {
+      throw new ApiError(StatusCodes.INTERNAL_SERVER_ERROR, 'Failed to cut revenue');
+    }
+
+    // ✅ Commit transaction
+    await session.commitTransaction();
+    session.endSession();
+
+    return res;
+  } catch (error) {
+    // ❌ Rollback all changes if any step fails
+    await session.abortTransaction();
+    session.endSession();
+    throw error;
   }
-  if (booking.status !== BOOKING_STATUS.PENDING) {
-    throw new ApiError(StatusCodes.NOT_FOUND, 'Booking is not pending. So you can not accept it');
-  }
-
-  const provider = await ProviderModel.findById(booking.provider);
-  if (!provider) {
-    throw new ApiError(StatusCodes.NOT_FOUND, 'Provider not found');
-  }
-
-  if (userId !== provider.user.toString()) {
-    throw new ApiError(StatusCodes.UNAUTHORIZED, 'You are not authorized user to accept this booking');
-  }
-
-  const result = await ChatServices.createChatIntoDB(userId, {
-    participants: [booking.user]
-  });
-  if (!result) {
-    throw new ApiError(StatusCodes.INTERNAL_SERVER_ERROR, 'Accept Booking - Failed to create chat');
-  }
-
-
-  booking.status = BOOKING_STATUS.UPCOMING;
-  booking.chatId = new Types.ObjectId(result._id);
-  const res = await booking.save();
-
-  // ✅ Record revenue
-  const revenue: any = await RevenueModel.create(
-    {
-      user: new mongoose.Types.ObjectId(booking?.user),
-      revenue: booking.weatherFee! + booking.convenienceFee! + booking.arrivalFee! - booking.discount!,
-    },
-  );
-
-  if (!revenue) {
-    throw new ApiError(StatusCodes.INTERNAL_SERVER_ERROR, "Failed to cut revenue");
-  }
-
-  return res;
-}
+};
 
 // Accept booking to db
-const completeBookingToDB = async (userId: string, providerid: string): Promise<any> => {
+const completeBookingToDB = async (userId: string, providerId: string): Promise<any> => {
+  const session = await mongoose.startSession();
 
-  const user = await UserModel.findById(userId);
-  if (!user) {
-    throw new ApiError(StatusCodes.NOT_FOUND, 'Booking - User not found');
-  }
+  try {
+    session.startTransaction();
 
-  const provider = await ProviderModel.findOne({ user: providerid });
-  if (!provider) {
-    throw new ApiError(StatusCodes.NOT_FOUND, 'Booking - Provider not found');
-  }
-
-  const bookings = await BookingModel.find({
-    user: new Types.ObjectId(userId),
-    provider: new Types.ObjectId(provider._id),
-    status: BOOKING_STATUS.UPCOMING
-  });
-
-  const booking = await BookingModel.findOne({
-    user: new Types.ObjectId(userId),
-    provider: new Types.ObjectId(provider._id),
-    status: BOOKING_STATUS.UPCOMING
-  });
-  if (!booking) {
-    throw new ApiError(StatusCodes.NOT_FOUND, 'Booking not found');
-  }
-
-  if (bookings.length <= 1) {
-    const result = await ChatServices.deleteChatFromDB(booking.chatId.toString());
-    if (!result) {
-      throw new ApiError(StatusCodes.INTERNAL_SERVER_ERROR, 'Complete Booking - Failed to delete chat');
+    // ✅ Fetch user inside transaction (read consistency)
+    const user = await UserModel.findById(userId).session(session);
+    if (!user) {
+      throw new ApiError(StatusCodes.NOT_FOUND, 'Booking - User not found');
     }
+
+    // ✅ Fetch provider inside transaction
+    const provider = await ProviderModel.findOne({ user: providerId }).session(session);
+    if (!provider) {
+      throw new ApiError(StatusCodes.NOT_FOUND, 'Booking - Provider not found');
+    }
+
+    // ✅ Fetch oldest UPCOMING booking for this user + provider
+    const booking = await BookingModel.findOne({
+      user: new Types.ObjectId(userId),
+      provider: new Types.ObjectId(provider._id),
+      status: BOOKING_STATUS.UPCOMING
+    })
+      .sort({ createdAt: 1 }) // oldest first
+      .session(session);
+
+    if (!booking) {
+      throw new ApiError(StatusCodes.NOT_FOUND, 'Booking not found');
+    }
+
+    // ✅ Update booking status
+    booking.status = BOOKING_STATUS.COMPLETED;
+    const updatedBooking = await booking.save({ session });
+
+    // ✅ Update provider credits
+    await UserModel.findByIdAndUpdate(
+      providerId,
+      { $inc: { credits: booking.subTotal } },
+      { session }
+    );
+
+    // ✅ Commit transaction
+    await session.commitTransaction();
+
+    // ✅ Send notifications outside transaction
+    sendNotifications({
+      type: NOTIFICATION_TYPE.BOOKING_STATUS,
+      title: 'Booking Completed Successfully',
+      receiver: user._id,
+      referenceId: provider.user,
+    });
+
+    return updatedBooking;
+  } catch (error) {
+    // ❌ Rollback transaction on any error
+    await session.abortTransaction();
+    throw new ApiError(StatusCodes.INTERNAL_SERVER_ERROR, 'Failed to complete booking');
+  } finally {
+    // ✅ Always end the session
+    session.endSession();
   }
-
-  booking.status = BOOKING_STATUS.COMPLETED;
-  const res = await booking.save();
-
-  // user.credits = user.credits + (booking.amount - (booking.amount * 0.15));
-  // await user.save();
-  await UserModel.findByIdAndUpdate(providerid, {
-    $inc: { credits: booking.subTotal }
-  })
-
-  sendNotifications({
-    type: NOTIFICATION_TYPE.BOOKING_STATUS,
-    title: 'Booking Completed Successfully',
-    receiver: user._id,
-    referenceId: provider.user,
-  })
-
-  return res;
-}
+};
 
 // Cancel Booking to db
 const cancelBookingToDB = async (id: string, userId: string): Promise<any> => {
-  const user = await UserModel.findById(userId);
+  const session = await mongoose.startSession();
+  session.startTransaction();
 
-  if (!user) {
-    throw new ApiError(StatusCodes.UNAUTHORIZED, 'You are not authorized');
-  }
-
-  const booking: any = await BookingModel.findById(id);
-  if (!booking) {
-    throw new ApiError(StatusCodes.NOT_FOUND, 'Booking not found');
-  }
-
-  if (booking.status !== BOOKING_STATUS.PENDING) {
-    throw new ApiError(StatusCodes.NOT_FOUND, 'Booking is not pending. So you can not cancel it');
-  }
-
-  const provider = await ProviderModel.findById(booking.provider);
-  if (!provider) {
-    throw new ApiError(StatusCodes.NOT_FOUND, 'Provider not found');
-  }
-
-  const schedule = await ScheduleModel.findById(booking.schedule);
-  if (!schedule) {
-    throw new ApiError(StatusCodes.NOT_FOUND, 'Schedule not found');
-  }
-
-  schedule.available_slots.push(...booking.slots);
-  schedule.count = schedule.count - 1;
-  await schedule.save();
-
-  booking.status = BOOKING_STATUS.CANCELLED;
-  const res = await booking.save();
-
-
-  if (user.role === USER_ROLES.USER) {
-    const date = new Date();
-    const currentTime = date.getTime(); // current time in ms
-    const bookingTime = new Date(booking?.createdAt).getTime(); // booking creation time in ms
-
-    // Calculate time difference in hours
-    const timeDiffInHours = (currentTime - bookingTime) / (1000 * 60 * 60);
-
-    if (timeDiffInHours <= 2) {
-
-      const chargeAmount = booking.amount * 0.7;
-      const revenueAmount = booking.amount * 0.3;
-
-      await UserModel.findByIdAndUpdate(booking.user, {
-        $inc: { credits: await RsdCreditsTransformation.rsdToCredits(chargeAmount) }
-      });
-      // ✅ Record revenue
-      await RevenueModel.create(
-        {
-          user: booking.user,
-          revenue: revenueAmount,
-        },
-      );
-    } else {
-      // If booking older than 2 hours, full amount credited
-      await UserModel.findByIdAndUpdate(booking.user, {
-        $inc: { credits: await RsdCreditsTransformation.rsdToCredits(booking.amount) }
-      });
+  try {
+    const user = await UserModel.findById(userId).session(session);
+    if (!user) {
+      throw new ApiError(StatusCodes.UNAUTHORIZED, "You are not authorized");
     }
 
-  } else if (user.role === USER_ROLES.PROVIDER) {
-    await UserModel.findByIdAndUpdate(booking.user, {
-      $inc: { 'credits': await RsdCreditsTransformation.rsdToCredits(booking.amount) }
-    })
-  }
+    const booking: any = await BookingModel.findById(id).session(session);
+    if (!booking) {
+      throw new ApiError(StatusCodes.NOT_FOUND, "Booking not found");
+    }
 
-  return res;
-}
+    if (booking.status !== BOOKING_STATUS.PENDING) {
+      throw new ApiError(
+        StatusCodes.BAD_REQUEST,
+        "Booking is not pending. So you can not cancel it"
+      );
+    }
+
+    const provider = await ProviderModel.findById(booking.provider).session(session);
+    if (!provider) {
+      throw new ApiError(StatusCodes.NOT_FOUND, "Provider not found");
+    }
+
+    const schedule = await ScheduleModel.findById(booking.schedule).session(session);
+    if (!schedule) {
+      throw new ApiError(StatusCodes.NOT_FOUND, "Schedule not found");
+    }
+
+    // Restore available slots
+    schedule.available_slots.push(...booking.slots);
+    schedule.count = schedule.count - 1;
+    await schedule.save({ session });
+
+    // Update booking status
+    booking.status = BOOKING_STATUS.CANCELLED;
+    const res = await booking.save({ session });
+
+    // If the user cancelled the booking
+    if (user.role === USER_ROLES.USER) {
+      const date = new Date();
+      const currentTime = date.getTime();
+      const bookingTime = new Date(booking?.createdAt).getTime();
+
+      const isExistSystem = await SystemModel.findOne({}).lean();
+      const penaltyTime = isExistSystem?.penaltyTime || 1;
+
+      const timeDiffInHours = (currentTime - bookingTime) / (1000 * 60 * 60);
+
+      if (timeDiffInHours <= penaltyTime) {
+        // Cancelled within penalty window (partial refund)
+        const chargeAmount = booking.amount * 0.7;
+        const revenueAmount = booking.amount * 0.3;
+
+        await UserModel.findByIdAndUpdate(
+          booking.user,
+          {
+            $inc: { credits: await RsdCreditsTransformation.rsdToCredits(chargeAmount) },
+          },
+          { session }
+        );
+
+        await RevenueModel.create(
+          [
+            {
+              user: booking.user,
+              revenue: revenueAmount,
+            },
+          ],
+          { session }
+        );
+      } else {
+        // Full refund
+        await UserModel.findByIdAndUpdate(
+          booking.user,
+          {
+            $inc: { credits: await RsdCreditsTransformation.rsdToCredits(booking.amount) },
+          },
+          { session }
+        );
+      }
+    }
+
+    // If provider cancels the booking
+    else if (user.role === USER_ROLES.PROVIDER) {
+      await UserModel.findByIdAndUpdate(
+        booking.user,
+        {
+          $inc: { credits: await RsdCreditsTransformation.rsdToCredits(booking.amount) },
+        },
+        { session }
+      );
+    }
+
+    // ✅ Commit transaction if everything passed
+    await session.commitTransaction();
+    session.endSession();
+
+    return res;
+  } catch (error) {
+    // ❌ Rollback if anything failed
+    await session.abortTransaction();
+    session.endSession();
+    throw error;
+  }
+};
 
 // get overview from db
 const getOverviewFromDB = async (

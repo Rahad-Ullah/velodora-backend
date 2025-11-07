@@ -13,23 +13,36 @@ import { NOTIFICATION_TYPE } from "../app/modules/notification/notification.cons
 export const handlePaymentSuccess = async (session: Stripe.Checkout.Session) => {
   console.log("Payment Successful...........handlePaymentSuccess")
 
+  const { metadata } = session;
   const superAdmin = await UserModel.findOne({ role: USER_ROLES.SUPER_ADMIN });
 
-  const { metadata } = session;
+  // Test Payment - Send Notification to Super Admin
+  if (metadata?.paymentType === 'testPayment') {
+    sendNotifications({
+      type: NOTIFICATION_TYPE.PAYMENT,
+      title: 'Test Payment Successful',
+      receiver: superAdmin!._id,
+      referenceId: superAdmin!._id,
+    })
+
+    return;
+  }
+
   const bookingId = metadata?.bookingId;
   const isExistBooking = await BookingModel.findById(bookingId);
   if (!isExistBooking) {
     throw new ApiError(StatusCodes.NOT_FOUND, 'After payment - Booking not found');
-  } else if (isExistBooking.status === BOOKING_STATUS.AUTO_CANCELLED) {
-    throw new ApiError(StatusCodes.BAD_REQUEST, 'After payment - You take more than 5 minutes to complete the payment. Please contact with support team.');
   } else if (isExistBooking.status !== BOOKING_STATUS.PENDING) {
-    throw new ApiError(StatusCodes.BAD_REQUEST, 'After payment - Booking status is not pending');
+    throw new ApiError(StatusCodes.BAD_REQUEST, 'After payment - Booking status is not Pending');
   }
 
   if (metadata?.paymentType === 'bookingPayment') {
     const booking = await BookingModel.findByIdAndUpdate(metadata?.bookingId, {
       $set: { paymentStatus: BOOKING_PAYMENT_STATUS.PAID },
     });
+    if (!booking) {
+      throw new ApiError(StatusCodes.NOT_FOUND, 'After payment - Failed to update Booking payment status');
+    }
     sendNotifications({
       type: NOTIFICATION_TYPE.PAYMENT,
       title: 'Booking Payment Successful',
