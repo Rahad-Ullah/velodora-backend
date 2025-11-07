@@ -8,6 +8,7 @@ import { socketHelper } from './helpers/socketHelper';
 import { createSuperAdmin } from './DB/seedAdmin';
 import { logger } from './shared/logger';
 import { settingsService } from './app/modules/settings/settings.service';
+import { SystemService } from './app/modules/system/system.service';
 
 let server: Server;
 
@@ -28,6 +29,7 @@ async function main() {
     logger.info(colors.green(`🚀 Server running on ${config.ip_address}:${config.port}`));
 
     await createSuperAdmin();
+    await SystemService.createSystemAutoToDB();
     await settingsService.addSettings();
     socketHelper.socket(io);
 

@@ -7,11 +7,11 @@ const systemSchema = new Schema<ISystem, ISystemModel>(
 
     oneRsdToCredits: {
       type: Number,
-      default: 0,
+      default: 1,
     }
     , penaltyTime: {
       type: Number,
-      default: 0,
+      default: 1,
     },
     weatherFee: {
       amount: {

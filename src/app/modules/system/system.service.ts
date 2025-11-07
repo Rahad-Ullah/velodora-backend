@@ -1,7 +1,23 @@
 import { StatusCodes } from 'http-status-codes';
 import ApiError from '../../../errors/ApiError';
 import { SystemModel } from './system.model';
+import { logger } from '../../../shared/logger';
+import colors from 'colors';
 
+
+// create system automatically to db
+const createSystemAutoToDB = async () => {
+
+  const isExistSystem = await SystemModel.findOne({});
+  if (!isExistSystem) {
+    const system = await SystemModel.create({});
+    if (!system) {
+      throw new ApiError(StatusCodes.BAD_REQUEST, 'System not created');
+    }
+
+    logger.info(colors.green('System created successfully'));
+  }
+};
 
 // create system to db
 const createSystemToDB = async (): Promise<any> => {
@@ -18,7 +34,6 @@ const createSystemToDB = async (): Promise<any> => {
 
   return { message: 'System created successfully', data: system };
 };
-
 
 // get system to db
 const getSystemFromDB = async (): Promise<any> => {
@@ -102,6 +117,7 @@ const onOffSystemToDB = async (payload: string): Promise<any> => {
 
 
 export const SystemService = {
+  createSystemAutoToDB,
   createSystemToDB,
   getSystemFromDB,
   updateSystemToDB,
