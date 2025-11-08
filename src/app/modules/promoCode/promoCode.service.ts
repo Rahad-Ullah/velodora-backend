@@ -54,8 +54,32 @@ const createPromoCodeToDB = async (payload: TPromoCode): Promise<any> => {
 // get promo codes from DB
 const getPromoCodesFromDB = async (): Promise<any> => {
 
-  const isExistPromoCodes = await PromoCodeModel.find({})
-    .sort({ createdAt: -1 });
+  const isExistPromoCodes = await PromoCodeModel.aggregate([
+    { $sort: { createdAt: -1 } },
+    {
+      $lookup: {
+        from: "bookings",
+        let: { promo_code: "$code" },
+        pipeline: [
+          { $match: { $expr: { $eq: ["$promoCode", "$$promo_code"] } } },
+          { $count: "count" }
+        ],
+        as: "bookings"
+      }
+    },
+    {
+      $addFields: {
+        totalUsed: {
+          $ifNull: [{ $arrayElemAt: ["$bookings.count", 0] }, 0]
+        }
+      }
+    },
+    {
+      $project: {
+        bookings: 0 // optional — removes the raw bookings array
+      }
+    }
+  ]);
 
   if (!isExistPromoCodes) {
     throw new ApiError(StatusCodes.BAD_REQUEST, 'Promo codes not found');

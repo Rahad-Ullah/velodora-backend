@@ -125,7 +125,7 @@ const getUserProfile = catchAsync(async (req: Request, res: Response) => {
 // get all users
 const getUsers = catchAsync(async (req: Request, res: Response) => {
   // 1. Define which query fields are filters
-  const filterableFields = ['searchTerm', 'verified', 'isActive', 'verifiedService', 'isModified', 'isDeleted', 'fields', 'sort', 'role', 'status'];
+  const filterableFields = ['searchTerm', 'verified', 'isActive', 'verifiedService', 'isService', 'isModified', 'isDeleted', 'fields', 'sort', 'role', 'status'];
 
   // 2. Pick only allowed filters from req.query
   const filterOptions = pick(req.query, filterableFields);
