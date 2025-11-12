@@ -255,8 +255,8 @@ const acceptBookingToDB = async (id: string, userId: string): Promise<any> => {
     const result = await ChatServices.createChatIntoDB(
       userId,
       {
-        participants: [booking.user],
-        session, // <-- pass mongoose session (your service must support it)
+        participants: [booking.user.toString()],
+        session,
       }
     );
 
@@ -300,50 +300,49 @@ const acceptBookingToDB = async (id: string, userId: string): Promise<any> => {
 // Accept booking to db
 const completeBookingToDB = async (userId: string, providerId: string): Promise<any> => {
   const session = await mongoose.startSession();
+  session.startTransaction();
 
   try {
-    session.startTransaction();
-
-    // ✅ Fetch user inside transaction (read consistency)
     const user = await UserModel.findById(userId).session(session);
-    if (!user) {
-      throw new ApiError(StatusCodes.NOT_FOUND, 'Booking - User not found');
-    }
+    if (!user) throw new ApiError(StatusCodes.NOT_FOUND, 'User not found');
 
-    // ✅ Fetch provider inside transaction
     const provider = await ProviderModel.findOne({ user: providerId }).session(session);
-    if (!provider) {
-      throw new ApiError(StatusCodes.NOT_FOUND, 'Booking - Provider not found');
-    }
+    if (!provider) throw new ApiError(StatusCodes.NOT_FOUND, 'Provider not found');
 
-    // ✅ Fetch oldest UPCOMING booking for this user + provider
+    const bookingCount = await BookingModel.countDocuments({
+      user: new Types.ObjectId(userId),
+      provider: new Types.ObjectId(provider._id),
+      status: BOOKING_STATUS.UPCOMING,
+    }).session(session);
+
     const booking = await BookingModel.findOne({
       user: new Types.ObjectId(userId),
       provider: new Types.ObjectId(provider._id),
-      status: BOOKING_STATUS.UPCOMING
+      status: BOOKING_STATUS.UPCOMING,
     })
-      .sort({ createdAt: 1 }) // oldest first
+      .sort({ createdAt: 1 })
       .session(session);
 
-    if (!booking) {
-      throw new ApiError(StatusCodes.NOT_FOUND, 'Booking not found');
+    if (!booking) throw new ApiError(StatusCodes.NOT_FOUND, 'Booking not found');
+
+    if (bookingCount <= 1) {
+      const result = await ChatServices.deleteChatFromDB(booking.chatId.toString(), { session });
+      if (!result) throw new ApiError(StatusCodes.INTERNAL_SERVER_ERROR, 'Failed to delete chat');
     }
 
-    // ✅ Update booking status
     booking.status = BOOKING_STATUS.COMPLETED;
     const updatedBooking = await booking.save({ session });
 
-    // ✅ Update provider credits
     await UserModel.findByIdAndUpdate(
       providerId,
       { $inc: { credits: booking.subTotal } },
-      { session }
+      { session },
     );
 
-    // ✅ Commit transaction
     await session.commitTransaction();
+    session.endSession();
 
-    // ✅ Send notifications outside transaction
+    // Run notifications after transaction
     sendNotifications({
       type: NOTIFICATION_TYPE.BOOKING_STATUS,
       title: 'Booking Completed Successfully',
@@ -353,12 +352,10 @@ const completeBookingToDB = async (userId: string, providerId: string): Promise<
 
     return updatedBooking;
   } catch (error) {
-    // ❌ Rollback transaction on any error
     await session.abortTransaction();
-    throw new ApiError(StatusCodes.INTERNAL_SERVER_ERROR, 'Failed to complete booking');
-  } finally {
-    // ✅ Always end the session
     session.endSession();
+    console.error('Transaction failed:', error);
+    throw error;
   }
 };
 
