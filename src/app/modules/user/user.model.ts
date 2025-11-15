@@ -61,7 +61,7 @@ const userSchema = new Schema<IUser, TUserModal>(
       type: Boolean,
       default: false,
     },
-    isModified: {
+    isModify: {
       type: Boolean,
       default: false,
     },

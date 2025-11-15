@@ -17,7 +17,7 @@ export type IUser = {
   verifiedService?: boolean;
   isService?: boolean;
   isDeleted?: boolean;
-  isModified?: boolean;
+  isModify?: boolean;
   authentication?: {
     isSendOtp: boolean;
     oneTimeCode: number;

@@ -360,7 +360,7 @@ const updateProfileToDB = async (
       image: image ?? isExistUser.image
     }
     const testUser = await UserTempModel.create(data);
-    await UserModel.findByIdAndUpdate(isExistUser._id, { $set: { isModified: true } }, { new: true });
+    await UserModel.findByIdAndUpdate(isExistUser._id, { $set: { isModify: true } }, { new: true });
     return testUser;
 
   } else {
@@ -421,7 +421,7 @@ const approveUpdateProfileToDB = async (
     new: true,
   });
 
-  await UserModel.findByIdAndUpdate(id, { $set: { isModified: false } }, { new: true });
+  await UserModel.findByIdAndUpdate(id, { $set: { isModify: false } }, { new: true });
   await UserTempModel.findOneAndDelete({ ref: id });
 
   return updateUser;
@@ -437,7 +437,7 @@ const deleteUpdateProfileToDB = async (
     throw new ApiError(StatusCodes.BAD_REQUEST, "User doesn't exist!");
   }
   isExistUser.image && unlinkFile(isExistUser.image);
-  await UserModel.findByIdAndUpdate(id, { $set: { isModified: false } }, { new: true });
+  await UserModel.findByIdAndUpdate(id, { $set: { isModify: false } }, { new: true });
 
   return isExistUser;
 };

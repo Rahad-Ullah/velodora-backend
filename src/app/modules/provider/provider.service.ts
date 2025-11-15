@@ -590,7 +590,7 @@ const updateProviderToDB = async (
     // ✅ Mark user as modified
     await UserModel.findByIdAndUpdate(
       isExistProvider.user,
-      { $set: { isModified: true } },
+      { $set: { isModify: true } },
       { new: true, session }
     );
 
@@ -671,7 +671,7 @@ const approveEditProviderToDB = async (id: string): Promise<any> => {
 
     await UserModel.findByIdAndUpdate(
       id,
-      { $set: { isModified: false } },
+      { $set: { isModify: false } },
       { new: true, session }
     );
 
@@ -717,7 +717,7 @@ const deleteEditProviderToDB = async (
     if (isExistProviderTemp?.serviceImages) {
       unlinkFiles(isExistProviderTemp.serviceImages);
     }
-    await UserModel.findByIdAndUpdate(id, { $set: { isModified: false } }, { new: true, session });
+    await UserModel.findByIdAndUpdate(id, { $set: { isModify: false } }, { new: true, session });
 
     // Commit transaction before unlinking files
     await session.commitTransaction();
