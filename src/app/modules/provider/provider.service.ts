@@ -601,11 +601,11 @@ const updateProviderToDB = async (
       data: res[0],
       message: "Service update request sent successfully!",
     };
-  } catch (error) {
+  } catch (error: any) {
     // ❌ Rollback transaction and cleanup
     await session.abortTransaction();
     payload.newServiceImages && unlinkFiles(payload.newServiceImages);
-    throw new ApiError(StatusCodes.BAD_REQUEST, "Service update request failed!");
+    throw new ApiError(StatusCodes.BAD_REQUEST, error.message);
   } finally {
     await session.endSession();
   }

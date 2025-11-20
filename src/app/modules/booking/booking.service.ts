@@ -1029,6 +1029,9 @@ const getBookingsForAdminFromDB = async (id: string, query: any): Promise<any> =
               name: 1,
               image: 1,
               location: 1,
+              email: 1,
+              countryCode: 1,
+              contact: 1,
             }
           }
         ]
@@ -1058,6 +1061,10 @@ const getBookingsForAdminFromDB = async (id: string, query: any): Promise<any> =
                   $project: {
                     name: 1,
                     image: 1,
+                    email: 1,
+                    countryCode: 1,
+                    contact: 1,
+                    location: 1
                   }
                 }
               ]
@@ -1074,13 +1081,20 @@ const getBookingsForAdminFromDB = async (id: string, query: any): Promise<any> =
             $addFields: {
               "name": "$user.name",
               "image": "$user.image",
+              "email": "$user.email",
+              "countryCode": "$user.countryCode",
+              "contact": "$user.contact",
+              "location": "$user.location"
             }
           },
           {
             $project: {
               name: 1,
               image: 1,
-              primaryLocation: 1,
+              email: 1,
+              countryCode: 1,
+              contact: 1,
+              location: 1
             }
           }
         ]
