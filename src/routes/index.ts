@@ -19,6 +19,7 @@ import { RevenueRoutes } from '../app/modules/revenues/revenue.route';
 import { SystemRoutes } from '../app/modules/system/system.route';
 import { NotificationRoutes } from '../app/modules/notification/notification.route';
 import { PromoCodeRoutes } from '../app/modules/promoCode/promoCode.route';
+import { EmailRoutes } from '../app/modules/email/email.route';
 const router = express.Router();
 
 const apiRoutes = [
@@ -101,6 +102,10 @@ const apiRoutes = [
   {
     path: '/promo-code',
     route: PromoCodeRoutes,
+  },
+  {
+    path: '/email',
+    route: EmailRoutes,
   },
 ];
 

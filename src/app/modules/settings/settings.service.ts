@@ -3,6 +3,9 @@ import { ISettings } from './settings.interface.js';
 import ApiError from '../../../errors/ApiError';
 import { StatusCodes } from 'http-status-codes';
 import colors from 'colors';
+import { UserModel } from '../user/user.model';
+import { emailQueue } from '../../queues/email.queue';
+import { USER_ROLES } from '../../../enums/user';
 
 const addSettings = async () => {
 
@@ -34,14 +37,48 @@ const getSettings = async (
   return settings!;
 };
 
-// Function to update settings without needing an ID
+// Function to update settings
 const updateSettings = async (
   settingsBody: Partial<ISettings>
 ): Promise<string> => {
-  await Settings.findOneAndUpdate({}, settingsBody,);
+  // Update the settings (no ID needed)
+  await Settings.findOneAndUpdate({}, settingsBody);
+  console.log("settings:", settingsBody)
 
-  return `${Object.keys(settingsBody).join(', ').toString()} updated successfully`;
+  // Fetch users
+  let users;
+  if (settingsBody.termsAndConditions) {
+    users = await UserModel.find({ isDeleted: false });
+  } else if (settingsBody.providerUsagePolicy) {
+    users = await UserModel.find({ role: USER_ROLES.PROVIDER, isDeleted: false });
+  } else if (settingsBody.privacyPolicy) {
+    users = await UserModel.find({ isDeleted: false, role: USER_ROLES.USER });
+  } else {
+    users = await UserModel.find({ isDeleted: false });
+  }
+
+  // Queue email for every user (with proper async handling)
+  for (const user of users) {
+    const data = {
+      to: user.email,
+      subject: 'Settings Updated',
+      html: 'Settings updated successfully',
+    };
+
+    await emailQueue.add('send-email', data, {
+      attempts: 2,
+      backoff: {
+        type: 'exponential',
+        delay: 2000,
+      },
+      removeOnComplete: true,
+      removeOnFail: false,
+    });
+  }
+
+  return `${Object.keys(settingsBody).join(', ')} updated successfully`;
 };
+
 
 export const settingsService = {
   addSettings,

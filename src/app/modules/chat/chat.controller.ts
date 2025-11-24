@@ -3,6 +3,9 @@ import { ChatServices } from './chat.service';
 import catchAsync from '../../../shared/catchAsync';
 import sendResponse from '../../../shared/sendResponse';
 import { StatusCodes } from 'http-status-codes';
+import mongoose from 'mongoose';
+import { tryCatch } from 'bullmq';
+import ApiError from '../../../errors/ApiError';
 
 // create chat
 const createChat = catchAsync(async (req: Request, res: Response) => {
@@ -19,14 +22,26 @@ const createChat = catchAsync(async (req: Request, res: Response) => {
 
 // delete chat
 const deleteChat = catchAsync(async (req: Request, res: Response) => {
-  const result = await ChatServices.deleteChatFromDB(req.params.id);
+  const session = await mongoose.startSession();
+  session.startTransaction();
 
-  sendResponse(res, {
-    success: true,
-    statusCode: StatusCodes.OK,
-    message: 'Chat deleted successfully',
-    data: result,
-  });
+  try {
+    const result = await ChatServices.deleteChatFromDB(req.params.id, { session });
+
+    await session.commitTransaction();
+    session.endSession();
+
+    sendResponse(res, {
+      success: true,
+      statusCode: StatusCodes.OK,
+      message: 'Chat deleted successfully',
+      data: result,
+    });
+  } catch (error) {
+    await session.abortTransaction();
+    session.endSession();
+    throw new ApiError(StatusCodes.INTERNAL_SERVER_ERROR, 'Failed to delete chat!');
+  }
 });
 
 // get my chats
