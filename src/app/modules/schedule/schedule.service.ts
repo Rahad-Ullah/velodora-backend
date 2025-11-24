@@ -14,10 +14,24 @@ const createScheduleToDB = async (userId: string, payload: {
   duration: number;
 }): Promise<any> => {
 
-  const currentDate = new Date();
+  
   const userDate = new Date(payload.date);
+  const currentDate = new Date();
+  currentDate.setUTCHours(0, 0, 0, 0);
+
+  const userStartTime = new Date(payload.startTime);
+  const currentTime = new Date();
+
+  console.log("Current Date : ", currentDate);
+  console.log("Current Time : ", currentTime);
+  console.log("User Date : ", userDate);
+  console.log("User startTime : ", userStartTime);
   if (userDate < currentDate) {
     throw new ApiError(StatusCodes.BAD_REQUEST, 'Date must be greater than current date');
+  }
+
+  if (userStartTime <= currentTime) {
+    throw new ApiError(StatusCodes.BAD_REQUEST, 'Start time must be greater than current date');
   }
 
   if (payload.startTime >= payload.endTime) {

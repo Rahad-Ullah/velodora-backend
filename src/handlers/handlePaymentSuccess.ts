@@ -44,9 +44,9 @@ export const handlePaymentSuccess = async (session: Stripe.Checkout.Session) => 
       throw new ApiError(StatusCodes.NOT_FOUND, 'After payment - Failed to update Booking payment status');
     }
     sendNotifications({
-      type: NOTIFICATION_TYPE.PAYMENT,
-      title: 'Booking Payment Successful',
-      receiver: superAdmin!._id,
+      type: NOTIFICATION_TYPE.BOOKING_STATUS,
+      title: 'You have a new booking',
+      receiver: booking!.providerId,
       referenceId: booking!.user,
     })
   }

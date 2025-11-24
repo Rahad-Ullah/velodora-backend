@@ -74,6 +74,8 @@ const createBookingToDB = async (payload: {
   const session = await mongoose.startSession();
   session.startTransaction();
 
+  console.log("Payment Payload:------------------------", payload);
+
   try {
 
     const date = new Date(payload.date);
@@ -140,7 +142,7 @@ const createBookingToDB = async (payload: {
     await providerSchedule.save({ session });
 
     // ✅ Create booking
-    const newPayload = { ...payload, date, slots: userSlots, schedule: providerSchedule._id };
+    const newPayload = { ...payload, providerId: provider?.user, date, slots: userSlots, schedule: providerSchedule._id };
     const booking = await BookingModel.create([newPayload], { session });
     const resBooking = booking[0];
 
@@ -157,21 +159,21 @@ const createBookingToDB = async (payload: {
     const creditsToRsd = await RsdCreditsTransformation.creditsToRsd(user.credits!);
     const rsdToCredits = await RsdCreditsTransformation.rsdToCredits(payload.amount);
 
-    const restCredits = user.credits! - rsdToCredits < 0 ? 0 : user.credits! - rsdToCredits;
+    const restCredits = user.credits! - rsdToCredits <= 0 ? 0 : user.credits! - rsdToCredits;
     await UserModel.findByIdAndUpdate(user._id, { credits: restCredits }, { session });
 
 
     await BookingModel.findByIdAndUpdate(
       resBooking._id,
       {
-        useCredits: user.credits! - rsdToCredits < 0 ? user.credits : rsdToCredits
+        useCredits: user.credits! - rsdToCredits <= 0 ? user.credits : rsdToCredits
       },
       { session }
     );
 
 
     // ✅ Handle payment with credits
-    if (user.credits! - rsdToCredits > 0) {
+    if (user.credits! - rsdToCredits >= 0) {
       await BookingModel.findByIdAndUpdate(
         resBooking._id,
         {
@@ -183,12 +185,25 @@ const createBookingToDB = async (payload: {
       await session.commitTransaction();
       session.endSession();
 
+      sendNotifications({
+        type: NOTIFICATION_TYPE.BOOKING_STATUS,
+        title: 'You have a new booking',
+        receiver: provider?.user,
+        referenceId: user?._id,
+      });
+
       return { data: null, message: "Booking created successfully (paid via credits)." };
     }
 
     // ✅ Create Stripe Checkout Session
+    // const price = await stripe.prices.create({
+    //   unit_amount: Number(payload.amount - creditsToRsd) * 100,
+    //   currency: "usd",
+    //   product_data: { name: "Booking Payment" },
+    // });
+    const paymentAmount = (payload.amount - creditsToRsd).toFixed(2);
     const price = await stripe.prices.create({
-      unit_amount: Number(payload.amount - creditsToRsd) * 100,
+      unit_amount: Number(paymentAmount) * 100,
       currency: "usd",
       product_data: { name: "Booking Payment" },
     });
@@ -288,6 +303,13 @@ const acceptBookingToDB = async (id: string, userId: string): Promise<any> => {
     await session.commitTransaction();
     session.endSession();
 
+    sendNotifications({
+      type: NOTIFICATION_TYPE.BOOKING_STATUS,
+      title: 'Your Booking has been accepted',
+      receiver: booking!.user,
+      referenceId: booking!.providerId,
+    })
+
     return res;
   } catch (error) {
     // ❌ Rollback all changes if any step fails
@@ -315,49 +337,73 @@ const completeBookingToDB = async (userId: string, providerId: string): Promise<
       status: BOOKING_STATUS.UPCOMING,
     }).session(session);
 
-    const booking = await BookingModel.findOne({
-      user: new Types.ObjectId(userId),
-      provider: new Types.ObjectId(provider._id),
-      status: BOOKING_STATUS.UPCOMING,
-    })
-      .sort({ createdAt: 1 })
-      .session(session);
+    // 1️⃣ Aggregation to find earliest booking
+    const earliest = await BookingModel.aggregate([
+      {
+        $match: {
+          user: new Types.ObjectId(userId),
+          provider: new Types.ObjectId(provider._id),
+          status: BOOKING_STATUS.UPCOMING,
+        }
+      },
+      {
+        $addFields: {
+          earliestSlotStart: { $min: "$slots.start" }
+        }
+      },
+      { $sort: { earliestSlotStart: 1, date: 1 } },
+      { $limit: 1 }
+    ]).session(session);
 
-    if (!booking) throw new ApiError(StatusCodes.NOT_FOUND, 'Booking not found');
+    if (!earliest || earliest.length === 0)
+      throw new ApiError(StatusCodes.NOT_FOUND, "Booking not found");
 
+    // 2️⃣ Fetch the actual Mongoose document (so .save() works)
+    const booking = await BookingModel.findById(earliest[0]._id).session(session);
+    if (!booking) throw new ApiError(StatusCodes.NOT_FOUND, "Booking not found");
+
+    // 3️⃣ Delete chat if needed
     if (bookingCount <= 1) {
-      const result = await ChatServices.deleteChatFromDB(booking.chatId.toString(), { session });
+      const result = await ChatServices.deleteChatFromDB(
+        booking.chatId.toString(),
+        { session }
+      );
       if (!result) throw new ApiError(StatusCodes.INTERNAL_SERVER_ERROR, 'Failed to delete chat');
     }
 
+    // 4️⃣ Update booking
     booking.status = BOOKING_STATUS.COMPLETED;
     const updatedBooking = await booking.save({ session });
 
+    // 5️⃣ Update provider credits
     await UserModel.findByIdAndUpdate(
       providerId,
       { $inc: { credits: booking.subTotal } },
-      { session },
+      { session }
     );
 
+    // 6️⃣ Commit transaction
     await session.commitTransaction();
     session.endSession();
 
-    // Run notifications after transaction
+    // 7️⃣ Notification after commit
     sendNotifications({
       type: NOTIFICATION_TYPE.BOOKING_STATUS,
       title: 'Booking Completed Successfully',
-      receiver: user._id,
-      referenceId: provider.user,
+      receiver: booking.user,
+      referenceId: booking.providerId,
     });
 
     return updatedBooking;
-  } catch (error) {
+
+  } catch (error: any) {
     await session.abortTransaction();
     session.endSession();
     console.error('Transaction failed:', error);
-    throw error;
+    throw new ApiError(StatusCodes.INTERNAL_SERVER_ERROR, error.message);
   }
 };
+
 
 // Cancel Booking to db
 const cancelBookingToDB = async (id: string, userId: string): Promise<any> => {
@@ -434,6 +480,12 @@ const cancelBookingToDB = async (id: string, userId: string): Promise<any> => {
           ],
           { session }
         );
+        sendNotifications({
+          type: NOTIFICATION_TYPE.BOOKING_STATUS,
+          title: 'Booking Completed Successfully',
+          receiver: booking?.providerId,
+          referenceId: booking?.user,
+        });
       } else {
         // Full refund
         await UserModel.findByIdAndUpdate(
@@ -443,6 +495,12 @@ const cancelBookingToDB = async (id: string, userId: string): Promise<any> => {
           },
           { session }
         );
+        sendNotifications({
+          type: NOTIFICATION_TYPE.BOOKING_STATUS,
+          title: 'Booking Completed Successfully',
+          receiver: booking?.providerId,
+          referenceId: booking?.user,
+        });
       }
     }
 
@@ -455,6 +513,12 @@ const cancelBookingToDB = async (id: string, userId: string): Promise<any> => {
         },
         { session }
       );
+      sendNotifications({
+        type: NOTIFICATION_TYPE.BOOKING_STATUS,
+        title: 'Booking Completed Successfully',
+        receiver: booking?.user,
+        referenceId: booking?.providerId,
+      });
     }
 
     // ✅ Commit transaction if everything passed
@@ -562,7 +626,7 @@ const getOverviewFromDB = async (
   };
 };
 
-// get all bookings to db
+// get booking details to db
 const getBookingToDB = async (id: string): Promise<any> => {
   const booking: any = await BookingModel.findById(id);
   if (!booking) {
@@ -905,7 +969,7 @@ const getBookingsToDB = async (id: string, query: any): Promise<any> => {
   return { data: resData, meta: meta };
 }
 
-// get all bookings to db
+// get all bookings for admin dashboard to db
 const getBookingsForAdminFromDB = async (id: string, query: any): Promise<any> => {
   const page = query.page ? parseInt(query.page as string, 10) : 1;
   const limit = 10;
@@ -1138,6 +1202,172 @@ const getBookingsForAdminFromDB = async (id: string, query: any): Promise<any> =
   return { data: resData, meta: meta };
 }
 
+// get all bookings for admin dashboard to db
+const getBookingsDownloadDB = async (id: string, query: any): Promise<any> => {
+
+  let matchUserProvider: any = {}
+
+  if (query.status) {
+    matchUserProvider.status = query.status;
+  }
+
+  const pipeline: any = [];
+
+
+
+  pipeline.push(
+    {
+      $match: matchUserProvider
+    }
+  )
+
+  pipeline.push(
+    {
+      $lookup: {
+        from: 'services',
+        localField: 'services',
+        foreignField: '_id',
+        as: 'services',
+        pipeline: [
+          {
+            $lookup: {
+              from: 'categories',
+              localField: 'category',
+              foreignField: '_id',
+              as: 'category',
+              pipeline: [
+                {
+                  $project: {
+                    name: 1,
+                    icon: 1
+                  }
+                },
+                {
+                  $unwind: {
+                    path: '$name',
+                    preserveNullAndEmptyArrays: true,
+                  }
+                }
+
+              ]
+            },
+          },
+          {
+            $unwind: {
+              path: '$category',
+              preserveNullAndEmptyArrays: true,
+            }
+          },
+          {
+            $project: {
+              name: 1,
+              category: 1,
+            }
+          }
+        ]
+      }
+    }
+  )
+
+  pipeline.push(
+    {
+      $lookup: {
+        from: 'users',
+        localField: 'user',
+        foreignField: '_id',
+        as: 'user',
+        pipeline: [
+          {
+            $project: {
+              name: 1,
+              image: 1,
+              location: 1,
+              email: 1,
+              countryCode: 1,
+              contact: 1,
+            }
+          }
+        ]
+      }
+    },
+    {
+      $unwind: {
+        path: '$user',
+        preserveNullAndEmptyArrays: true,
+      }
+    },
+    {
+      $lookup: {
+        from: 'providers',
+        localField: 'provider',
+        foreignField: '_id',
+        as: 'provider',
+        pipeline: [
+          {
+            $lookup: {
+              from: 'users',
+              localField: 'user',
+              foreignField: '_id',
+              as: 'user',
+              pipeline: [
+                {
+                  $project: {
+                    name: 1,
+                    image: 1,
+                    email: 1,
+                    countryCode: 1,
+                    contact: 1,
+                    location: 1
+                  }
+                }
+              ]
+            },
+
+          },
+          {
+            $unwind: {
+              path: '$user',
+              preserveNullAndEmptyArrays: true,
+            }
+          },
+          {
+            $addFields: {
+              "name": "$user.name",
+              "image": "$user.image",
+              "email": "$user.email",
+              "countryCode": "$user.countryCode",
+              "contact": "$user.contact",
+              "location": "$user.location"
+            }
+          },
+          {
+            $project: {
+              name: 1,
+              image: 1,
+              email: 1,
+              countryCode: 1,
+              contact: 1,
+              location: 1
+            }
+          }
+        ]
+      }
+    },
+    {
+      $unwind: {
+        path: '$provider',
+        preserveNullAndEmptyArrays: true,
+      }
+    }
+  )
+
+  const res = await BookingModel.aggregate(pipeline);
+
+
+  return { data: res ?? [] };
+}
+
+
 
 export const BookingService = {
   createBookingToDB,
@@ -1148,5 +1378,6 @@ export const BookingService = {
   completeBookingToDB,
   stripePaymentToDB,
   getOverviewFromDB,
-  getBookingsForAdminFromDB
+  getBookingsForAdminFromDB,
+  getBookingsDownloadDB
 };

@@ -23,9 +23,9 @@ const createMessage = async (payload: IMessage): Promise<IMessage> => {
   if (!result) {
     throw new ApiError(400, 'Failed to create message');
   };
-  
+
   const msgResponse = await MessageModel.findById(result._id).populate('sender', { role: 1, name: 1, image: 1 });
-  if(!msgResponse) throw new ApiError(400, 'Failed to get message');
+  if (!msgResponse) throw new ApiError(400, 'Failed to get message');
 
   // emit socket event for new message
   const io = global.io;
@@ -44,7 +44,7 @@ const createMessage = async (payload: IMessage): Promise<IMessage> => {
     await Promise.all(
       receivers.map((receiverId: Types.ObjectId) =>
         sendNotifications({
-          type: NOTIFICATION_TYPE.ATTACHMENT,
+          type: NOTIFICATION_TYPE.MESSAGE,
           title: 'Attachment',
           receiver: receiverId,
           referenceId: result._id,
@@ -80,7 +80,7 @@ export const getChatMessages = async (
     { $addToSet: { seenBy: user?.id } }
   );
 
-  const messageQuery = new QueryBuilder(MessageModel.find({ chat: chatId }),query)
+  const messageQuery = new QueryBuilder(MessageModel.find({ chat: chatId }), query)
     .populate(['sender'], { sender: { role: 1, name: 1, email: 1 } })
     .sort(['-createdAt'])
     .paginate()
@@ -104,5 +104,53 @@ export const getChatMessages = async (
 
   return { messages: messagesWithStatus, pagination };
 };
+// ----------------- get messages by chat id -------------------
+export const getUnreadMessagesAmount = async (
+  user: JwtPayload
+): Promise<any> => {
+  console.log(user);
+  const userId = new Types.ObjectId(user?.id as string);
 
-export const MessageServices = { createMessage, getChatMessages };
+  const chats = await ChatModel.aggregate([
+    {
+      $match: {
+        isDeleted: false,
+        participants: { $in: [userId] }
+      }
+    },
+    {
+      $project: {
+        _id: 1
+      }
+    }
+  ]);
+
+  const chatList = chats.map((chat: any) => chat._id);
+
+
+  const unreadMessageCount = await MessageModel.aggregate([
+    {
+      $match: {
+        chat: { $in: chats.map((chat: any) => chat._id) },
+        sender: { $ne: userId },
+        seenBy: { $nin: [userId] },
+      },
+    },
+    {
+      $group: {
+        _id: "$chat", // Group by the chat ID
+      },
+    },
+    {
+      $count: "distinctChats" // Count the number of distinct chats
+    }
+  ]);
+
+  console.log(unreadMessageCount[0]?.distinctChats);
+
+
+  // return { data: { chats: chatList, unreadMessage: unreadMessageCount[0]?.distinctChats || 0 } };
+  return { data: unreadMessageCount[0]?.distinctChats || 0 };
+};
+
+export const MessageServices = { createMessage, getChatMessages, getUnreadMessagesAmount };

@@ -5,6 +5,7 @@ import { BOOKING_PAYMENT_STATUS, BOOKING_STATUS } from "../../../enums/booking";
 const BookingSchema = new Schema(
   {
     user: { type: Schema.Types.ObjectId, ref: "User", required: true },
+    providerId: { type: Schema.Types.ObjectId, ref: "User", required: true },
     provider: { type: Schema.Types.ObjectId, ref: "Provider", required: true },
     services: [{ type: Schema.Types.ObjectId, ref: "Service", required: true }],
     schedule: { type: Schema.Types.ObjectId, ref: "Schedule", required: true },

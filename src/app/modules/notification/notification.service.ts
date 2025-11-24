@@ -1,6 +1,7 @@
 import { Types } from 'mongoose';
 import { NotificationModel } from './notification.model';
 import { readNotifications } from '../../../helpers/notificationHelper';
+import { NOTIFICATION_TYPE } from './notification.constants';
 
 // ----------------- get notification by user id ----------------- //
 const getUserNotificationAmountFromDB = async (
@@ -9,6 +10,18 @@ const getUserNotificationAmountFromDB = async (
 
   const result = await NotificationModel.countDocuments({
     receiver: new Types.ObjectId(userId),
+    isRead: false
+  });
+
+  return {result};
+};
+const getUnreadMessageAmountFromDB = async (
+  userId: string
+): Promise<any> => {
+
+  const result = await NotificationModel.countDocuments({
+    receiver: new Types.ObjectId(userId),
+    type: NOTIFICATION_TYPE.MESSAGE,
     isRead: false
   });
 
@@ -101,4 +114,4 @@ const readUserNotificationToDB = async (userId: string): Promise<boolean> => {
   return true;
 };
 
-export const NotificationServices = { getUserNotificationFromDB, readUserNotificationToDB, getUserNotificationAmountFromDB };
+export const NotificationServices = { getUserNotificationFromDB, readUserNotificationToDB, getUserNotificationAmountFromDB, getUnreadMessageAmountFromDB };

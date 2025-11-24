@@ -19,6 +19,13 @@ router.post(
 
 // get chat messages
 router.get(
+  '/get-unread-messages-amount',
+  auth(USER_ROLES.SUPER_ADMIN, USER_ROLES.ADMIN, USER_ROLES.USER, USER_ROLES.PROVIDER),
+  MessageController.getUnreadMessagesAmount
+);
+
+// get chat messages
+router.get(
   '/:id',
   auth(USER_ROLES.SUPER_ADMIN, USER_ROLES.ADMIN, USER_ROLES.USER, USER_ROLES.PROVIDER),
   MessageController.getChatMessages

@@ -41,4 +41,21 @@ const getChatMessages = catchAsync(
   }
 );
 
-export const MessageController = { createMessage, getChatMessages };
+// get messages by chat id
+const getUnreadMessagesAmount = catchAsync(
+  async (req: Request, res: Response, next: NextFunction) => {
+    
+    const result = await MessageServices.getUnreadMessagesAmount(
+      req.user
+    );
+
+    sendResponse(res, {
+      success: true,
+      statusCode: StatusCodes.OK,
+      message: 'Messages amount retrieved successfully',
+      data: result?.data,
+    });
+  }
+);
+
+export const MessageController = { createMessage, getChatMessages, getUnreadMessagesAmount };

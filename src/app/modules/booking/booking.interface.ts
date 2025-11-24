@@ -3,6 +3,7 @@ import { BOOKING_PAYMENT_STATUS, BOOKING_STATUS } from "../../../enums/booking";
 
 export type TBooking = {
   user: Types.ObjectId;
+  providerId: Types.ObjectId;
   provider: Types.ObjectId;
   services: [Types.ObjectId];
   schedule: Types.ObjectId;
