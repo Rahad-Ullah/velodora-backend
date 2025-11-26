@@ -9,5 +9,7 @@ const email_controller_1 = require("./email.controller");
 const router = express_1.default.Router();
 router
     .route('/send-email')
-    .post(email_controller_1.EmailController.SendEmail);
+    .post(
+// auth(USER_ROLES.SUPER_ADMIN, USER_ROLES.ADMIN),
+email_controller_1.EmailController.SendEmail);
 exports.EmailRoutes = router;

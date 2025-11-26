@@ -477,6 +477,21 @@ const deleteUserFromDB = async (id: string): Promise<Partial<IUser | null>> => {
   }
 };
 
+// delete user from db
+const deleteUserByAdminFromDB = async (id: string): Promise<Partial<IUser | null>> => {
+  const isExistUser = await UserModel.isExistUserById(id);
+  if (!isExistUser) {
+    throw new ApiError(StatusCodes.BAD_REQUEST, "User doesn't exist!");
+  }
+
+  try {
+    const result = await UserModel.findByIdAndDelete(id);
+    return result;
+  } catch (error) {
+    throw new ApiError(StatusCodes.BAD_REQUEST, "Oops! Failed to delete user.");
+  }
+};
+
 // active block user from db
 const activeBlockUserFromDB = async (id: string): Promise<any> => {
   const isExistUser = await UserModel.isExistUserById(id);
@@ -773,6 +788,7 @@ export const UserService = {
   updateProfileImageToDB,
   updateUserStatusToDB,
   deleteUserFromDB,
+  deleteUserByAdminFromDB,
   hardDeleteUsersFromDB,
   getUsersAggregationFromDB,
   approveUpdateProfileToDB,

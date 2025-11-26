@@ -61,6 +61,16 @@ const deleteSubAdmin = (0, catchAsync_1.default)((req, res, next) => __awaiter(v
         data: ""
     });
 }));
+// delete sub admin
+const deleteUserByAdmin = (0, catchAsync_1.default)((req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
+    const result = yield user_service_1.UserService.deleteUserByAdminFromDB(req.params.id);
+    (0, sendResponse_1.default)(res, {
+        success: true,
+        statusCode: http_status_codes_1.StatusCodes.OK,
+        message: "User deleted successfully",
+        data: result
+    });
+}));
 // get sub admins
 const getSubAdmins = (0, catchAsync_1.default)((req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
     const result = yield user_service_1.UserService.getSubAdminsFromDB();
@@ -291,4 +301,4 @@ const withdraw = (0, catchAsync_1.default)((req, res, next) => __awaiter(void 0,
         data: (_a = result === null || result === void 0 ? void 0 : result.url) !== null && _a !== void 0 ? _a : "",
     });
 }));
-exports.UserController = { createUser, createUsers, getUserProfile, getUser, getEditedUser, getUsers, updateProfile, updateProfileImage, deleteProfile, updateUserStatus, deleteUser, getUsersAggregation, approveUpdateProfile, deleteUpdateProfile, activeBlockUser, giveCredits, totalUsersProvider, createSubAdmin, deleteSubAdmin, getSubAdmins, getRsd, withdraw };
+exports.UserController = { createUser, deleteUserByAdmin, createUsers, getUserProfile, getUser, getEditedUser, getUsers, updateProfile, updateProfileImage, deleteProfile, updateUserStatus, deleteUser, getUsersAggregation, approveUpdateProfile, deleteUpdateProfile, activeBlockUser, giveCredits, totalUsersProvider, createSubAdmin, deleteSubAdmin, getSubAdmins, getRsd, withdraw };

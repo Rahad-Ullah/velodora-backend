@@ -47,10 +47,10 @@ const createMessage = (payload) => __awaiter(void 0, void 0, void 0, function* (
     // Find the receiver(s): all participants except the sender
     const receivers = isChatExist.participants.filter((participantId) => participantId.toString() !== payload.sender.toString());
     // notify the receiver(s) for attachment //
-    if (payload.type === message_constants_1.MESSAGE_TYPE.IMAGE) {
+    if (payload.type === message_constants_1.MESSAGE_TYPE.IMAGE || payload.type === message_constants_1.MESSAGE_TYPE.TEXT) {
         yield Promise.all(receivers.map((receiverId) => (0, notificationHelper_1.sendNotifications)({
             type: notification_constants_1.NOTIFICATION_TYPE.MESSAGE,
-            title: 'Attachment',
+            title: 'You have received an new message',
             receiver: receiverId,
             referenceId: result._id,
         })));

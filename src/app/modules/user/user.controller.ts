@@ -54,6 +54,21 @@ const deleteSubAdmin = catchAsync(
   }
 );
 
+// delete sub admin
+const deleteUserByAdmin = catchAsync(
+  async (req: Request, res: Response, next: NextFunction) => {
+
+    const result = await UserService.deleteUserByAdminFromDB(req.params.id as string);
+
+    sendResponse(res, {
+      success: true,
+      statusCode: StatusCodes.OK,
+      message: "User deleted successfully",
+      data: result
+    });
+  }
+);
+
 // get sub admins
 const getSubAdmins = catchAsync(
   async (req: Request, res: Response, next: NextFunction) => {
@@ -369,4 +384,4 @@ const withdraw= catchAsync(
   }
 );
 
-export const UserController = { createUser, createUsers, getUserProfile, getUser, getEditedUser, getUsers, updateProfile, updateProfileImage, deleteProfile, updateUserStatus, deleteUser, getUsersAggregation, approveUpdateProfile, deleteUpdateProfile, activeBlockUser, giveCredits, totalUsersProvider, createSubAdmin, deleteSubAdmin, getSubAdmins, getRsd,withdraw };
+export const UserController = { createUser, deleteUserByAdmin, createUsers, getUserProfile, getUser, getEditedUser, getUsers, updateProfile, updateProfileImage, deleteProfile, updateUserStatus, deleteUser, getUsersAggregation, approveUpdateProfile, deleteUpdateProfile, activeBlockUser, giveCredits, totalUsersProvider, createSubAdmin, deleteSubAdmin, getSubAdmins, getRsd,withdraw };

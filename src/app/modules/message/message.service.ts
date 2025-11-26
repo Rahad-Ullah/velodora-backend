@@ -40,12 +40,12 @@ const createMessage = async (payload: IMessage): Promise<IMessage> => {
   );
 
   // notify the receiver(s) for attachment //
-  if (payload.type === MESSAGE_TYPE.IMAGE) {
+  if (payload.type === MESSAGE_TYPE.IMAGE || payload.type === MESSAGE_TYPE.TEXT) {
     await Promise.all(
       receivers.map((receiverId: Types.ObjectId) =>
         sendNotifications({
           type: NOTIFICATION_TYPE.MESSAGE,
-          title: 'Attachment',
+          title: 'You have received an new message',
           receiver: receiverId,
           referenceId: result._id,
         })

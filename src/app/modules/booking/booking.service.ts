@@ -421,11 +421,21 @@ const cancelBookingToDB = async (id: string, userId: string): Promise<any> => {
       throw new ApiError(StatusCodes.NOT_FOUND, "Booking not found");
     }
 
-    if (booking.status !== BOOKING_STATUS.PENDING) {
-      throw new ApiError(
-        StatusCodes.BAD_REQUEST,
-        "Booking is not pending. So you can not cancel it"
-      );
+    if (booking.status === BOOKING_STATUS.UPCOMING) {
+      const bookingCount = await BookingModel.countDocuments({
+        user: booking?.user,
+        provider: booking?.providerId,
+        status: BOOKING_STATUS.UPCOMING,
+      }).session(session);
+
+      // 3️⃣ Delete chat if needed
+      if (bookingCount <= 1) {
+        const result = await ChatServices.deleteChatFromDB(
+          booking.chatId.toString(),
+          { session }
+        );
+        if (!result) throw new ApiError(StatusCodes.INTERNAL_SERVER_ERROR, 'Failed to delete chat');
+      }
     }
 
     const provider = await ProviderModel.findById(booking.provider).session(session);
@@ -451,12 +461,25 @@ const cancelBookingToDB = async (id: string, userId: string): Promise<any> => {
     if (user.role === USER_ROLES.USER) {
       const date = new Date();
       const currentTime = date.getTime();
-      const bookingTime = new Date(booking?.createdAt).getTime();
+      const smallestStart = booking.slots.reduce((min:any, current:any) => {
+        return new Date(current.start) < new Date(min.start) ? current : min;
+      });
+      const bookingDate = new Date(smallestStart.start);
+      const bookingTime = new Date(smallestStart.start).getTime();
 
       const isExistSystem = await SystemModel.findOne({}).lean();
       const penaltyTime = isExistSystem?.penaltyTime || 1;
 
-      const timeDiffInHours = (currentTime - bookingTime) / (1000 * 60 * 60);
+      const timeDiffInHours = (bookingTime - currentTime) / (1000 * 60 * 60);
+
+
+      console.log("Current Date:", date);
+      console.log("Original Booking Date:", smallestStart.start);
+      console.log("Booking Date:", bookingDate);
+      console.log("Current Time:", currentTime);
+      console.log("Booking Time:", bookingTime);
+      console.log("Time Difference in Hours:", timeDiffInHours);
+      console.log("Penalty Time:", penaltyTime);
 
       if (timeDiffInHours <= penaltyTime) {
         // Cancelled within penalty window (partial refund)
@@ -497,7 +520,7 @@ const cancelBookingToDB = async (id: string, userId: string): Promise<any> => {
         );
         sendNotifications({
           type: NOTIFICATION_TYPE.BOOKING_STATUS,
-          title: 'Booking Completed Successfully',
+          title: 'Booking Cancelled Successfully',
           receiver: booking?.providerId,
           referenceId: booking?.user,
         });
@@ -515,11 +538,12 @@ const cancelBookingToDB = async (id: string, userId: string): Promise<any> => {
       );
       sendNotifications({
         type: NOTIFICATION_TYPE.BOOKING_STATUS,
-        title: 'Booking Completed Successfully',
+        title: 'Booking Cancelled Successfully',
         receiver: booking?.user,
         referenceId: booking?.providerId,
       });
     }
+
 
     // ✅ Commit transaction if everything passed
     await session.commitTransaction();

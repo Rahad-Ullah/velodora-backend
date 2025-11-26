@@ -86,6 +86,13 @@ router
     UserController.deleteSubAdmin
   )
 
+router
+  .route('/delete-user-by-admin/:id')
+  .delete(
+    auth(USER_ROLES.SUPER_ADMIN, USER_ROLES.ADMIN),
+    UserController.deleteUserByAdmin
+  )
+
 
 router
   .route('/users/edit-profile/:id')

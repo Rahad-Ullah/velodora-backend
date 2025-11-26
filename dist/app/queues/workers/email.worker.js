@@ -26,6 +26,8 @@ const transporter = nodemailer_1.default.createTransport({
         pass: config_1.default.email.pass,
     },
 });
+// use below command to run the worker
+// node dist/app/queues/workers/email.worker.js
 exports.emailWorker = new bullmq_1.Worker('email-queue', (job) => __awaiter(void 0, void 0, void 0, function* () {
     const { to, subject, html } = job.data;
     const info = yield transporter.sendMail({

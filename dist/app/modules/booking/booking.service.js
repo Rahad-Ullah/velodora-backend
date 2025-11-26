@@ -350,8 +350,18 @@ const cancelBookingToDB = (id, userId) => __awaiter(void 0, void 0, void 0, func
         if (!booking) {
             throw new ApiError_1.default(http_status_codes_1.StatusCodes.NOT_FOUND, "Booking not found");
         }
-        if (booking.status !== booking_1.BOOKING_STATUS.PENDING) {
-            throw new ApiError_1.default(http_status_codes_1.StatusCodes.BAD_REQUEST, "Booking is not pending. So you can not cancel it");
+        if (booking.status === booking_1.BOOKING_STATUS.UPCOMING) {
+            const bookingCount = yield booking_model_1.BookingModel.countDocuments({
+                user: booking === null || booking === void 0 ? void 0 : booking.user,
+                provider: booking === null || booking === void 0 ? void 0 : booking.providerId,
+                status: booking_1.BOOKING_STATUS.UPCOMING,
+            }).session(session);
+            // 3️⃣ Delete chat if needed
+            if (bookingCount <= 1) {
+                const result = yield chat_service_1.ChatServices.deleteChatFromDB(booking.chatId.toString(), { session });
+                if (!result)
+                    throw new ApiError_1.default(http_status_codes_1.StatusCodes.INTERNAL_SERVER_ERROR, 'Failed to delete chat');
+            }
         }
         const provider = yield provider_model_1.ProviderModel.findById(booking.provider).session(session);
         if (!provider) {
@@ -403,7 +413,7 @@ const cancelBookingToDB = (id, userId) => __awaiter(void 0, void 0, void 0, func
                 }, { session });
                 (0, notificationHelper_1.sendNotifications)({
                     type: notification_constants_1.NOTIFICATION_TYPE.BOOKING_STATUS,
-                    title: 'Booking Completed Successfully',
+                    title: 'Booking Cancelled Successfully',
                     receiver: booking === null || booking === void 0 ? void 0 : booking.providerId,
                     referenceId: booking === null || booking === void 0 ? void 0 : booking.user,
                 });
@@ -416,7 +426,7 @@ const cancelBookingToDB = (id, userId) => __awaiter(void 0, void 0, void 0, func
             }, { session });
             (0, notificationHelper_1.sendNotifications)({
                 type: notification_constants_1.NOTIFICATION_TYPE.BOOKING_STATUS,
-                title: 'Booking Completed Successfully',
+                title: 'Booking Cancelled Successfully',
                 receiver: booking === null || booking === void 0 ? void 0 : booking.user,
                 referenceId: booking === null || booking === void 0 ? void 0 : booking.providerId,
             });

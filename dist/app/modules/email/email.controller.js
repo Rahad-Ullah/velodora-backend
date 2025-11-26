@@ -21,13 +21,13 @@ const email_service_1 = require("./email.service");
 const SendEmail = (0, catchAsync_1.default)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
     // const { to, subject, html } = req.body;
     // Call service
-    const result = yield email_service_1.EmailService.sendEmailFromDB({ to: "delwarccer@gmail.com", subject: "Test BullMD Queue", html: "<h1>Test BullMD Queue</h1>" });
+    const result = yield email_service_1.EmailService.sendEmailFromDB({ to: "delwarccer@gmail.com", subject: "Test BullMD Queue", html: "<h1>Test BullMQ Queue Working</h1>" });
     // Send response
     (0, sendResponse_1.default)(res, {
         success: true,
         statusCode: http_status_codes_1.StatusCodes.OK,
-        // message: result.message,
-        data: result.data,
+        message: result.message,
+        // data: result.data,
     });
 }));
 exports.EmailController = { SendEmail };

@@ -53,6 +53,9 @@ router
     .route('/sub-admin/:id')
     .delete((0, auth_1.default)(user_1.USER_ROLES.SUPER_ADMIN), user_controller_1.UserController.deleteSubAdmin);
 router
+    .route('/delete-user-by-admin/:id')
+    .delete((0, auth_1.default)(user_1.USER_ROLES.SUPER_ADMIN, user_1.USER_ROLES.ADMIN), user_controller_1.UserController.deleteUserByAdmin);
+router
     .route('/users/edit-profile/:id')
     .patch((0, auth_1.default)(user_1.USER_ROLES.SUPER_ADMIN, user_1.USER_ROLES.ADMIN), user_controller_1.UserController.approveUpdateProfile)
     .delete((0, auth_1.default)(user_1.USER_ROLES.SUPER_ADMIN, user_1.USER_ROLES.ADMIN), user_controller_1.UserController.deleteUpdateProfile);

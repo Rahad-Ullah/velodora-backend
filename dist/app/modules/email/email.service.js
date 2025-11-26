@@ -13,7 +13,7 @@ exports.EmailService = void 0;
 const email_queue_1 = require("../../queues/email.queue");
 // create system automatically to db
 const sendEmailFromDB = (data) => __awaiter(void 0, void 0, void 0, function* () {
-    const job = yield email_queue_1.emailQueue.add('send-email', data, {
+    yield email_queue_1.emailQueue.add('send-email', data, {
         attempts: 3,
         backoff: {
             type: 'exponential',
@@ -22,7 +22,7 @@ const sendEmailFromDB = (data) => __awaiter(void 0, void 0, void 0, function* ()
         removeOnComplete: true,
         removeOnFail: false,
     });
-    return { data: job };
+    return { message: "BullMQ - Email sent successfully" };
 });
 exports.EmailService = {
     sendEmailFromDB,

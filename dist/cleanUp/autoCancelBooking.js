@@ -23,7 +23,7 @@ const user_model_1 = require("../app/modules/user/user.model");
 const autoCancelBookings = () => __awaiter(void 0, void 0, void 0, function* () {
     var _a;
     const currentTime = new Date();
-    currentTime.setMinutes(currentTime.getMinutes() - 5);
+    currentTime.setMinutes(currentTime.getMinutes() - 10);
     // Find bookings created more than 5 min ago and unpaid
     const bookings = yield booking_model_1.BookingModel.find({
         paymentStatus: booking_1.BOOKING_PAYMENT_STATUS.UNPAID,

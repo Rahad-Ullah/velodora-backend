@@ -395,6 +395,20 @@ const deleteUserFromDB = (id) => __awaiter(void 0, void 0, void 0, function* () 
         throw new ApiError_1.default(http_status_codes_1.StatusCodes.BAD_REQUEST, "Oops! Failed to delete user.");
     }
 });
+// delete user from db
+const deleteUserByAdminFromDB = (id) => __awaiter(void 0, void 0, void 0, function* () {
+    const isExistUser = yield user_model_1.UserModel.isExistUserById(id);
+    if (!isExistUser) {
+        throw new ApiError_1.default(http_status_codes_1.StatusCodes.BAD_REQUEST, "User doesn't exist!");
+    }
+    try {
+        const result = yield user_model_1.UserModel.findByIdAndDelete(id);
+        return result;
+    }
+    catch (error) {
+        throw new ApiError_1.default(http_status_codes_1.StatusCodes.BAD_REQUEST, "Oops! Failed to delete user.");
+    }
+});
 // active block user from db
 const activeBlockUserFromDB = (id) => __awaiter(void 0, void 0, void 0, function* () {
     const isExistUser = yield user_model_1.UserModel.isExistUserById(id);
@@ -629,6 +643,7 @@ exports.UserService = {
     updateProfileImageToDB,
     updateUserStatusToDB,
     deleteUserFromDB,
+    deleteUserByAdminFromDB,
     hardDeleteUsersFromDB,
     getUsersAggregationFromDB,
     approveUpdateProfileToDB,

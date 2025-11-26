@@ -17,6 +17,9 @@ const settings_model_1 = __importDefault(require("./settings.model"));
 const ApiError_1 = __importDefault(require("../../../errors/ApiError"));
 const http_status_codes_1 = require("http-status-codes");
 const colors_1 = __importDefault(require("colors"));
+const user_model_1 = require("../user/user.model");
+const email_queue_1 = require("../../queues/email.queue");
+const user_1 = require("../../../enums/user");
 const addSettings = () => __awaiter(void 0, void 0, void 0, function* () {
     const data = {
         privacyPolicy: '',
@@ -41,10 +44,43 @@ const getSettings = (title) => __awaiter(void 0, void 0, void 0, function* () {
     const settings = yield settings_model_1.default.findOne().select(title ? title : '');
     return settings;
 });
-// Function to update settings without needing an ID
+// Function to update settings
 const updateSettings = (settingsBody) => __awaiter(void 0, void 0, void 0, function* () {
+    // Update the settings (no ID needed)
     yield settings_model_1.default.findOneAndUpdate({}, settingsBody);
-    return `${Object.keys(settingsBody).join(', ').toString()} updated successfully`;
+    console.log("settings:", settingsBody);
+    // Fetch users
+    let users;
+    if (settingsBody.termsAndConditions) {
+        users = yield user_model_1.UserModel.find({ isDeleted: false });
+    }
+    else if (settingsBody.providerUsagePolicy) {
+        users = yield user_model_1.UserModel.find({ role: user_1.USER_ROLES.PROVIDER, isDeleted: false });
+    }
+    else if (settingsBody.privacyPolicy) {
+        users = yield user_model_1.UserModel.find({ isDeleted: false, role: user_1.USER_ROLES.USER });
+    }
+    else {
+        users = yield user_model_1.UserModel.find({ isDeleted: false });
+    }
+    // Queue email for every user (with proper async handling)
+    for (const user of users) {
+        const data = {
+            to: user.email,
+            subject: 'Settings Updated',
+            html: 'Settings updated successfully',
+        };
+        yield email_queue_1.emailQueue.add('send-email', data, {
+            attempts: 2,
+            backoff: {
+                type: 'exponential',
+                delay: 2000,
+            },
+            removeOnComplete: true,
+            removeOnFail: false,
+        });
+    }
+    return `${Object.keys(settingsBody).join(', ')} updated successfully`;
 });
 exports.settingsService = {
     addSettings,
