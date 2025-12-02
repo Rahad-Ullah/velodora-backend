@@ -9,3 +9,13 @@ redisConnection.on('error', (err) =>
 );
 
 redisConnection.connect();
+
+// --------------------- Redis Connection Commands --------------------- //
+// sudo apt update
+// sudo apt install redis-server
+// sudo service redis-server start
+// sudo systemctl enable redis-server
+
+// sudo service redis-server stop
+// sudo service redis-server restart
+// sudo service redis-server status
