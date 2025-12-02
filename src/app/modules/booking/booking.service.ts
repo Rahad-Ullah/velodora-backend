@@ -404,7 +404,6 @@ const completeBookingToDB = async (userId: string, providerId: string): Promise<
   }
 };
 
-
 // Cancel Booking to db
 const cancelBookingToDB = async (id: string, userId: string): Promise<any> => {
   const session = await mongoose.startSession();
@@ -473,13 +472,13 @@ const cancelBookingToDB = async (id: string, userId: string): Promise<any> => {
       const timeDiffInHours = (bookingTime - currentTime) / (1000 * 60 * 60);
 
 
-      console.log("Current Date:", date);
-      console.log("Original Booking Date:", smallestStart.start);
-      console.log("Booking Date:", bookingDate);
-      console.log("Current Time:", currentTime);
-      console.log("Booking Time:", bookingTime);
-      console.log("Time Difference in Hours:", timeDiffInHours);
-      console.log("Penalty Time:", penaltyTime);
+      // console.log("Current Date:", date);
+      // console.log("Original Booking Date:", smallestStart.start);
+      // console.log("Booking Date:", bookingDate);
+      // console.log("Current Time:", currentTime);
+      // console.log("Booking Time:", bookingTime);
+      // console.log("Time Difference in Hours:", timeDiffInHours);
+      // console.log("Penalty Time:", penaltyTime);
 
       if (timeDiffInHours <= penaltyTime) {
         // Cancelled within penalty window (partial refund)
