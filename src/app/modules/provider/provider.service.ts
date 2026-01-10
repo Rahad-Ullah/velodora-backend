@@ -253,10 +253,6 @@ const getProvidersFromDB = async (
   const limit = Number(filterOptions.limit) || 10;
   const skip = (page - 1) * limit;
 
-  const isOnline: boolean = filterOptions?.isOnline === 'true' ? true : false;
-  const verified: boolean = filterOptions?.verified === 'true' ? true : false;
-  const isActive: boolean = filterOptions?.isActive === 'true' ? true : false;
-
   // Build service filter dynamically
   const serviceMatch: any = {};
   let searchTermMatch: any = {};
@@ -327,29 +323,9 @@ const getProvidersFromDB = async (
   // Aggregation pipeline definition //
   const pipeline: any[] = [];
 
-  if (isOnline) {
-    pipeline.push({
-      $match: {
-        isOnline: isOnline
-      }
-    });
-  }
 
-  if (isActive) {
-    pipeline.push({
-      $match: {
-        isActive: isActive
-      }
-    });
-  }
 
-  if (verified) {
-    pipeline.push({
-      $match: {
-        verified: verified
-      }
-    });
-  }
+
 
   // ✅ Add geoNear first only if userLat & userLng exist
   if (userLat !== undefined && userLng !== undefined) {
@@ -365,6 +341,14 @@ const getProvidersFromDB = async (
       },
     });
   }
+
+  pipeline.push({
+    $match: {
+      isActive: true,
+      isOnline: true,
+      verified: true
+    }
+  })
 
 
   pipeline.push(

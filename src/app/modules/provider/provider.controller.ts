@@ -86,7 +86,7 @@ const getMyProvider = catchAsync(async (req: Request, res: Response) => {
 //get all providers
 const getProviders = catchAsync(async (req: Request, res: Response) => {
   // Define which query fields are filters
-  const filterableFields = ['searchTerm', 'categoryId', 'subCategoryId', 'minPrice', 'maxPrice', 'date', 'time', 'location','userLng', 'userLat', 'isOnline', 'verified', 'isActive', 'page', 'limit'];
+  const filterableFields = ['searchTerm', 'categoryId', 'subCategoryId', 'minPrice', 'maxPrice', 'date', 'time', 'location','userLng', 'userLat', 'page', 'limit'];
 
   // Pick only allowed filters from req.query
   const filterOptions = pick(req.query, filterableFields);
