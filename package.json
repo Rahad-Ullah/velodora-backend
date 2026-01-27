@@ -5,6 +5,7 @@
   "main": "index.js",
   "scripts": {
     "dev": "cross-env PORT=5050 ts-node-dev --respawn --transpile-only src/server.ts",
+    "email": "ts-node-dev src/app/queues/workers/email.worker.ts",
     "build": "tsc",
     "start": "node dist/server.js",
     "worker:email": "node dist/app/queues/workers/email.worker.js",
