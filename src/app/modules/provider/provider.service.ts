@@ -55,6 +55,13 @@ const createProviderToDB = async (
     const providerData = { ...providerInfo, isActive: false, services: servicesId };
     const provider = await ProviderModel.create([providerData], { session });
 
+     // 2. Update related user
+    await UserModel.findByIdAndUpdate(
+      providerInfo.user,
+      { $set: { isService: true } },
+      { new: true, session }
+    );
+
     // ✅ Commit transaction
     await session.commitTransaction();
 
@@ -799,7 +806,7 @@ const activeBlockProviderToDB = async (
     session.startTransaction();
 
     const res = await ProviderModel.findByIdAndUpdate(isExistService._id, { $set: { isActive: !isExistService?.isActive, verified: true } }, { new: true, session });
-    await UserModel.findByIdAndUpdate(id, { $set: { verifiedService: !isExistService?.isActive } }, { new: true, session });
+    await UserModel.findByIdAndUpdate(id, { $set: { isActive: !isExistService?.isActive } }, { new: true, session });
 
     await session.commitTransaction();
     session.endSession();

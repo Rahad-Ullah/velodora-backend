@@ -220,6 +220,8 @@ const getUsersFromDB = async (
     limit,
   };
 
+  console.log("Users Query filters: ", filterOptions)
+
   const searchableFields = ['name', 'email', 'location', 'contact'];
 
   const builder = new QueryBuilder<IUser>(UserModel.find(), query);
@@ -272,7 +274,7 @@ const getUsersAggregationFromDB = async (
     {
       $match: {
         // status: "active",
-      }, // Don’t forget to apply your matchConditions here!
+      },
     },
     {
       $group: {
