@@ -10,7 +10,7 @@ import { SERVICE_STATUS } from '../../../enums/service';
 import { UserModel } from '../user/user.model';
 import { BookingModel } from '../booking/booking.model';
 import { BOOKING_PAYMENT_STATUS, BOOKING_STATUS } from '../../../enums/booking';
-import { IPaginationOptions } from '../../../types/pagination';
+import { IPaginationMeta, IPaginationOptions } from '../../../types/pagination';
 
 type TProviderFilters = {
   searchTerm?: string;
@@ -55,7 +55,7 @@ const createProviderToDB = async (
     const providerData = { ...providerInfo, isActive: false, services: servicesId };
     const provider = await ProviderModel.create([providerData], { session });
 
-     // 2. Update related user
+    // 2. Update related user
     await UserModel.findByIdAndUpdate(
       providerInfo.user,
       { $set: { isService: true } },
@@ -243,7 +243,7 @@ const getProviderFromDB = async (id: string): Promise<any> => {
 // get all providers from DB
 const getProvidersFromDB = async (
   filterOptions: TProviderFilters
-): Promise<{ data: TProvider[], meta: IPaginationOptions }> => {
+): Promise<{ data: TProvider[]; meta: IPaginationMeta }> => {
   const {
     searchTerm,
     categoryId,
@@ -256,20 +256,19 @@ const getProvidersFromDB = async (
     userLng,
     userLat,
   } = filterOptions;
+
   const page = Number(filterOptions.page) || 1;
   const limit = Number(filterOptions.limit) || 10;
   const skip = (page - 1) * limit;
 
-  // Build service filter dynamically
+  // ---------------- FILTER OBJECTS ----------------
   const serviceMatch: any = {};
   let searchTermMatch: any = {};
   let primaryLocation: any = {};
   let dateMatch: any = {};
   let timeMatch: any = {};
 
-
-
-  // match date
+  // ---------- Date filter ----------
   if (date) {
     const startOfDay = new Date(date);
     startOfDay.setHours(0, 0, 0, 0);
@@ -280,7 +279,7 @@ const getProvidersFromDB = async (
     dateMatch = { date: { $gte: startOfDay, $lte: endOfDay } };
   }
 
-  // match time
+  // ---------- Time filter ----------
   if (time) {
     const timeDate = new Date(time);
     timeMatch = {
@@ -293,210 +292,244 @@ const getProvidersFromDB = async (
     };
   }
 
-  // match primaryLocation
+  // ---------- Location text filter ----------
   if (location) {
-    primaryLocation = { primaryLocation: { $regex: location, $options: "i" } };
+    primaryLocation = {
+      primaryLocation: { $regex: location, $options: "i" },
+    };
   }
 
-  // match category
+  // ---------- Category ----------
   if (categoryId) {
     serviceMatch.category = new mongoose.Types.ObjectId(categoryId);
   }
 
-  // match sub category
+  // ---------- SubCategory ----------
   if (subCategoryId) {
     serviceMatch.subCategory = new mongoose.Types.ObjectId(subCategoryId);
   }
 
-  // match searchTerm work on category and subCategory name
+  // ---------- Search term ----------
   if (searchTerm) {
-    searchTermMatch["$or"] = [
-      { "category.name": { $regex: searchTerm, $options: "i" } },
-      { "subCategory.name": { $regex: searchTerm, $options: "i" } },
-    ];
+    searchTermMatch = {
+      $or: [
+        { "category.name": { $regex: searchTerm, $options: "i" } },
+        { "subCategory.name": { $regex: searchTerm, $options: "i" } },
+      ],
+    };
   }
 
-  // match price
+  // ---------- Price ----------
   if (minPrice !== undefined || maxPrice !== undefined) {
     serviceMatch.price = {};
-    if (minPrice !== undefined) {
-      serviceMatch.price.$gte = Number(minPrice);
-    }
-    if (maxPrice !== undefined) {
-      serviceMatch.price.$lte = Number(maxPrice);
-    }
+    if (minPrice !== undefined) serviceMatch.price.$gte = Number(minPrice);
+    if (maxPrice !== undefined) serviceMatch.price.$lte = Number(maxPrice);
   }
 
-  // Aggregation pipeline definition //
+  // ---------------- PIPELINE ----------------
   const pipeline: any[] = [];
 
-
-
-
-
-  // ✅ Add geoNear first only if userLat & userLng exist
+  // ---------- GEO ----------
   if (userLat !== undefined && userLng !== undefined) {
     pipeline.push({
       $geoNear: {
         near: {
           type: "Point",
-          coordinates: [Number(userLng), Number(userLat)], // [lng, lat]
+          coordinates: [Number(userLng), Number(userLat)],
         },
-        distanceField: "distance", // will store distance in km now
+        distanceField: "distance",
         spherical: true,
-        distanceMultiplier: 0.001, // ✅ convert meters → km
+        distanceMultiplier: 0.001,
+      },
+    });
+
+    // limit by provider radius
+    pipeline.push({
+      $match: {
+        $expr: { $lte: ["$distance", "$serviceDistance"] },
       },
     });
   }
 
   pipeline.push({
+    $addFields: {
+      distance: { $ifNull: ["$distance", null] },
+    },
+  });
+
+
+  // ---------- Provider base filters ----------
+  pipeline.push({
     $match: {
-      isActive: true,
-      isOnline: true,
-      verified: true
-    }
-  })
+      // isActive: true,
+      // isOnline: true,
+      // verified: true,
+      ...primaryLocation,
+    },
+  });
 
+  // ---------- Services lookup ----------
+  pipeline.push({
+    $lookup: {
+      from: "services",
+      localField: "services",
+      foreignField: "_id",
+      as: "services",
+      pipeline: [
+        { $match: serviceMatch },
+        { $project: { category: 1, subCategory: 1, price: 1 } },
 
-  pipeline.push(
-    { $match: primaryLocation },
-    {
-      $lookup: {
-        from: "services",
-        localField: "services",
-        foreignField: "_id",
-        as: "services",
-        pipeline: [
-          { $match: serviceMatch },
-          { $project: { category: 1, subCategory: 1, price: 1 } },
-          {
-            $lookup: {
-              from: "categories",
-              localField: "category",
-              foreignField: "_id",
-              as: "category",
-              pipeline: [{ $project: { name: 1 } }],
-            },
+        {
+          $lookup: {
+            from: "categories",
+            localField: "category",
+            foreignField: "_id",
+            as: "category",
+            pipeline: [{ $project: { name: 1 } }],
           },
-          { $unwind: "$category" },
-          {
-            $lookup: {
-              from: "subcategories",
-              localField: "subCategory",
-              foreignField: "_id",
-              as: "subCategory",
-              pipeline: [{ $project: { name: 1 } }],
-            },
-          },
-          { $unwind: "$subCategory" },
-          { $match: searchTermMatch },
-        ],
-      },
-    },
-    { $match: { "services.0": { $exists: true } } },
-    // { $unwind: "$services"},
-    {
-      $lookup: {
-        from: "schedules",
-        localField: "_id",
-        foreignField: "provider",
-        as: "schedules",
-        pipeline: [{ $match: dateMatch }],
-      },
-    },
-    { $match: { "schedules.0": { $exists: true } } },
-    { $match: timeMatch },
-    {
-      $lookup: {
-        from: "reviews",
-        let: { providerId: "$user" }, // <-- use current provider's userId
-        pipeline: [
-          {
-            $match: {
-              $expr: { $eq: ["$providerId", "$$providerId"] },
-            },
-          },
-          {
-            $group: {
-              _id: "$providerId",
-              averageRating: { $avg: "$rating" },
-              totalReviews: { $sum: 1 },
-            },
-          },
-        ],
-        as: "reviews",
-      },
-    },
-    { $unwind: { path: "$reviews", preserveNullAndEmptyArrays: true } },
+        },
+        { $unwind: "$category" },
 
-    {
-      $lookup: {
-        from: "users",
-        localField: "user",
-        foreignField: "_id",
-        as: "user",
-        pipeline: [{ $project: { name: 1, email: 1, image: 1 } }],
-      },
-    },
-    { $unwind: "$user" },
-    {
-      $addFields: {
-        firstService: { $arrayElemAt: ["$services", 0] },
-      },
-    },
-    {
-      $addFields: {
-        name: "$user.name",
-        image: "$user.image",
-        category: { $ifNull: ["$firstService.category.name", null] },
-        subCategory: { $ifNull: ["$firstService.subCategory.name", null] },
-        price: "$firstService.price",
-      },
-    },
-    {
-      $project: {
-        isOnline: 1,
-        name: 1,
-        image: 1,
-        category: 1,
-        subCategory: 1,
-        price: 1,
-        location: 1,
-        pricePerHour: 1,
-        primaryLocation: 1,
-        distance: 1,
-        serviceDistance: 1,
-        isActive: 1,
-        reviews: {
-          $cond: {
-            if: { $ne: ["$reviews", null] }, // if reviews field exists (not null)
-            then: "$reviews",
-            else: "$$REMOVE", // removes field entirely from result
+        {
+          $lookup: {
+            from: "subcategories",
+            localField: "subCategory",
+            foreignField: "_id",
+            as: "subCategory",
+            pipeline: [{ $project: { name: 1 } }],
           },
+        },
+        { $unwind: "$subCategory" },
+
+        { $match: searchTermMatch },
+      ],
+    },
+  });
+
+  // ---------- Ensure at least 1 service ----------
+  pipeline.push({ $match: { "services.0": { $exists: true } } });
+
+  // ---------- UNWIND SERVICES ----------
+  pipeline.push({ $unwind: "$services" });
+
+  // ---------- Schedules ----------
+  pipeline.push({
+    $lookup: {
+      from: "schedules",
+      localField: "_id",
+      foreignField: "provider",
+      as: "schedules",
+      pipeline: [{ $match: dateMatch }],
+    },
+  });
+
+  pipeline.push({ $match: { "schedules.0": { $exists: true } } });
+
+  pipeline.push({ $match: timeMatch });
+
+  // ---------- Reviews ----------
+  pipeline.push({
+    $lookup: {
+      from: "reviews",
+      let: { providerId: "$user" },
+      pipeline: [
+        {
+          $match: {
+            $expr: { $eq: ["$providerId", "$$providerId"] },
+          },
+        },
+        {
+          $group: {
+            _id: "$providerId",
+            averageRating: { $avg: "$rating" },
+            totalReviews: { $sum: 1 },
+          },
+        },
+      ],
+      as: "reviews",
+    },
+  });
+
+  pipeline.push({
+    $unwind: { path: "$reviews", preserveNullAndEmptyArrays: true },
+  });
+
+  // ---------- User ----------
+  pipeline.push({
+    $lookup: {
+      from: "users",
+      localField: "user",
+      foreignField: "_id",
+      as: "user",
+      pipeline: [{ $project: { name: 1, email: 1, image: 1 } }],
+    },
+  });
+
+  pipeline.push({ $unwind: "$user" });
+
+  // ---------- Fields ----------
+  pipeline.push({
+    $addFields: {
+      name: "$user.name",
+      image: "$user.image",
+      category: "$services.category.name",
+      subCategory: "$services.subCategory.name",
+      price: "$services.price",
+    },
+  });
+
+  // ---------- Projection ----------
+  pipeline.push({
+    $project: {
+      name: 1,
+      image: 1,
+      isOnline: 1,
+      isActive: 1,
+      verified: 1,
+
+      category: 1,
+      subCategory: 1,
+      price: 1,
+
+      location: 1,
+      primaryLocation: 1,
+      pricePerHour: 1,
+      serviceDistance: 1,
+      distance: 1,
+
+      reviews: {
+        $cond: {
+          if: { $ne: ["$reviews", null] },
+          then: "$reviews",
+          else: "$$REMOVE",
         },
       },
     },
-    {
-      $facet: {
-        data: [{ $skip: skip }, { $limit: limit }],
-        total: [{ $count: "count" }]
-      }
-    }
-  );
+  });
 
+  // ---------- Pagination ----------
+  pipeline.push({
+    $facet: {
+      data: [{ $skip: skip }, { $limit: limit }],
+      total: [{ $count: "count" }],
+    },
+  });
+
+  // ---------------- EXECUTE ----------------
   const providers = await ProviderModel.aggregate(pipeline);
-  const total = Number(providers[0].total[0]?.count);
-  const totalPage = Math.ceil(providers[0].total[0]?.count / limit);
 
+  const total = Number(providers[0]?.total[0]?.count || 0);
+  const totalPage = Math.ceil(total / limit);
 
-  const meta = {
-    total: total ?? 0,
-    page: page,
-    limit: limit,
-    totalPage: totalPage ?? 0
-  }
-
-  return { data: providers[0].data, meta: meta };
+  return {
+    data: providers[0].data,
+    meta: {
+      total,
+      page,
+      limit,
+      totalPage,
+    },
+  };
 };
 
 //update provider
