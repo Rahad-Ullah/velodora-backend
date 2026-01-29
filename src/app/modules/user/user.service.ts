@@ -351,7 +351,7 @@ const updateProfileToDB = async (
     if (isExistTempUser) {
       throw new ApiError(StatusCodes.BAD_REQUEST, "You have already approval request!");
     }
-    const { name, contact, countryCode, location, image } = payload; //email, role, password can't be updated here.
+    const { name, contact, countryCode, location, coordinates, image } = payload; //email, role, password can't be updated here.
     const data = {
       ref: id,
       name: name ?? isExistUser.name,
@@ -359,6 +359,7 @@ const updateProfileToDB = async (
       contact: contact ?? isExistUser.contact,
       countryCode: countryCode ?? isExistUser.countryCode,
       location: location ?? isExistUser.location,
+      coordinates: coordinates ?? isExistUser.coordinates,
       image: image ?? isExistUser.image
     }
     const testUser = await UserTempModel.create(data);
@@ -418,8 +419,8 @@ const approveUpdateProfileToDB = async (
 
   isExistUser.image && isOriginalUser.image && unlinkFile(isOriginalUser.image);
 
-  const { name, email, contact, countryCode, location, image } = isExistUser;
-  const updateUser = await UserModel.findOneAndUpdate({ _id: isExistUser.ref }, { name, email, contact, countryCode, location, image }, {
+  const { name, email, contact, countryCode, location, coordinates, image } = isExistUser;
+  const updateUser = await UserModel.findOneAndUpdate({ _id: isExistUser.ref }, { name, email, contact, countryCode, location, coordinates, image }, {
     new: true,
   });
 

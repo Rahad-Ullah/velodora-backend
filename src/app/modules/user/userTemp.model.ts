@@ -28,6 +28,9 @@ const userTempSchema = new Schema<IUser, TUserModal>(
     location: {
       type: String,
     },
+    coordinates: {
+      type: [Number],
+    },
   },
   { timestamps: true }
 );

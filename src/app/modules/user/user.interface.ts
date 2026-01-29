@@ -10,6 +10,7 @@ export type IUser = {
   contact?: string;
   countryCode?: string;
   location?: string;
+  coordinates?: number[];
   password: string;
   credits?: number;
   isActive?: Boolean;

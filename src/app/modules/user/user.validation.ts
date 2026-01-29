@@ -9,6 +9,7 @@ const createUserZodSchema = z.object({
     email: z.string({ required_error: 'Email is required' }),
     password: z.string({ required_error: 'Password is required' }),
     location: z.string({ required_error: 'Location is required' }),
+    coordinates: z.array(z.number()).optional(),
     profile: z.string().optional(),
   }),
 });
@@ -20,6 +21,7 @@ const updateUserZodSchema = z.object({
   email: z.string().optional(),
   password: z.string().optional(),
   location: z.string().optional(),
+  coordinates: z.array(z.number()).optional(),
   image: z.string().optional(),
 });
 
