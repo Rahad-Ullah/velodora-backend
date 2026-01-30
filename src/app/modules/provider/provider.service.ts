@@ -555,6 +555,7 @@ const updateProviderToDB = async (
   providerId: string
 ): Promise<any> => {
   const session = await mongoose.startSession();
+  console.log("Update provider payload :", payload)
   try {
     session.startTransaction();
 
@@ -611,18 +612,10 @@ const updateProviderToDB = async (
       )
       : [];
 
-    // ✅ Keep existing services (not updated)
-    const servicesExist = isExistProvider.services.filter(
-      (serviceId) =>
-        !servicesUpdate
-          .map((service: any) => service.ref?.toString?.())
-          .includes(serviceId.toString())
-    );
-
     updatedProvider.services = [
       ...servicesUpdate.map((service: any) => service._id),
       ...servicesNew.map((service: any) => service._id),
-      ...servicesExist,
+      ...payload.services?.exist ?? [],
     ];
 
     // ✅ Create temp provider (pending approval)

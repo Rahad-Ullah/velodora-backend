@@ -49,7 +49,8 @@ const updateProviderZodSchema = z.object({
       category: z.string({ required_error: 'Category is required' }),
       subCategory: z.string({ required_error: 'Sub category is required' }),
       price: z.number({ required_error: 'Price is required' }),
-    })).optional()
+    })).optional(),
+    exist: z.array(z.string()).optional()
   }).optional(),
   serviceImages: z.array(z.string()).optional(),
   previousServiceImages: z.array(z.string()).optional()
