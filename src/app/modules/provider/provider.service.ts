@@ -248,7 +248,10 @@ const getProvidersFromDB = async (
 
   // Get user details for geo queries
   const isExistUser = await UserModel.findById(user.id);
-  console.log("Exist User :", isExistUser);
+
+  if (!isExistUser) {
+    throw new ApiError(StatusCodes.BAD_REQUEST, "Please login first!");
+  }
 
   const {
     searchTerm,
@@ -259,9 +262,16 @@ const getProvidersFromDB = async (
     location,
     date,
     time,
-    userLng=isExistUser?.coordinates?.[0],
-    userLat=isExistUser?.coordinates?.[1],
+    // userLng,
+    // userLat,
   } = filterOptions;
+
+  // console.log("Filter Options :", filterOptions);
+
+  const userLng = filterOptions?.userLng ? filterOptions?.userLng : isExistUser?.coordinates?.[0];
+  const userLat = filterOptions?.userLat ? filterOptions?.userLat : isExistUser?.coordinates?.[1];
+  
+  // console.log("Coordinates :", userLng, userLat);
 
   const page = Number(filterOptions.page) || 1;
   const limit = Number(filterOptions.limit) || 10;
