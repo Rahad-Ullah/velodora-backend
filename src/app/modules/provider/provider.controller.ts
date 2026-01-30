@@ -85,6 +85,7 @@ const getMyProvider = catchAsync(async (req: Request, res: Response) => {
 
 //get all providers
 const getProviders = catchAsync(async (req: Request, res: Response) => {
+  // console.log("User :", req?.user);
   // Define which query fields are filters
   const filterableFields = ['searchTerm', 'categoryId', 'subCategoryId', 'minPrice', 'maxPrice', 'date', 'time', 'location','userLng', 'userLat', 'page', 'limit'];
 
@@ -92,7 +93,7 @@ const getProviders = catchAsync(async (req: Request, res: Response) => {
   const filterOptions = pick(req.query, filterableFields);
 
   // Call service
-  const result = await ProviderService.getProvidersFromDB(filterOptions);
+  const result = await ProviderService.getProvidersFromDB(req.user, filterOptions);
 
   // Send response
   sendResponse(res, {

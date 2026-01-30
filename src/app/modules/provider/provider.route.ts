@@ -10,7 +10,7 @@ const router = express.Router();
 
 router
   .route('/')
-  .get(ProviderController.getProviders)
+  .get(auth(USER_ROLES.SUPER_ADMIN, USER_ROLES.ADMIN, USER_ROLES.PROVIDER, USER_ROLES.USER), ProviderController.getProviders)
   .post(
     auth(USER_ROLES.PROVIDER),
     fileUploadHandler(),

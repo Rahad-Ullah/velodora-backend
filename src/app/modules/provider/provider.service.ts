@@ -242,8 +242,14 @@ const getProviderFromDB = async (id: string): Promise<any> => {
 
 // get all providers from DB
 const getProvidersFromDB = async (
+  user: any,
   filterOptions: TProviderFilters
 ): Promise<{ data: TProvider[]; meta: IPaginationMeta }> => {
+
+  // Get user details for geo queries
+  const isExistUser = await UserModel.findById(user.id);
+  console.log("Exist User :", isExistUser);
+
   const {
     searchTerm,
     categoryId,
@@ -253,8 +259,8 @@ const getProvidersFromDB = async (
     location,
     date,
     time,
-    userLng,
-    userLat,
+    userLng=isExistUser?.coordinates?.[0],
+    userLat=isExistUser?.coordinates?.[1],
   } = filterOptions;
 
   const page = Number(filterOptions.page) || 1;
@@ -361,9 +367,9 @@ const getProvidersFromDB = async (
   // ---------- Provider base filters ----------
   pipeline.push({
     $match: {
-      // isActive: true,
-      // isOnline: true,
-      // verified: true,
+      isActive: true,
+      isOnline: true,
+      verified: true,
       ...primaryLocation,
     },
   });
@@ -402,6 +408,7 @@ const getProvidersFromDB = async (
         { $unwind: "$subCategory" },
 
         { $match: searchTermMatch },
+        { $limit: 1 },
       ],
     },
   });
