@@ -15,3 +15,9 @@ export type IContactSupport = {
   msg: string;
   reply: string;
 };
+
+export type ISettingsEmailTemplate = {
+  name: string;
+  email: string;
+  message: string;
+};

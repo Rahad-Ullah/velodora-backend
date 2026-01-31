@@ -4,8 +4,9 @@ import ApiError from '../../../errors/ApiError';
 import { StatusCodes } from 'http-status-codes';
 import colors from 'colors';
 import { UserModel } from '../user/user.model';
-import { emailQueue } from '../../queues/email.queue';
 import { USER_ROLES } from '../../../enums/user';
+import { emailQueueHelper } from '../../../helpers/emailQueueHelper';
+import { emailTemplate } from '../../../shared/emailTemplate';
 
 const addSettings = async () => {
 
@@ -47,33 +48,24 @@ const updateSettings = async (
 
   // Fetch users
   let users;
+  let message = '';
   if (settingsBody.termsAndConditions) {
     users = await UserModel.find({ isDeleted: false });
+    message = 'Terms and conditions';
   } else if (settingsBody.providerUsagePolicy) {
     users = await UserModel.find({ role: USER_ROLES.PROVIDER, isDeleted: false });
+    message = 'Provider usage policy';
   } else if (settingsBody.privacyPolicy) {
     users = await UserModel.find({ isDeleted: false, role: USER_ROLES.USER });
+    message = 'Privacy policy';
   } else {
     users = await UserModel.find({ isDeleted: false });
   }
 
   // Queue email for every user (with proper async handling)
   for (const user of users) {
-    const data = {
-      to: user.email,
-      subject: 'Settings Updated',
-      html: 'Settings updated successfully',
-    };
-
-    await emailQueue.add('send-email', data, {
-      attempts: 2,
-      backoff: {
-        type: 'exponential',
-        delay: 2000,
-      },
-      removeOnComplete: true,
-      removeOnFail: false,
-    });
+    const data = emailTemplate?.settingsEmailTemplate({ email: user.email!, name: user?.name!, message });
+    await emailQueueHelper(data);
   }
 
   return `${Object.keys(settingsBody).join(', ')} updated successfully`;

@@ -1,20 +1,12 @@
 import { Worker, Job } from 'bullmq';
-import nodemailer from 'nodemailer';
+// import nodemailer from 'nodemailer';
 import config from '../../../config';
 import { logger } from '../../../shared/logger';
-
-const transporter = nodemailer.createTransport({
-  host: config.email.host,
-  port: Number(config.email.port),
-  secure: false,
-  auth: {
-    user: config.email.from,
-    pass: config.email.pass,
-  },
-});
+import { transporter } from '../../../helpers/emailHelper';
 
 // use below command to run the worker
-// node dist/app/queues/workers/email.worker.js
+// Production: dist/app/queues/workers/email.worker.js
+// Development: src/app/queues/workers/email.worker.js
 export const emailWorker = new Worker( 'email-queue', 
   async (job: Job) => {
     const { to, subject, html } = job.data as any;

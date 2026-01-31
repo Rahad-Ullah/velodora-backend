@@ -11,6 +11,11 @@ import { UserModel } from '../user/user.model';
 import { BookingModel } from '../booking/booking.model';
 import { BOOKING_PAYMENT_STATUS, BOOKING_STATUS } from '../../../enums/booking';
 import { IPaginationMeta, IPaginationOptions } from '../../../types/pagination';
+import { USER_ROLES } from '../../../enums/user';
+import { sendNotifications } from '../../../helpers/notificationHelper';
+import { NOTIFICATION_TYPE } from '../notification/notification.constants';
+import { emailQueueHelper } from '../../../helpers/emailQueueHelper';
+import { emailTemplate } from '../../../shared/emailTemplate';
 
 type TProviderFilters = {
   searchTerm?: string;
@@ -37,6 +42,9 @@ const createProviderToDB = async (
   servicesInfo: Partial<TProvider>
 ): Promise<any> => {
   const session = await mongoose.startSession();
+  const superAdmin = await UserModel.findOne({ role: USER_ROLES.SUPER_ADMIN });
+
+  // console.log("Provider Details :", providerInfo, servicesInfo, superAdmin);
 
   try {
     session.startTransaction();
@@ -53,17 +61,28 @@ const createProviderToDB = async (
 
     // ✅ Create provider with linked services
     const providerData = { ...providerInfo, isActive: false, services: servicesId };
-    const provider = await ProviderModel.create([providerData], { session });
+    const provider: any = await ProviderModel.create([providerData], { session });
 
     // 2. Update related user
-    await UserModel.findByIdAndUpdate(
+    const updatedUser = await UserModel.findByIdAndUpdate(
       providerInfo.user,
       { $set: { isService: true } },
       { new: true, session }
     );
 
+    console.log("Existing Provider :", provider);
+
+
+
     // ✅ Commit transaction
     await session.commitTransaction();
+
+    sendNotifications({
+      type: NOTIFICATION_TYPE.NEW_PROVIDER,
+      title: 'New Provider Registered in the system',
+      receiver: superAdmin!._id,
+      referenceId: updatedUser!._id,
+    });
 
     return { data: provider[0], message: "Provider created successfully" };
   } catch (error) {
@@ -270,7 +289,7 @@ const getProvidersFromDB = async (
 
   const userLng = filterOptions?.userLng ? filterOptions?.userLng : isExistUser?.coordinates?.[0];
   const userLat = filterOptions?.userLat ? filterOptions?.userLat : isExistUser?.coordinates?.[1];
-  
+
   // console.log("Coordinates :", userLng, userLat);
 
   const page = Number(filterOptions.page) || 1;
@@ -555,7 +574,8 @@ const updateProviderToDB = async (
   providerId: string
 ): Promise<any> => {
   const session = await mongoose.startSession();
-  console.log("Update provider payload :", payload)
+  const superAdmin = await UserModel.findOne({ role: USER_ROLES.SUPER_ADMIN });
+  // console.log("Update provider payload :", payload)
   try {
     session.startTransaction();
 
@@ -622,11 +642,18 @@ const updateProviderToDB = async (
     const res = await ProviderTempModel.create([updatedProvider], { session });
 
     // ✅ Mark user as modified
-    await UserModel.findByIdAndUpdate(
+    const updatedUser = await UserModel.findByIdAndUpdate(
       isExistProvider.user,
       { $set: { isModify: true } },
       { new: true, session }
     );
+
+    sendNotifications({
+      type: NOTIFICATION_TYPE.EDIT_PROVIDER,
+      title: 'Provider edited service request is pending for admin approval',
+      receiver: superAdmin!._id,
+      referenceId: updatedUser!._id,
+    });
 
     // ✅ Commit transaction
     await session.commitTransaction();
@@ -649,6 +676,7 @@ const updateProviderToDB = async (
 const approveEditProviderToDB = async (id: string): Promise<any> => {
   const session = await mongoose.startSession();
   session.startTransaction();
+  const superAdmin = await UserModel.findOne({ role: USER_ROLES.SUPER_ADMIN });
 
   try {
     const isExistProviderTemp = await ProviderTempModel.findOne({ user: id }).session(session);
@@ -703,13 +731,21 @@ const approveEditProviderToDB = async (id: string): Promise<any> => {
       { new: true, session }
     );
 
-    await UserModel.findByIdAndUpdate(
+    const updatedUser = await UserModel.findByIdAndUpdate(
       id,
       { $set: { isModify: false } },
       { new: true, session }
     );
 
     await ProviderTempModel.findOneAndDelete({ user: id }).session(session);
+
+
+    sendNotifications({
+      type: NOTIFICATION_TYPE.EDIT_PROVIDER_APPROVED,
+      title: 'Admin approved your service edit request',
+      receiver: updatedUser!._id,
+      referenceId: superAdmin!._id,
+    });
 
     // Commit transaction before unlinking files
     await session.commitTransaction();
@@ -768,6 +804,7 @@ const deleteEditProviderToDB = async (
 // Approve provider
 const approveProviderToDB = async (id: string): Promise<{ message: string }> => {
   const session = await mongoose.startSession();
+  const superAdmin = await UserModel.findOne({ role: USER_ROLES.SUPER_ADMIN });
   try {
     session.startTransaction();
     // 1. Update provider
@@ -793,6 +830,14 @@ const approveProviderToDB = async (id: string): Promise<{ message: string }> => 
       throw new ApiError(StatusCodes.BAD_REQUEST, "User doesn't exist!");
     }
 
+    /* Send notification to provider about approval */
+    sendNotifications({
+      type: NOTIFICATION_TYPE.PROVIDER_APPROVED,
+      title: 'Admin approved your service',
+      receiver: updatedUser!._id,
+      referenceId: superAdmin!._id,
+    });
+
     // Commit transaction before unlinking files
     await session.commitTransaction();
     session.endSession();
@@ -810,6 +855,7 @@ const approveProviderToDB = async (id: string): Promise<{ message: string }> => 
 const deleteProviderToDB = async (
   id: string
 ): Promise<any> => {
+  const superAdmin = await UserModel.findOne({ role: USER_ROLES.SUPER_ADMIN });
 
   const isExistService = await ProviderModel.findOneAndDelete({ user: id });
   if (!isExistService) {
@@ -820,6 +866,13 @@ const deleteProviderToDB = async (
   if (!isUser) {
     throw new ApiError(StatusCodes.BAD_REQUEST, "User doesn't exist!");
   }
+  /* Send notification to provider about approval */
+  sendNotifications({
+    type: NOTIFICATION_TYPE.PROVIDER_APPROVED,
+    title: 'Admin approved your service',
+    receiver: isUser!._id,
+    referenceId: superAdmin!._id,
+  });
 
   // unlink files here
   if (isExistService?.serviceImages) {
@@ -850,6 +903,15 @@ const activeBlockProviderToDB = async (
 
     const res = await ProviderModel.findByIdAndUpdate(isExistService._id, { $set: { isActive: !isExistService?.isActive, verified: true } }, { new: true, session });
     await UserModel.findByIdAndUpdate(id, { $set: { isActive: !isExistService?.isActive } }, { new: true, session });
+
+    /* Email Template */
+    const template = emailTemplate?.blockUnblockEmailTemplate({
+      email: isUser.email!,
+      name: isUser?.name!,
+      message: `Your service has been ${isExistService?.isActive ? 'blocked' : 'unblocked'} by admin. If you have any questions, please contact with support team.`,
+    });
+    /* Email Queue Helper : Send email to provider about block/unblock */
+    await emailQueueHelper(template);
 
     await session.commitTransaction();
     session.endSession();

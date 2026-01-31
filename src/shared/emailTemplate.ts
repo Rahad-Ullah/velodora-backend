@@ -1,4 +1,4 @@
-import { IContactSupport, ICreateAccount, ISendOtp } from '../types/emailTamplate';
+import { IContactSupport, ICreateAccount, ISendOtp, ISettingsEmailTemplate } from '../types/emailTamplate';
 
 const createAccount = (values: ICreateAccount) => {
   const data = {
@@ -71,9 +71,37 @@ const contactSupportForUser = (values: IContactSupport) => {
   return data;
 };
 
+const settingsEmailTemplate = (values: ISettingsEmailTemplate) => {
+  const data = {
+    to: values?.email,
+    subject: 'Settings Updated',
+    html: `<div>
+        <p>Dear ${values?.name},<br/></p>
+        <p>Velodora has updated ${values?.message}. Please visit your profile to see the changes.<br/></p>
+        <p>Best regards,<br/>The Velodora Team</p>
+      </div>`,
+  };
+  return data;
+};
+
+const blockUnblockEmailTemplate = (values: ISettingsEmailTemplate) => {
+  const data = {
+    to: values?.email,
+    subject: 'Account Status Updated',
+    html: `<div>
+        <p>Dear ${values?.name},<br/></p>
+        <p>${values?.message}<br/></p>
+        <p>Best regards,<br/>The Velodora Team</p>
+      </div>`,
+  };
+  return data;
+};
+
 export const emailTemplate = {
   createAccount,
   sendOtp,
   contactSupport,
-  contactSupportForUser
+  contactSupportForUser,
+  settingsEmailTemplate,
+  blockUnblockEmailTemplate,
 };

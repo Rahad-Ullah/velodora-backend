@@ -8,6 +8,8 @@ export enum NOTIFICATION_TYPE {
   BOOKING_STATUS = 'Booking Status',
   SERVICE_STATUS = 'Service Status',
   EDIT_PROVIDER = 'Edit Request from Provider',
+  EDIT_PROVIDER_APPROVED = 'Edit Request Approved',
+  PROVIDER_APPROVED = 'Provider Approved',
   NEW_PROVIDER = 'New Provider Registered',
   REVIEW = 'New Review',
 }
