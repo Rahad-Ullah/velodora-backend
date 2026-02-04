@@ -341,6 +341,7 @@ const downloadUsers = catchAsync(
     });
   }
 );
+
 //approve user
 const deleteUpdateProfile = catchAsync(
   async (req: Request, res: Response, next: NextFunction) => {
