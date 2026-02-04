@@ -105,7 +105,10 @@ router
 
 router
   .route('/:id')
-  .get(ProviderController.getProvider)
+  .get(
+    auth(USER_ROLES.PROVIDER, USER_ROLES.USER, USER_ROLES.SUPER_ADMIN, USER_ROLES.ADMIN),
+    ProviderController.getProvider
+  )
   .put(
     auth(USER_ROLES.SUPER_ADMIN, USER_ROLES.ADMIN),
     ProviderController.approveProvider

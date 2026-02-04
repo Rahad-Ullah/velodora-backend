@@ -8,6 +8,7 @@ const app = express();
 import "./util/cleanupDaily";
 import stripePaymentWebhook from './webhook/stripePaymentWebhook';
 import stripeConnectedAccountWebhook from './webhook/stripeConnectedAccountWebhook';
+import path from 'path';
 
 
 
@@ -25,6 +26,10 @@ app.use(express.urlencoded({ extended: true }));
 
 //file retrieve
 app.use(express.static('uploads'));
+app.use(
+  '/public',
+  express.static(path.join(process.cwd(), 'public'))
+);
 
 //router
 app.use('/api/v1', router);

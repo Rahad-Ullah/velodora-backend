@@ -202,62 +202,172 @@ const getUserEditProviderFromDB = async (id: string): Promise<any> => {
 };
 
 //get single provider from DB
-const getProviderFromDB = async (id: string): Promise<any> => {
-  const isExistService = await ProviderModel.aggregate([
-    { $match: { _id: new Types.ObjectId(id) } },
+// const getProviderFromDB = async (id: string, user: any): Promise<any> => {
+//   const isExistUser = await UserModel.findById(user.id);
+//   const userLng = isExistUser?.coordinates?.[0];
+//   const userLat = isExistUser?.coordinates?.[1];
+//   console.log("User Coordinates: ", userLng, userLat);
+
+//   const isExistService = await ProviderModel.aggregate([
+//     { $match: { _id: new Types.ObjectId(id) } },
+//     {
+//       $lookup: {
+//         from: 'users', localField: 'user', foreignField: '_id', as: 'user',
+//         pipeline: [
+//           { $project: { name: 1, email: 1, contact: 1, image: 1 } }
+//         ]
+//       }
+//     },
+//     { $unwind: { path: '$user', preserveNullAndEmptyArrays: true } },
+//     {
+//       $lookup: {
+//         from: 'services', localField: 'services', foreignField: '_id', as: 'services',
+//         pipeline: [
+//           {
+//             $lookup: {
+//               from: 'categories',
+//               localField: 'category',
+//               foreignField: '_id',
+//               as: 'category',
+//             },
+//           },
+//           {
+//             $unwind: {
+//               path: '$category',
+//               preserveNullAndEmptyArrays: true,
+//             }
+//           },
+//           {
+//             $lookup: {
+//               from: 'subcategories',
+//               localField: 'subCategory',
+//               foreignField: '_id',
+//               as: 'subCategory',
+//             },
+//           },
+//           {
+//             $unwind: {
+//               path: '$subCategory',
+//               preserveNullAndEmptyArrays: true,
+//             }
+//           },
+//         ]
+//       }
+//     },
+//     $geoNear: {
+//       near: {
+//         type: "Point",
+//         coordinates: [Number(userLng), Number(userLat)],
+//       },
+//       distanceField: "distance",
+//       spherical: true,
+//       distanceMultiplier: 0.001,
+//     },
+//     $addFields: {
+//       distance: { $ifNull: ["$distance", null] },
+//     },
+//     // { $lookup: { from: 'schedules', localField: '_id', foreignField: 'provider', as: 'schedules' } },
+//   ]);
+
+//   if (!isExistService) {
+//     throw new ApiError(StatusCodes.BAD_REQUEST, "Service doesn't exist!");
+//   }
+
+//   return { data: isExistService };
+// };
+
+const getProviderFromDB = async (id: string, user: any): Promise<any> => {
+
+  const isExistUser = await UserModel.findById(user.id);
+
+  const userLng = isExistUser?.coordinates?.[0] || 0;
+  const userLat = isExistUser?.coordinates?.[1] || 0;
+
+  if (!userLng || !userLat) {
+    throw new ApiError(StatusCodes.BAD_REQUEST, "User location missing");
+  }
+
+  const providers = await ProviderModel.aggregate([
+
+    // ✅ MUST BE FIRST
     {
-      $lookup: {
-        from: 'users', localField: 'user', foreignField: '_id', as: 'user',
-        pipeline: [
-          { $project: { name: 1, email: 1, contact: 1, image: 1 } }
-        ]
-      }
+      $geoNear: {
+        near: {
+          type: "Point",
+          coordinates: [Number(userLng), Number(userLat)],
+        },
+        key: "location", // <-- provider location field
+        distanceField: "distance",
+        spherical: true,
+        distanceMultiplier: 0.001, // meters -> km
+      },
     },
-    { $unwind: { path: '$user', preserveNullAndEmptyArrays: true } },
+
+    // match specific provider
+    {
+      $match: { _id: new Types.ObjectId(id) },
+    },
+
+    // provider -> user
     {
       $lookup: {
-        from: 'services', localField: 'services', foreignField: '_id', as: 'services',
+        from: "users",
+        localField: "user",
+        foreignField: "_id",
+        as: "user",
+        pipeline: [
+          { $project: { name: 1, email: 1, contact: 1, image: 1 } },
+        ],
+      },
+    },
+    { $unwind: "$user" },
+
+    // services
+    {
+      $lookup: {
+        from: "services",
+        localField: "services",
+        foreignField: "_id",
+        as: "services",
         pipeline: [
           {
             $lookup: {
-              from: 'categories',
-              localField: 'category',
-              foreignField: '_id',
-              as: 'category',
+              from: "categories",
+              localField: "category",
+              foreignField: "_id",
+              as: "category",
             },
           },
-          {
-            $unwind: {
-              path: '$category',
-              preserveNullAndEmptyArrays: true,
-            }
-          },
+          { $unwind: "$category" },
+
           {
             $lookup: {
-              from: 'subcategories',
-              localField: 'subCategory',
-              foreignField: '_id',
-              as: 'subCategory',
+              from: "subcategories",
+              localField: "subCategory",
+              foreignField: "_id",
+              as: "subCategory",
             },
           },
-          {
-            $unwind: {
-              path: '$subCategory',
-              preserveNullAndEmptyArrays: true,
-            }
-          },
-        ]
-      }
+          { $unwind: "$subCategory" },
+        ],
+      },
     },
-    // { $lookup: { from: 'schedules', localField: '_id', foreignField: 'provider', as: 'schedules' } },
+
+    // optional fallback
+    {
+      $addFields: {
+        distance: { $ifNull: ["$distance", null] },
+      },
+    },
   ]);
 
-  if (!isExistService) {
+  if (!providers.length) {
     throw new ApiError(StatusCodes.BAD_REQUEST, "Service doesn't exist!");
   }
 
-  return { data: isExistService };
+  return { data: providers[0] };
 };
+
 
 // get all providers from DB
 const getProvidersFromDB = async (

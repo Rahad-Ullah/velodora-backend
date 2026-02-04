@@ -17,6 +17,7 @@ import { CreditsModel } from '../credits/credits.model';
 import { RsdCreditsTransformation } from '../../../helpers/rsdCreditsConver';
 import stripe from '../../config/stripe.config';
 import mongoose from 'mongoose';
+import { exportUsersToExcel } from '../../../util/exportUsersToExcel';
 
 
 //create single user to db
@@ -778,6 +779,28 @@ const withdrawFromDB = async (user: JwtPayload) => {
   }
 };
 
+//hard delete users from db after 30 days by Scheduler
+const downloadUsersFromDB = async ({ role }: { role: string }) => {
+  try {
+    const users = await UserModel.find({
+      isDeleted: false,
+      role,
+    })
+      .select('name email role contact createdAt')
+      .lean();
+
+    const excelFile = await exportUsersToExcel(users);
+
+    return excelFile;
+
+  } catch (error) {
+    throw new ApiError(
+      StatusCodes.BAD_REQUEST,
+      'Oops! Failed to export users.'
+    );
+  }
+};
+
 
 
 export const UserService = {
@@ -803,5 +826,6 @@ export const UserService = {
   deleteSubAdminFromDB,
   getSubAdminsFromDB,
   getRsdFromDB,
-  withdrawFromDB
+  withdrawFromDB,
+  downloadUsersFromDB
 };

@@ -61,7 +61,7 @@ const loginUserFromDB = async (payload: ILoginData) => {
     config.jwt.jwt_refresh_expire_in as string
   );
 
-  return { createToken, refreshToken, id: isExistUser._id };
+  return { createToken, refreshToken, id: isExistUser._id, name: isExistUser.name};
 };
 
 //send otp

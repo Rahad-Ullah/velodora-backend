@@ -7,8 +7,8 @@ import { UserModel } from '../user/user.model';
 import { USER_ROLES } from '../../../enums/user';
 import { emailQueueHelper } from '../../../helpers/emailQueueHelper';
 import { emailTemplate } from '../../../shared/emailTemplate';
-import { sendNotifications } from '../../../helpers/notificationHelper';
-import { NOTIFICATION_TYPE } from '../notification/notification.constants';
+// import { sendNotifications } from '../../../helpers/notificationHelper';
+// import { NOTIFICATION_TYPE } from '../notification/notification.constants';
 
 const addSettings = async () => {
 
@@ -69,12 +69,12 @@ const updateSettings = async (
     const data = emailTemplate?.settingsEmailTemplate({ email: user.email!, name: user?.name!, message });
     await emailQueueHelper(data);
 
-    sendNotifications({
-      type: NOTIFICATION_TYPE.SETTINGS,
-      title: message,
-      receiver: user?._id!,
-      referenceId: user?._id,
-    });
+    // sendNotifications({
+    //   type: NOTIFICATION_TYPE.SETTINGS,
+    //   title: `${message} Updated. Please review the latest changes.`,
+    //   receiver: user?._id!,
+    //   referenceId: user?._id,
+    // });
   }
 
   return `${Object.keys(settingsBody).join(', ')} updated successfully`;

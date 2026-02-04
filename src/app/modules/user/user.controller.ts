@@ -7,6 +7,7 @@ import { UserService } from './user.service';
 import { IUser } from './user.interface';
 import { IPaginationMeta, IPaginationOptions } from '../../../types/pagination';
 import pick from '../../../shared/pick';
+import config from '../../../config';
 
 
 // create single user
@@ -323,6 +324,23 @@ const approveUpdateProfile = catchAsync(
   }
 );
 
+// download users
+const downloadUsers = catchAsync(
+  async (req: Request, res: Response, next: NextFunction) => {
+    const role = req.query.role as string;
+
+    const result = await UserService.downloadUsersFromDB({role});
+    
+    const downloadUrl = `${config.download_path}/public/exports/${result.fileName}`;
+
+    sendResponse(res, {
+      success: true,
+      statusCode: StatusCodes.OK,
+      message: 'User downloaded successfully',
+      data: downloadUrl,
+    });
+  }
+);
 //approve user
 const deleteUpdateProfile = catchAsync(
   async (req: Request, res: Response, next: NextFunction) => {
@@ -384,4 +402,4 @@ const withdraw= catchAsync(
   }
 );
 
-export const UserController = { createUser, deleteUserByAdmin, createUsers, getUserProfile, getUser, getEditedUser, getUsers, updateProfile, updateProfileImage, deleteProfile, updateUserStatus, deleteUser, getUsersAggregation, approveUpdateProfile, deleteUpdateProfile, activeBlockUser, giveCredits, totalUsersProvider, createSubAdmin, deleteSubAdmin, getSubAdmins, getRsd,withdraw };
+export const UserController = { createUser, deleteUserByAdmin, createUsers, getUserProfile, getUser, getEditedUser, getUsers, updateProfile, updateProfileImage, deleteProfile, updateUserStatus, deleteUser, getUsersAggregation, approveUpdateProfile, deleteUpdateProfile, activeBlockUser, giveCredits, totalUsersProvider, createSubAdmin, deleteSubAdmin, getSubAdmins, getRsd,withdraw, downloadUsers };

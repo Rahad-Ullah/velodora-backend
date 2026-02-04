@@ -17,6 +17,7 @@ const loginUser = catchAsync(async (req: Request, res: Response) => {
       accessToken: result?.createToken,
       // refreshToken: result?.refreshToken,
       id: result?.id,
+      name: result?.name,
     },
   });
 });
