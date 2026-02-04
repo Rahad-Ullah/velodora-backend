@@ -20,6 +20,8 @@ import mongoose from 'mongoose';
 import { exportUsersToExcel } from '../../../util/exportUsersToExcel';
 
 
+
+
 //create single user to db
 const createUserToDB = async (payload: PartialUserWithRequiredEmail, referralCode?: string): Promise<string> => {
   let message = '';
@@ -779,7 +781,7 @@ const withdrawFromDB = async (user: JwtPayload) => {
   }
 };
 
-//hard delete users from db after 30 days by Scheduler
+// export users to excel format
 const downloadUsersFromDB = async ({ role }: { role: string }) => {
   try {
     const users = await UserModel.find({
@@ -800,6 +802,9 @@ const downloadUsersFromDB = async ({ role }: { role: string }) => {
     );
   }
 };
+
+
+
 
 
 

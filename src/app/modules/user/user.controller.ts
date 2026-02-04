@@ -403,4 +403,4 @@ const withdraw= catchAsync(
   }
 );
 
-export const UserController = { createUser, deleteUserByAdmin, createUsers, getUserProfile, getUser, getEditedUser, getUsers, updateProfile, updateProfileImage, deleteProfile, updateUserStatus, deleteUser, getUsersAggregation, approveUpdateProfile, deleteUpdateProfile, activeBlockUser, giveCredits, totalUsersProvider, createSubAdmin, deleteSubAdmin, getSubAdmins, getRsd,withdraw, downloadUsers };
+export const UserController = { createUser, deleteUserByAdmin, createUsers, getUserProfile, getUser, getEditedUser, getUsers, updateProfile, updateProfileImage, deleteProfile, updateUserStatus, deleteUser, getUsersAggregation, approveUpdateProfile, deleteUpdateProfile, activeBlockUser, giveCredits, totalUsersProvider, createSubAdmin, deleteSubAdmin, getSubAdmins, getRsd,withdraw, downloadUsers, };

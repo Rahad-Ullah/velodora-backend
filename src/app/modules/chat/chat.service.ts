@@ -74,6 +74,7 @@ const getChatsByIdFromDB = async (
   userId: string,
   query: Record<string, any>
 ) => {
+  
   const chats = await ChatModel.find({ participants: { $in: [userId] } })
     .populate({
       path: 'participants',

@@ -1,6 +1,6 @@
 import ExcelJS from 'exceljs';
+import fs from 'fs/promises';
 import path from 'path';
-import fs from 'fs';
 
 export const exportUsersToExcel = async (users: any[]) => {
   const workbook = new ExcelJS.Workbook();
@@ -27,18 +27,33 @@ export const exportUsersToExcel = async (users: any[]) => {
   });
 
   // Ensure folder exists
-  const dir = path.join(process.cwd(), 'public/exports');
-  if (!fs.existsSync(dir)) {
-    fs.mkdirSync(dir, { recursive: true });
+  const dir = path.join(process.cwd(), 'public', 'exports');
+  try {
+    await fs.access(dir);
+  } catch {
+    await fs.mkdir(dir, { recursive: true });
   }
 
+  // Delete old files (>2 minutes)
+  const files = await fs.readdir(dir);
+  const now = Date.now();
+
+  await Promise.all(
+    files
+      .filter(f => f.endsWith('.xlsx'))
+      .map(async file => {
+        const timestamp = Number(file.replace('users-', '').replace('.xlsx', ''));
+        if (!isNaN(timestamp) && timestamp < now - 5 * 60 * 1000) {
+          await fs.unlink(path.join(dir, file));
+        }
+      })
+  );
+
+  // Write new Excel
   const fileName = `users-${Date.now()}.xlsx`;
   const filePath = path.join(dir, fileName);
 
   await workbook.xlsx.writeFile(filePath);
 
-  return {
-    fileName,
-    filePath,
-  };
+  return { fileName, filePath };
 };

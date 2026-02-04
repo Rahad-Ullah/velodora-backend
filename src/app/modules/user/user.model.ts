@@ -35,11 +35,10 @@ const userSchema = new Schema<IUser, TUserModal>(
     },
     location: {
       type: String,
-      default: null,
     },
     coordinates: {
       type: [Number],
-      default: [20.4612, 44.8125],
+      // default: [20.4612, 44.8125],
     },
     password: {
       type: String,

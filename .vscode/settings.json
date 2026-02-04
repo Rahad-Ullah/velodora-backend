@@ -1,3 +1,6 @@
 {
-  "codeium.enableCodeLens": false
+  "codeium.enableCodeLens": false,
+  "cSpell.words": [
+    "exceljs"
+  ]
 }

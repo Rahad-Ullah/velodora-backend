@@ -59,7 +59,7 @@ router
   .get(
     auth(USER_ROLES.SUPER_ADMIN, USER_ROLES.ADMIN),
     UserController.downloadUsers
-  )
+  );
 
 router
   .route('/total-users-providers')
