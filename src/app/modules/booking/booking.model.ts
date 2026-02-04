@@ -24,6 +24,8 @@ const BookingSchema = new Schema(
     discount: { type: Number, default: 0 },
     useCredits: { type: Number, default: 0 },
     revenueId: { type: Schema.Types.ObjectId, ref: "Revenue", default: null },
+    image: { type: String },
+    bookingDescription: { type: String },
   },
   { timestamps: true }
 );

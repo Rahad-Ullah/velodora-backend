@@ -606,8 +606,8 @@ const updateProviderToDB = async (
       ref: isExistProvider?._id,
     };
 
-    if (payload.newServiceImages) {
-      updatedProvider.serviceImages = payload.newServiceImages;
+    if (payload?.serviceImages) {
+      updatedProvider.serviceImages = payload.serviceImages;
     }
 
     // ✅ Insert new services

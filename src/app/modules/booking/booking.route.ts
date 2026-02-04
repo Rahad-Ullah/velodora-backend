@@ -1,9 +1,11 @@
-import express from 'express';
+import express, { NextFunction, Request, Response } from 'express';
 import { USER_ROLES } from '../../../enums/user';
 import auth from '../../middlewares/auth';
 import { BookingController } from './booking.controller';
 import { BookingValidation } from './booking.validation';
 import validateRequest from '../../middlewares/validateRequest';
+import fileUploadHandler from '../../middlewares/fileUploadHandler';
+import { getSingleFilePath } from '../../../shared/getFilePath';
 const router = express.Router();
 
 router
@@ -14,8 +16,20 @@ router
   )
   .post(
     auth(USER_ROLES.USER),
-    validateRequest(BookingValidation.createBookingZodSchema),
-    BookingController.createBooking
+    fileUploadHandler(),
+    (req: Request, res: Response, next: NextFunction) => {
+      const filePath = getSingleFilePath(req.files, 'image');
+
+      const validatedResponse = BookingValidation.createBookingZodSchema.parse({
+        data: JSON.parse(req.body.data),
+        image: filePath,
+      });
+
+      req.body = { ...validatedResponse?.data, image: validatedResponse?.image };
+      // console.log("After Parse Data : ", req.body);
+
+      return BookingController.createBooking(req, res, next);
+    }
   );
 
 

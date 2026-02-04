@@ -22,6 +22,8 @@ export type TBooking = {
   discount?: number;
   useCredits?: number;
   revenueId?: Types.ObjectId;
+  image?: string;
+  bookingDescription?: string;
 };
 
 export type TBookingModel = Model<TBooking>;

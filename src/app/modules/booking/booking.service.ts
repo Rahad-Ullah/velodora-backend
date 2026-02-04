@@ -16,6 +16,7 @@ import { NOTIFICATION_TYPE } from '../notification/notification.constants';
 import { ReviewService } from '../Review/review.service';
 import { RsdCreditsTransformation } from '../../../helpers/rsdCreditsConver';
 import { SystemModel } from '../system/system.model';
+import { unlinkFile } from '../../../shared/unlinkFile';
 
 
 // Create Stripe Test Payment
@@ -70,11 +71,13 @@ const createBookingToDB = async (payload: {
   convenienceFee: number;
   arrivalFee: number;
   discount: number;
+  bookingDescription?: string;
+  image?: string;
 }): Promise<any> => {
   const session = await mongoose.startSession();
   session.startTransaction();
 
-  console.log("Payment Payload:------------------------", payload);
+  // console.log("Payment Payload:------------------------", payload);
 
   try {
 
@@ -229,6 +232,7 @@ const createBookingToDB = async (payload: {
 
     return { data: sessionStripe.url, message: "Please pay for the booking" };
   } catch (err) {
+    unlinkFile(payload.image || '');
     await session.abortTransaction();
     session.endSession();
     console.error("Transaction failed:", err);
@@ -463,7 +467,7 @@ const cancelBookingToDB = async (id: string, userId: string): Promise<any> => {
       const smallestStart = booking.slots.reduce((min:any, current:any) => {
         return new Date(current.start) < new Date(min.start) ? current : min;
       });
-      const bookingDate = new Date(smallestStart.start);
+      // const bookingDate = new Date(smallestStart.start);
       const bookingTime = new Date(smallestStart.start).getTime();
 
       const isExistSystem = await SystemModel.findOne({}).lean();
@@ -547,6 +551,8 @@ const cancelBookingToDB = async (id: string, userId: string): Promise<any> => {
     // ✅ Commit transaction if everything passed
     await session.commitTransaction();
     session.endSession();
+
+    booking?.image && unlinkFile(booking?.image);
 
     return res;
   } catch (error) {

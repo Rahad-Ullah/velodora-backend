@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 const createBookingZodSchema = z.object({
-  body: z.object({
+  data: z.object({
     provider: z.string({ required_error: 'Provider is required' }),
     services: z.array(z.string({ required_error: 'Services is required' })).min(1, 'At least one service is required'),
     date: z.string({ required_error: 'Date is required' }).refine(
@@ -21,8 +21,13 @@ const createBookingZodSchema = z.object({
     convenienceFee: z.number().optional(),
     arrivalFee: z.number().optional(),
     discount: z.number().optional(),
+    bookingImage: z.string().optional(),
+    bookingDescription: z.string().optional(),
   }),
+  image: z.string().optional(),
 });
+
+
 
 export const BookingValidation = {
   createBookingZodSchema,

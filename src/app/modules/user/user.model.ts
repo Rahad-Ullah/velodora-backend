@@ -35,6 +35,7 @@ const userSchema = new Schema<IUser, TUserModal>(
     },
     location: {
       type: String,
+      default: null,
     },
     coordinates: {
       type: [Number],

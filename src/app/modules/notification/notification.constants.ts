@@ -12,4 +12,5 @@ export enum NOTIFICATION_TYPE {
   PROVIDER_APPROVED = 'Provider Approved',
   NEW_PROVIDER = 'New Provider Registered',
   REVIEW = 'New Review',
+  SETTINGS = 'Settings',
 }
