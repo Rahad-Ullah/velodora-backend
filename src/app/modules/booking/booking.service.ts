@@ -613,10 +613,19 @@ const getOverviewFromDB = async (
             $cond: [{ $eq: ["$status", "Completed"] }, 1, 0],
           },
         },
+        // totalCanceled: {
+        //   $sum: {
+        //     $cond: [
+        //       { $in: ["$status", ["Cancelled", "Auto_Cancelled"]] },
+        //       1,
+        //       0,
+        //     ],
+        //   },
+        // },
         totalCanceled: {
           $sum: {
             $cond: [
-              { $in: ["$status", ["Cancelled", "Auto_Cancelled"]] },
+              { $eq: ["$status", "Canceled"] },
               1,
               0,
             ],
