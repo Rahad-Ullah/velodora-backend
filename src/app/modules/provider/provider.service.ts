@@ -254,18 +254,6 @@ const getUserEditProviderFromDB = async (id: string): Promise<any> => {
 //         ]
 //       }
 //     },
-//     $geoNear: {
-//       near: {
-//         type: "Point",
-//         coordinates: [Number(userLng), Number(userLat)],
-//       },
-//       distanceField: "distance",
-//       spherical: true,
-//       distanceMultiplier: 0.001,
-//     },
-//     $addFields: {
-//       distance: { $ifNull: ["$distance", null] },
-//     },
 //     // { $lookup: { from: 'schedules', localField: '_id', foreignField: 'provider', as: 'schedules' } },
 //   ]);
 
@@ -367,7 +355,6 @@ const getProviderFromDB = async (id: string, user: any): Promise<any> => {
 
   return { data: providers[0] };
 };
-
 
 // get all providers from DB
 const getProvidersFromDB = async (
