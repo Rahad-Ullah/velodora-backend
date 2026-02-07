@@ -464,7 +464,7 @@ const cancelBookingToDB = async (id: string, userId: string): Promise<any> => {
     if (user.role === USER_ROLES.USER) {
       const date = new Date();
       const currentTime = date.getTime();
-      const smallestStart = booking.slots.reduce((min:any, current:any) => {
+      const smallestStart = booking.slots.reduce((min: any, current: any) => {
         return new Date(current.start) < new Date(min.start) ? current : min;
       });
       // const bookingDate = new Date(smallestStart.start);
@@ -563,6 +563,213 @@ const cancelBookingToDB = async (id: string, userId: string): Promise<any> => {
   }
 };
 
+// Auto cancel unpaid booking after 5 min of creation
+export const autoCancelBookings = async () => {
+  console.log("Auto Cancel Unpaid Bookings - Node Corn Working")
+  const currentTime = new Date();
+  currentTime.setMinutes(currentTime.getMinutes() - 5);
+
+  // Find bookings created more than 5 min ago and unpaid
+  const bookings = await BookingModel.find({
+    paymentStatus: BOOKING_PAYMENT_STATUS.UNPAID,
+    status: BOOKING_STATUS.PENDING,
+    createdAt: { $lt: currentTime }
+  });
+
+  // Check bookings length
+  if (bookings.length <= 0) {
+    return;
+  }
+
+  try {
+    for (const booking of bookings) {
+
+      const provider = await ProviderModel.findById(booking.provider);
+      if (!provider) {
+        continue;
+      }
+
+      const schedule = await ScheduleModel.findById(booking.schedule);
+      if (!schedule) {
+        continue;
+      }
+
+      // ⏳ Restore slots
+      schedule.available_slots.push(...booking.slots);
+      schedule.count = Math.max(schedule.count - 1, 0);
+      await schedule.save();
+
+
+      await UserModel.findByIdAndUpdate(booking.user, {
+        $inc: { 'credits': booking?.useCredits }
+      });
+
+      // ❌ Delete booking
+      const result = await BookingModel.findByIdAndDelete(booking._id);
+      if (!result) {
+        continue;
+      }
+    }
+  } catch (error: any) {
+    throw new ApiError(StatusCodes.INTERNAL_SERVER_ERROR, error?.message ?? "Something went wrong in autoCancelBookings");
+  }
+};
+
+// Auto Send notifications for pending bookings before 1 hours
+export const sendNotificationsForPendingBookings = async () => {
+  // console.log("Auto Delete Pending Bookings - Node Corn Working")
+  const currentTime = new Date();
+  const startTime = new Date(currentTime.getTime() - (1 * 60 * 60 * 1000 + 10 * 60 * 1000));
+  const endTime = new Date(currentTime.getTime() - 1 * 60 * 60 * 1000);
+  // const now = new Date();
+  // console.log("Current Time: ", now);
+
+  const pendingBookings = await BookingModel.aggregate([
+    {
+      $match: {
+        paymentStatus: BOOKING_PAYMENT_STATUS.PAID,
+        status: BOOKING_STATUS.PENDING,
+      },
+    },
+
+    // Filter only expired slots
+    {
+      $addFields: {
+        expiredSlots: {
+          $filter: {
+            input: "$slots",
+            as: "slot",
+            cond: {
+              $and: [
+                { $gte: ["$$slot.start", startTime] },
+                { $lte: ["$$slot.start", endTime] }
+              ]
+            }
+          }
+        }
+      }
+    },
+
+    // Keep only bookings where expiredSlots is not empty
+    {
+      $match: {
+        "expiredSlots.0": { $exists: true },
+      },
+    },
+  ]);
+
+  if (!pendingBookings.length) return [];
+
+  for (const booking of pendingBookings) {
+    const userId = booking?.user;
+    const providerId = booking?.providerId;
+    console.log("Booking : ", booking)
+
+    sendNotifications({
+      type: NOTIFICATION_TYPE.BOOKING_STATUS,
+      title: 'You have a pending booking. Please accept or cancel the the booking.',
+      receiver: providerId,
+      referenceId: userId,
+    });
+  }
+
+  return pendingBookings;
+};
+
+// Auto delete pending bookings
+export const autoDeletePendingBookings = async () => {
+  console.log("Auto Delete Pending Bookings - Node Corn Working")
+  const currentTime = new Date();
+  const now = new Date(currentTime.getTime() + 1 * 60 * 1000);
+  // const now = new Date();
+  // console.log("Current Time: ", now);
+
+  const pendingBookings = await BookingModel.aggregate([
+    {
+      $match: {
+        paymentStatus: BOOKING_PAYMENT_STATUS.PAID,
+        status: BOOKING_STATUS.PENDING,
+      },
+    },
+
+    // Filter only expired slots
+    // {
+    //   $addFields: {
+    //     expiredSlots: {
+    //       $filter: {
+    //         input: "$slots",
+    //         as: "slot",
+    //         cond: {
+    //           $lt: ["$$slot.start", now],
+    //         },
+    //       },
+    //     },
+    //   },
+    // },
+    {
+      $addFields: {
+        expiredSlots: {
+          $cond: {
+            if: {
+              $eq: [
+                { $size: "$slots" },
+                {
+                  $size: {
+                    $filter: {
+                      input: "$slots",
+                      as: "slot",
+                      cond: { $lt: ["$$slot.start", now] }
+                    }
+                  }
+                }
+              ]
+            },
+            then: "$slots",
+            else: []
+          }
+        }
+      }
+    },
+
+    // Keep only bookings where expiredSlots is not empty
+    {
+      $match: {
+        "expiredSlots.0": { $exists: true },
+      },
+    },
+  ]);
+
+  if (!pendingBookings.length) return [];
+
+  for (const booking of pendingBookings) {
+    const userId = booking?.user;
+    const providerId = booking?.providerId;
+    console.log("Booking : ", booking)
+
+    await BookingModel.findByIdAndDelete(booking._id);
+
+    await UserModel.findByIdAndUpdate(providerId, {
+      $inc: { credits: await RsdCreditsTransformation.rsdToCredits(booking.subTotal) },
+    });
+
+    sendNotifications({
+      type: NOTIFICATION_TYPE.BOOKING_DELETED,
+      title: 'One pending booking has been deleted by the system due to not being accepted within the time limit',
+      receiver: userId,
+      referenceId: providerId,
+    });
+
+    sendNotifications({
+      type: NOTIFICATION_TYPE.BOOKING_DELETED,
+      title: 'One pending booking has been deleted by the system due to not being accepted within the time limit. And returned credits to you. Please check you profile',
+      receiver: providerId,
+      referenceId: userId,
+    });
+  }
+
+  return pendingBookings;
+};
+
 // get overview from db
 const getOverviewFromDB = async (
   id: string,
@@ -616,7 +823,7 @@ const getOverviewFromDB = async (
         // totalCanceled: {
         //   $sum: {
         //     $cond: [
-        //       { $in: ["$status", ["Cancelled", "Auto_Cancelled"]] },
+        //       { $in: ["$status", ["Canceled", "Auto_Canceled"]] },
         //       1,
         //       0,
         //     ],
@@ -1417,5 +1624,7 @@ export const BookingService = {
   stripePaymentToDB,
   getOverviewFromDB,
   getBookingsForAdminFromDB,
-  getBookingsDownloadDB
+  getBookingsDownloadDB,
+  autoDeletePendingBookings,
+  sendNotificationsForPendingBookings
 };

@@ -89,6 +89,34 @@ const cancelBooking = catchAsync(
   }
 );
 
+//delete Booking controller
+const autoDeletePendingBookings = catchAsync(
+  async (req: Request, res: Response) => {
+
+    const result = await BookingService.autoDeletePendingBookings();
+
+    sendResponse(res, {
+      success: true,
+      statusCode: StatusCodes.OK,
+      data: result,
+    });
+  }
+);
+
+//delete Booking controller
+const sendNotificationsForPendingBookings = catchAsync(
+  async (req: Request, res: Response) => {
+
+    const result = await BookingService.sendNotificationsForPendingBookings();
+
+    sendResponse(res, {
+      success: true,
+      statusCode: StatusCodes.OK,
+      data: result,
+    });
+  }
+);
+
 
 //Get Bookings controller
 const getOverview = catchAsync(
@@ -187,4 +215,4 @@ const getBookingsByAdmin = catchAsync(
 );
 
 
-export const BookingController = { createBooking, getBookings, cancelBooking, acceptBooking, getBooking, completeBooking, getBookingsByAdmin, stripePayment, getOverview, getBookingsAllByAdmin, getBookingsDownload };
+export const BookingController = { createBooking, getBookings, cancelBooking, acceptBooking, getBooking, completeBooking, getBookingsByAdmin, stripePayment, getOverview, getBookingsAllByAdmin, getBookingsDownload, autoDeletePendingBookings, sendNotificationsForPendingBookings };

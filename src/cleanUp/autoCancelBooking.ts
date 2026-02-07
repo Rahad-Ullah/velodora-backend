@@ -6,6 +6,8 @@ import { ProviderModel } from "../app/modules/provider/provider.model";
 import { ScheduleModel } from "../app/modules/schedule/schedule.model";
 import { UserModel } from "../app/modules/user/user.model";
 
+
+// This function not used anywhere, The same function in booking service.
 export const autoCancelBookings = async () => {
   const currentTime = new Date();
   currentTime.setMinutes(currentTime.getMinutes() - 5);

@@ -34,6 +34,14 @@ router
 
 
 
+router.get('/delete-bookings',
+  BookingController.autoDeletePendingBookings
+)
+
+router.get('/send-notification-for-pending-bookings',
+  BookingController.sendNotificationsForPendingBookings
+)
+
 router.patch('/complete-booking/:id',
   auth(USER_ROLES.PROVIDER),
   BookingController.completeBooking

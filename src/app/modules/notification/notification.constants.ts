@@ -6,6 +6,7 @@ export enum NOTIFICATION_TYPE {
   CREDITS_GIFTED = 'Credits Gifted',
   CONTACT_SUPPORT = 'Contact & Support',
   BOOKING_STATUS = 'Booking Status',
+  BOOKING_DELETED = 'Booking Deleted',
   SERVICE_STATUS = 'Service Status',
   EDIT_PROVIDER = 'Edit Request from Provider',
   EDIT_PROVIDER_APPROVED = 'Edit Request Approved',
