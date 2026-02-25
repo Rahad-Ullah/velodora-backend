@@ -528,10 +528,8 @@ const cancelBookingToDB = async (id: string, userId: string): Promise<any> => {
           referenceId: booking?.user,
         });
       }
-    }
-
-    // If provider cancels the booking
-    else if (user.role === USER_ROLES.PROVIDER) {
+    } else if (user.role === USER_ROLES.PROVIDER) {
+      // If provider cancels the booking
       await UserModel.findByIdAndUpdate(
         booking.user,
         {
@@ -565,7 +563,7 @@ const cancelBookingToDB = async (id: string, userId: string): Promise<any> => {
 
 // Auto cancel unpaid booking after 5 min of creation
 export const autoCancelBookings = async () => {
-  console.log("Auto Cancel Unpaid Bookings - Node Corn Working")
+  // console.log("Auto Cancel Unpaid Bookings - Node Corn Working")
   const currentTime = new Date();
   currentTime.setMinutes(currentTime.getMinutes() - 5);
 
@@ -617,7 +615,7 @@ export const autoCancelBookings = async () => {
 
 // Auto Send notifications for pending bookings before 1 hours
 export const sendNotificationsForPendingBookings = async () => {
-  // console.log("Auto Delete Pending Bookings - Node Corn Working")
+  console.log("Auto Delete Pending Bookings - Node Corn Working")
   const currentTime = new Date();
   const startTime = new Date(currentTime.getTime() - (1 * 60 * 60 * 1000 + 10 * 60 * 1000));
   const endTime = new Date(currentTime.getTime() - 1 * 60 * 60 * 1000);
@@ -678,7 +676,7 @@ export const sendNotificationsForPendingBookings = async () => {
 
 // Auto delete pending bookings
 export const autoDeletePendingBookings = async () => {
-  console.log("Auto Delete Pending Bookings - Node Corn Working")
+  // console.log("Auto Delete Pending Bookings - Node Corn Working")
   const currentTime = new Date();
   const now = new Date(currentTime.getTime() + 1 * 60 * 1000);
   // const now = new Date();
@@ -999,7 +997,7 @@ const getBookingToDB = async (id: string): Promise<any> => {
               "email": "$user.email",
               "countryCode": "$user.countryCode",
               "contact": "$user.contact",
-              "primaryLocation": "$user.location",
+              // "location": "$user.location",
             }
           },
           {
@@ -1010,6 +1008,7 @@ const getBookingToDB = async (id: string): Promise<any> => {
               countryCode: 1,
               contact: 1,
               primaryLocation: 1,
+              // location: 1,
             }
           }
         ]

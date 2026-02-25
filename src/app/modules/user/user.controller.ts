@@ -252,8 +252,10 @@ const updateUserStatus = catchAsync(
 //delete profile
 const deleteProfile = catchAsync(
   async (req: Request, res: Response, next: NextFunction) => {
+    const id = req.user.id as string;
+    const password = req.query.password as string;
 
-    const result = await UserService.deleteUserFromDB(req.user.id as string);
+    const result = await UserService.deleteUserFromDB(id, password);
 
     sendResponse(res, {
       success: true,

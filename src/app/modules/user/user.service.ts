@@ -18,6 +18,9 @@ import { RsdCreditsTransformation } from '../../../helpers/rsdCreditsConver';
 import stripe from '../../config/stripe.config';
 import mongoose from 'mongoose';
 import { exportUsersToExcel } from '../../../util/exportUsersToExcel';
+import { ProviderModel } from '../provider/provider.model';
+import e from 'cors';
+import { config } from 'dotenv';
 
 
 
@@ -469,17 +472,147 @@ const updateUserStatusToDB = async (
 };
 
 // delete user from db
-const deleteUserFromDB = async (id: string): Promise<Partial<IUser | null>> => {
-  const isExistUser = await UserModel.isExistUserById(id);
-  if (!isExistUser) {
-    throw new ApiError(StatusCodes.BAD_REQUEST, "User doesn't exist!");
+// const deleteUserFromDB = async (id: string, password?: string): Promise<Partial<IUser | null>> => {
+//   const isExistUser = await UserModel.isExistUserById(id);
+//   if (!password) {
+//     throw new ApiError(StatusCodes.BAD_REQUEST, "Password is required!");
+//   }
+//   if (!isExistUser) {
+//     throw new ApiError(StatusCodes.BAD_REQUEST, "User doesn't exist!");
+//   }
+//   const isMatchPassword = await UserModel.isMatchPassword(password, isExistUser.password)
+//   if (!isMatchPassword) {
+//     throw new ApiError(StatusCodes.BAD_REQUEST, 'Password is incorrect!');
+//   }
+
+//   try {
+//     const result = await UserModel.findByIdAndUpdate(id, { $set: { isDeleted: !isExistUser?.isDeleted } }, { new: true });
+//     if (isExistUser?.role === USER_ROLES.PROVIDER) {
+//       await ProviderModel.findOneAndUpdate({ user: id }, { $set: { isActive: false } });
+//     }
+//     return result;
+//   } catch (error) {
+//     throw new ApiError(StatusCodes.BAD_REQUEST, "Oops! Failed to delete user.");
+//   }
+// };
+const deleteUserFromDB = async (id: string, password?: string ): Promise<Partial<IUser | null>> => {
+  // console.log("id and password : ", id, password)
+  if (!password) {
+    throw new ApiError(StatusCodes.BAD_REQUEST, "Password is required!");
   }
 
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
   try {
-    const result = await UserModel.findByIdAndUpdate(id, { $set: { isDeleted: !isExistUser?.isDeleted } }, { new: true });
+    const isExistUser = await UserModel.findById(id).select('+password').session(session);
+
+    if (!isExistUser) {
+      throw new ApiError(StatusCodes.BAD_REQUEST, "User doesn't exist!");
+    }
+
+    const isMatchPassword = await UserModel.isMatchPassword( password, isExistUser.password);
+
+    if (!isMatchPassword) {
+      // console.log("Password is incorrect!")
+      throw new ApiError(StatusCodes.BAD_REQUEST, "Password is incorrect!");
+    }
+
+    // Soft delete (toggle)
+    const result = await UserModel.findByIdAndUpdate(
+      id,
+      { $set: { isDeleted: !isExistUser.isDeleted } },
+      { new: true, session }
+    );
+
+    // If provider, deactivate provider profile
+    if (isExistUser.role === USER_ROLES.PROVIDER) {
+      await ProviderModel.findOneAndUpdate(
+        { user: id },
+        { $set: { isActive: false } },
+        { session }
+      );
+    }
+
+    await session.commitTransaction();
+    session.endSession();
+
     return result;
-  } catch (error) {
-    throw new ApiError(StatusCodes.BAD_REQUEST, "Oops! Failed to delete user.");
+  } catch (error: any) {
+    await session.abortTransaction();
+    session.endSession();
+
+    throw new ApiError( StatusCodes.BAD_REQUEST, error.message || "Oops! Failed to delete user.");
+  }
+};
+
+// auto delete users after 30 days of soft delete
+export const autoDeleteUserFromDB = async (): Promise<{ deletedUsers: number; deletedProviders: number }> => {
+  const cutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+  // const cutoff = new Date(Date.now() - 60 * 1000);
+
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    // 1️⃣ Find users to delete
+    const usersToDelete = await UserModel.find(
+      {
+        isDeleted: true,
+        updatedAt: { $lt: cutoff },
+      },
+      { _id: 1, role: 1 }
+    ).session(session);
+
+    if (usersToDelete.length === 0) {
+      console.log("Auto delete User/Provider - No User found")
+      await session.commitTransaction();
+      session.endSession();
+      return { deletedUsers: 0, deletedProviders: 0 };
+    }
+
+    // 2️⃣ Extract provider user IDs
+    const providerUserIds = usersToDelete
+      .filter(user => user.role === USER_ROLES.PROVIDER)
+      .map(user => user._id);
+
+    const userIds = usersToDelete.map(user => user._id);
+
+    // 3️⃣ Delete users
+    const userDeleteResult = await UserModel.deleteMany(
+      { _id: { $in: userIds } },
+      { session }
+    );
+
+    // 4️⃣ Delete provider profiles
+    let providerDeleteCount = 0;
+    if (providerUserIds.length > 0) {
+      const providerDeleteResult = await ProviderModel.deleteMany(
+        { user: { $in: providerUserIds } },
+        { session }
+      );
+      providerDeleteCount = providerDeleteResult.deletedCount ?? 0;
+    }
+
+    // 5️⃣ Commit
+    await session.commitTransaction();
+    session.endSession();
+
+    const payload = {
+      deletedUsers: userDeleteResult.deletedCount ?? 0,
+      deletedProviders: providerDeleteCount,
+    };
+    console.log("Auto delete User/Provider : ", payload)
+
+    return payload;
+  } catch (error: any) {
+    await session.abortTransaction();
+    session.endSession();
+
+    throw new ApiError(
+      StatusCodes.BAD_REQUEST,
+      error.message || "Oops! Failed to auto delete users."
+    );
   }
 };
 
