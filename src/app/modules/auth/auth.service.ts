@@ -17,6 +17,8 @@ import { ResetTokenModel } from '../resetToken/resetToken.model';
 import { UserModel } from '../user/user.model';
 import cryptoToken from '../../../util/cryptoToken';
 import e from 'cors';
+import { ProviderModel } from '../provider/provider.model';
+import { USER_ROLES } from '../../../enums/user';
 
 //login
 const loginUserFromDB = async (payload: ILoginData) => {
@@ -30,7 +32,15 @@ const loginUserFromDB = async (payload: ILoginData) => {
     throw new ApiError(StatusCodes.BAD_REQUEST, "Role doesn't match!");
   } else if (!isExistUser?.isActive) {
     throw new ApiError(StatusCodes.BAD_REQUEST, "User is blocked by admin!");
-  } else if (isExistUser?.isDeleted) {
+  }
+  //check match password
+  if (
+    password && !(await UserModel.isMatchPassword(password, isExistUser.password))
+  ) {
+    throw new ApiError(StatusCodes.BAD_REQUEST, 'Password is incorrect!');
+  }
+
+  if (isExistUser?.isDeleted) {
     const now = new Date();
     const expireAt = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
     if ((isExistUser as any).updatedAt < expireAt) {
@@ -39,11 +49,12 @@ const loginUserFromDB = async (payload: ILoginData) => {
       await UserModel.findByIdAndUpdate(isExistUser._id, { $set: { isDeleted: false } }, { new: true });
     }
   }
-  //check match password
-  if (
-    password && !(await UserModel.isMatchPassword(password, isExistUser.password))
-  ) {
-    throw new ApiError(StatusCodes.BAD_REQUEST, 'Password is incorrect!');
+
+  if (isExistUser.role === USER_ROLES.PROVIDER) {
+    await ProviderModel.findOneAndUpdate(
+      { user: isExistUser._id },
+      { $set: { isActive: true } }
+    );
   }
 
   const jwtPayload = { id: isExistUser._id, role: isExistUser.role, email: isExistUser.email };
@@ -61,7 +72,7 @@ const loginUserFromDB = async (payload: ILoginData) => {
     config.jwt.jwt_refresh_expire_in as string
   );
 
-  return { createToken, refreshToken, id: isExistUser._id, name: isExistUser.name};
+  return { createToken, refreshToken, id: isExistUser._id, name: isExistUser.name };
 };
 
 //send otp

@@ -16,11 +16,8 @@ redisConnection.on('error', (err) => {
 redisConnection.connect();
 
 // --------------------- Redis Connection Commands --------------------- //
-// pass:mdhcs
+// wsl
 // pass:mdhcse
-// pass:delwar1997
-// pass:delwar@1997
-// pass:delWar@1997
 // sudo apt update
 // sudo apt install redis-server
 // sudo service redis-server start
