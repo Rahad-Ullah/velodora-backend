@@ -7,6 +7,7 @@ const promoCodeSchema = new Schema<TPromoCode, TPromoCodeModel>(
     start: { type: Date, required: true },
     end: { type: Date, required: true },
     limits: { type: Number, required: true },
+    used: { type: Number, default: 0 },
     discount: { type: Number, required: true },
   },
   {

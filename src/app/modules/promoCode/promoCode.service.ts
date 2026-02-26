@@ -19,10 +19,12 @@ const deletePromoCodeFromDB = async (id: string): Promise<any> => {
 const getPromoCodeFromDB = async (code: string): Promise<any> => {
 
   const isExistPromoCode = await PromoCodeModel.findOne({
-    code: code,
-    limits: { $gt: 0 },
+    code,
     start: { $lt: new Date() },
     end: { $gt: new Date() },
+    $expr: {
+      $gt: ["$limits", "$used"],
+    },
   });
 
   if (!isExistPromoCode) {
@@ -55,30 +57,7 @@ const createPromoCodeToDB = async (payload: TPromoCode): Promise<any> => {
 const getPromoCodesFromDB = async (): Promise<any> => {
 
   const isExistPromoCodes = await PromoCodeModel.aggregate([
-    { $sort: { createdAt: -1 } },
-    {
-      $lookup: {
-        from: "bookings",
-        let: { promo_code: "$code" },
-        pipeline: [
-          { $match: { $expr: { $eq: ["$promoCode", "$$promo_code"] } } },
-          { $count: "count" }
-        ],
-        as: "bookings"
-      }
-    },
-    {
-      $addFields: {
-        totalUsed: {
-          $ifNull: [{ $arrayElemAt: ["$bookings.count", 0] }, 0]
-        }
-      }
-    },
-    {
-      $project: {
-        bookings: 0 // optional — removes the raw bookings array
-      }
-    }
+    { $sort: { createdAt: -1 } }
   ]);
 
   if (!isExistPromoCodes) {

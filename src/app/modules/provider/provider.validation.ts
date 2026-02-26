@@ -12,6 +12,7 @@ const createProviderZodSchema = z.object({
       coordinates: z.array(z.number({ required_error: 'Coordinates are required' })),
     }),
     serviceDistance: z.number({ required_error: 'Service distance is required' }),
+    avgDuration: z.number({ required_error: 'Average service duration is required' }),
     pricePerHour: z.number({ required_error: 'Price per hour is required' }),
     isRead: z.boolean({ required_error: 'Read is required' })
   }),
@@ -35,6 +36,7 @@ const updateProviderZodSchema = z.object({
       coordinates: z.array(z.number({ required_error: 'Coordinates are required' })),
     }),
     serviceDistance: z.number({ required_error: 'Service distance is required' }),
+    avgDuration: z.number({ required_error: 'Average service duration is required' }),
     pricePerHour: z.number({ required_error: 'Price per hour is required' }),
     isRead: z.boolean({ required_error: 'Read is required' })
   }),

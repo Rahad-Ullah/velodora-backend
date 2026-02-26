@@ -14,7 +14,12 @@ const createScheduleToDB = async (userId: string, payload: {
   duration: number;
 }): Promise<any> => {
 
-  
+  const provider = await ProviderModel.findOne({ user: userId });
+  if (!provider) {
+    throw new ApiError(StatusCodes.NOT_FOUND, 'Provider not found');
+  }
+
+
   const userDate = new Date(payload.date);
   const currentDate = new Date();
   currentDate.setUTCHours(0, 0, 0, 0);
@@ -38,10 +43,10 @@ const createScheduleToDB = async (userId: string, payload: {
     throw new ApiError(StatusCodes.BAD_REQUEST, 'End time must be greater than start time');
   }
 
-  const provider = await ProviderModel.findOne({ user: userId });
-  if (!provider) {
-    throw new ApiError(StatusCodes.NOT_FOUND, 'Provider not found');
-  }
+  // const provider = await ProviderModel.findOne({ user: userId });
+  // if (!provider) {
+  //   throw new ApiError(StatusCodes.NOT_FOUND, 'Provider not found');
+  // }
 
   const isExistSchedule = await ScheduleModel.findOne({
     provider: provider._id,
@@ -55,7 +60,7 @@ const createScheduleToDB = async (userId: string, payload: {
   const available_slots = generateSlots(
     payload.startTime,
     payload.endTime,
-    payload.duration
+    provider.avgDuration
   );
 
   let schedule: any;
@@ -63,7 +68,7 @@ const createScheduleToDB = async (userId: string, payload: {
   if (isExistSchedule && (isExistSchedule.count <= 0)) {
     isExistSchedule.startTime = payload.startTime;
     isExistSchedule.endTime = payload.endTime;
-    isExistSchedule.duration = payload.duration;
+    isExistSchedule.duration = provider.avgDuration;
     isExistSchedule.available_slots = available_slots;
 
     schedule = await isExistSchedule.save();

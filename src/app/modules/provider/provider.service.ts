@@ -791,8 +791,10 @@ const approveEditProviderToDB = async (id: string): Promise<any> => {
       user: isExistProviderTemp.user ?? isExistProvider.user,
       aboutMe: isExistProviderTemp.aboutMe ?? isExistProvider.aboutMe,
       serviceLanguage: isExistProviderTemp.serviceLanguage ?? isExistProvider.serviceLanguage,
+      avgDuration: isExistProviderTemp.avgDuration ?? isExistProvider.avgDuration,
       primaryLocation: isExistProviderTemp.primaryLocation ?? isExistProvider.primaryLocation,
       serviceDistance: isExistProviderTemp.serviceDistance ?? isExistProvider.serviceDistance,
+
       pricePerHour: isExistProviderTemp.pricePerHour ?? isExistProvider.pricePerHour,
       serviceImages: isExistProviderTemp.serviceImages ?? isExistProvider.serviceImages,
       isRead: isExistProviderTemp.isRead ?? isExistProvider.isRead,

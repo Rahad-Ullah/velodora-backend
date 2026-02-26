@@ -17,7 +17,7 @@ const createReviewToDB = async (userId: string, payload: Partial<IReview>): Prom
     throw new ApiError(StatusCodes.BAD_REQUEST, "Provider doesn't exist!");
   }
 
-  // const isReviewExist = await ReviewModel.findOne({ userId: new Types.ObjectId(userId), providerId: new Types.ObjectId(payload.providerId) });
+  const isReviewExist = await ReviewModel.findOne({ userId: new Types.ObjectId(userId), providerId: new Types.ObjectId(payload.providerId) });
 
   const newReview = {
     userId: new Types.ObjectId(userId),
@@ -26,13 +26,13 @@ const createReviewToDB = async (userId: string, payload: Partial<IReview>): Prom
     comment: payload.comment,
   }
 
-  let res = await ReviewModel.create(newReview);
+  let res;
 
-  // if (isReviewExist) {
-  //   res = await ReviewModel.findByIdAndUpdate(isReviewExist._id, newReview, { new: true }).exec();
-  // } else {
-  //   res = await ReviewModel.create(newReview);
-  // }
+  if (isReviewExist) {
+    res = await ReviewModel.findByIdAndUpdate(isReviewExist._id, newReview, { new: true }).exec();
+  } else {
+    res = await ReviewModel.create(newReview);
+  }
 
   if (!res) {
     throw new ApiError(StatusCodes.BAD_REQUEST, "Review to Provider failed!");
@@ -56,7 +56,7 @@ const getMyReviewsToDB = async (id: string): Promise<any> => {
       $match: { providerId: new Types.ObjectId(id) },
     },
     {
-       $sort: { createdAt: -1 }
+      $sort: { createdAt: -1 }
     },
     {
       $lookup: {
@@ -157,7 +157,7 @@ const getMyRatingsToDB = async (id: string): Promise<any> => {
       }
     }
   ]);
-  return { data: {...provider[0]?.services[0], ...res[0] } };
+  return { data: { ...provider[0]?.services[0], ...res[0] } };
 };
 
 
