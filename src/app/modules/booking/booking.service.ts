@@ -17,6 +17,7 @@ import { ReviewService } from '../Review/review.service';
 import { RsdCreditsTransformation } from '../../../helpers/rsdCreditsConver';
 import { SystemModel } from '../system/system.model';
 import { unlinkFile } from '../../../shared/unlinkFile';
+import { PromoCodeModel } from '../promoCode/promoCode.model';
 
 
 // Create Stripe Test Payment
@@ -77,7 +78,28 @@ const createBookingToDB = async (payload: {
   const session = await mongoose.startSession();
   session.startTransaction();
 
-  // console.log("Payment Payload:------------------------", payload);
+  console.log("Payment Payload:------------------------", payload);
+
+  if ((payload.promoCode && !payload.discount) || (payload.discount && !payload.promoCode)) {
+    throw new ApiError(StatusCodes.BAD_REQUEST, "Mismatch promo code and discount");
+  }
+
+  // Update used count for promo code if exist
+  if (payload.promoCode) {
+    const promoCode = await PromoCodeModel.findOne({
+      code: payload.promoCode,
+      // start: { $lt: new Date() },
+      // end: { $gt: new Date() },
+      $expr: {
+        $gt: ["$limits", "$used"],
+      },
+    });
+
+    if (!promoCode) {
+      throw new ApiError(StatusCodes.BAD_REQUEST, 'Promo code not found');
+    }
+    await PromoCodeModel.findByIdAndUpdate(promoCode._id, { used: promoCode.used! + 1 });
+  }
 
   try {
 
@@ -197,6 +219,10 @@ const createBookingToDB = async (payload: {
 
       return { data: null, message: "Booking created successfully (paid via credits)." };
     }
+
+
+
+
 
     // ✅ Create Stripe Checkout Session
     // const price = await stripe.prices.create({

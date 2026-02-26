@@ -32,6 +32,8 @@ const loginUserFromDB = async (payload: ILoginData) => {
     throw new ApiError(StatusCodes.BAD_REQUEST, "Role doesn't match!");
   } else if (!isExistUser?.isActive) {
     throw new ApiError(StatusCodes.BAD_REQUEST, "User is blocked by admin!");
+  } else if (!isExistUser?.verified) {
+    throw new ApiError(StatusCodes.BAD_REQUEST, "User is not verified!");
   }
   //check match password
   if (

@@ -5,6 +5,7 @@ export type TPromoCode = {
   start: Date;
   end: Date;
   limits: number;
+  used?: number;
   discount: number;
 };
 
