@@ -6,6 +6,7 @@ export type TProvider = {
   aboutMe: string;
   services: [Types.ObjectId];
   schedules: [Types.ObjectId];
+  avgDuration: number;
   serviceLanguage: [string];
   primaryLocation: string;
   location: {

@@ -17,6 +17,10 @@ const providerSchema = new Schema<TProvider, TProviderModal>(
       type: [Schema.Types.ObjectId],
       required: true,
     },
+    avgDuration: {
+      type: Number,
+      required: true,
+    },
     serviceLanguage: {
       type: [String],
       required: true,

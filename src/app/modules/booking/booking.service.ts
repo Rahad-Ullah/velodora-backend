@@ -84,22 +84,7 @@ const createBookingToDB = async (payload: {
     throw new ApiError(StatusCodes.BAD_REQUEST, "Mismatch promo code and discount");
   }
 
-  // Update used count for promo code if exist
-  if (payload.promoCode) {
-    const promoCode = await PromoCodeModel.findOne({
-      code: payload.promoCode,
-      // start: { $lt: new Date() },
-      // end: { $gt: new Date() },
-      $expr: {
-        $gt: ["$limits", "$used"],
-      },
-    });
 
-    if (!promoCode) {
-      throw new ApiError(StatusCodes.BAD_REQUEST, 'Promo code not found');
-    }
-    await PromoCodeModel.findByIdAndUpdate(promoCode._id, { used: promoCode.used! + 1 });
-  }
 
   try {
 
@@ -108,6 +93,23 @@ const createBookingToDB = async (payload: {
       start: new Date(slot.start),
       end: new Date(slot.end),
     }));
+
+    // Update used count for promo code if exist
+    if (payload.promoCode) {
+      const promoCode = await PromoCodeModel.findOne({
+        code: payload.promoCode,
+        // start: { $lt: new Date() },
+        // end: { $gt: new Date() },
+        $expr: {
+          $gt: ["$limits", "$used"],
+        },
+      }).session(session);
+
+      if (!promoCode) {
+        throw new ApiError(StatusCodes.BAD_REQUEST, 'Promo code not found');
+      }
+      await PromoCodeModel.findByIdAndUpdate(promoCode._id, { used: promoCode.used! + 1 }, { session });
+    }
 
     // ✅ Check provider
     const provider = await ProviderModel.findById(payload.provider).session(session);
@@ -419,7 +421,7 @@ const completeBookingToDB = async (userId: string, providerId: string): Promise<
     // 7️⃣ Notification after commit
     sendNotifications({
       type: NOTIFICATION_TYPE.BOOKING_STATUS,
-      title: 'Booking Completed Successfully',
+      title: 'Booking Completed Successfully. Please click here to give your review.',
       receiver: booking.user,
       referenceId: booking.providerId,
     });
@@ -449,6 +451,21 @@ const cancelBookingToDB = async (id: string, userId: string): Promise<any> => {
     if (!booking) {
       throw new ApiError(StatusCodes.NOT_FOUND, "Booking not found");
     }
+
+    // Update promo code usage if exist
+    // if (booking.promoCode) {
+    //   await PromoCodeModel.findOneAndUpdate(
+    //     {
+    //       code: booking.promoCode,
+    //       used: { $gt: 0 },
+    //     },
+    //     {
+    //       $inc: { used: -1 },
+    //     },
+    //     { session }
+    //   );
+    // }
+
 
     if (booking.status === BOOKING_STATUS.UPCOMING) {
       const bookingCount = await BookingModel.countDocuments({
@@ -607,6 +624,19 @@ export const autoCancelBookings = async () => {
 
   try {
     for (const booking of bookings) {
+
+      // Update promo code usage if exist
+      // if (booking.promoCode) {
+      //   await PromoCodeModel.findOneAndUpdate(
+      //     {
+      //       code: booking.promoCode,
+      //       used: { $gt: 0 },
+      //     },
+      //     {
+      //       $inc: { used: -1 },
+      //     }
+      //   );
+      // }
 
       const provider = await ProviderModel.findById(booking.provider);
       if (!provider) {
@@ -769,6 +799,19 @@ export const autoDeletePendingBookings = async () => {
     const userId = booking?.user;
     const providerId = booking?.providerId;
     console.log("Booking : ", booking)
+
+    // Update promo code usage if exist
+    if (booking.promoCode) {
+      await PromoCodeModel.findOneAndUpdate(
+        {
+          code: booking.promoCode,
+          used: { $gt: 0 },
+        },
+        {
+          $inc: { used: -1 },
+        },
+      );
+    }
 
     await BookingModel.findByIdAndDelete(booking._id);
 
@@ -1034,6 +1077,7 @@ const getBookingToDB = async (id: string): Promise<any> => {
               countryCode: 1,
               contact: 1,
               primaryLocation: 1,
+              avgDuration: 1
               // location: 1,
             }
           }
@@ -1199,7 +1243,8 @@ const getBookingsToDB = async (id: string, query: any): Promise<any> => {
             $project: {
               name: 1,
               image: 1,
-              primaryLocation: 1,
+              primaryLocation: 1,              
+              avgDuration: 1
             }
           }
         ]
@@ -1398,7 +1443,7 @@ const getBookingsForAdminFromDB = async (id: string, query: any): Promise<any> =
                     email: 1,
                     countryCode: 1,
                     contact: 1,
-                    location: 1
+                    location: 1,
                   }
                 }
               ]
@@ -1418,7 +1463,7 @@ const getBookingsForAdminFromDB = async (id: string, query: any): Promise<any> =
               "email": "$user.email",
               "countryCode": "$user.countryCode",
               "contact": "$user.contact",
-              "location": "$user.location"
+              "location": "$primaryLocation"
             }
           },
           {
@@ -1428,7 +1473,7 @@ const getBookingsForAdminFromDB = async (id: string, query: any): Promise<any> =
               email: 1,
               countryCode: 1,
               contact: 1,
-              location: 1
+              location: 1,
             }
           }
         ]
