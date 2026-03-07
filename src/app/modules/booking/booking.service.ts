@@ -317,21 +317,6 @@ const acceptBookingToDB = async (id: string, userId: string): Promise<any> => {
     booking.chatId = new Types.ObjectId(result._id);
     const res = await booking.save({ session });
 
-    // // ✅ Record revenue
-    // const revenue = await RevenueModel.create(
-    //   [
-    //     {
-    //       user: new mongoose.Types.ObjectId(booking.user),
-    //       revenue: booking.weatherFee! + booking.convenienceFee! + booking.arrivalFee! - booking.discount!,
-    //     },
-    //   ],
-    //   { session }
-    // );
-
-    // if (!revenue) {
-    //   throw new ApiError(StatusCodes.INTERNAL_SERVER_ERROR, 'Failed to cut revenue');
-    // }
-
     // ✅ Commit transaction
     await session.commitTransaction();
     session.endSession();
