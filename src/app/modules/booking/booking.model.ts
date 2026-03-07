@@ -26,6 +26,8 @@ const BookingSchema = new Schema(
     revenueId: { type: Schema.Types.ObjectId, ref: "Revenue", default: null },
     image: { type: String },
     bookingDescription: { type: String },
+    location: {type: String,},
+    coordinates: { type: [Number]},
   },
   { timestamps: true }
 );

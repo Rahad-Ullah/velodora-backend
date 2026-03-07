@@ -24,6 +24,8 @@ export type TBooking = {
   revenueId?: Types.ObjectId;
   image?: string;
   bookingDescription?: string;
+  location?: string;
+  coordinates?: number[];
 };
 
 export type TBookingModel = Model<TBooking>;

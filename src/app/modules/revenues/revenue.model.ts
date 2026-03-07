@@ -4,9 +4,13 @@ import { IRevenue, IRevenueModel } from './revenue.interface';
 
 const revenueSchema = new Schema<IRevenue, IRevenueModel>(
   {
-    user: {
+    booking: {
       type: Schema.Types.ObjectId,
-      ref: 'User',
+      ref: 'Booking',
+      required: true,
+    },
+    des: {
+      type: String,
       required: true,
     },
     revenue: {

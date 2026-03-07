@@ -26,8 +26,6 @@ const createBooking = catchAsync(
     const user = req.user.id;
     // console.log("Create Booking : ", req.body)
 
-
-
     const result = await BookingService.createBookingToDB({ ...req.body, user });
 
     sendResponse(res, {

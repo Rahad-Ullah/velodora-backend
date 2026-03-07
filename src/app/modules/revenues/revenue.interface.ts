@@ -1,7 +1,8 @@
 import mongoose, { Model } from 'mongoose';
 
 export type IRevenue = {
-  user:  mongoose.Types.ObjectId;
+  booking:  mongoose.Types.ObjectId;
+  des: string;
   revenue: number;
 };
 

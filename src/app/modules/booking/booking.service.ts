@@ -74,7 +74,11 @@ const createBookingToDB = async (payload: {
   discount: number;
   bookingDescription?: string;
   image?: string;
+  location?: string;
+  coordinates?: number[];
 }): Promise<any> => {
+
+
   const session = await mongoose.startSession();
   session.startTransaction();
 
@@ -87,6 +91,13 @@ const createBookingToDB = async (payload: {
 
 
   try {
+
+    const user = await UserModel.findById(payload.user).session(session);
+    if (!user) {
+      throw new ApiError(StatusCodes.NOT_FOUND, "User not found");
+    }
+    payload.location = user.location;
+    payload.coordinates = user.coordinates;
 
     const date = new Date(payload.date);
     const userSlots = payload.slots.map((slot) => ({
@@ -178,11 +189,6 @@ const createBookingToDB = async (payload: {
     }
 
     // ✅ Update user credits
-    const user = await UserModel.findById(payload.user).session(session);
-    if (!user) {
-      throw new ApiError(StatusCodes.NOT_FOUND, "User not found");
-    }
-
     const creditsToRsd = await RsdCreditsTransformation.creditsToRsd(user.credits!);
     const rsdToCredits = await RsdCreditsTransformation.rsdToCredits(payload.amount);
 
@@ -227,11 +233,6 @@ const createBookingToDB = async (payload: {
 
 
     // ✅ Create Stripe Checkout Session
-    // const price = await stripe.prices.create({
-    //   unit_amount: Number(payload.amount - creditsToRsd) * 100,
-    //   currency: "usd",
-    //   product_data: { name: "Booking Payment" },
-    // });
     const paymentAmount = (payload.amount - creditsToRsd).toFixed(2);
     const price = await stripe.prices.create({
       unit_amount: Number(paymentAmount) * 100,
@@ -316,20 +317,20 @@ const acceptBookingToDB = async (id: string, userId: string): Promise<any> => {
     booking.chatId = new Types.ObjectId(result._id);
     const res = await booking.save({ session });
 
-    // ✅ Record revenue
-    const revenue = await RevenueModel.create(
-      [
-        {
-          user: new mongoose.Types.ObjectId(booking.user),
-          revenue: booking.weatherFee! + booking.convenienceFee! + booking.arrivalFee! - booking.discount!,
-        },
-      ],
-      { session }
-    );
+    // // ✅ Record revenue
+    // const revenue = await RevenueModel.create(
+    //   [
+    //     {
+    //       user: new mongoose.Types.ObjectId(booking.user),
+    //       revenue: booking.weatherFee! + booking.convenienceFee! + booking.arrivalFee! - booking.discount!,
+    //     },
+    //   ],
+    //   { session }
+    // );
 
-    if (!revenue) {
-      throw new ApiError(StatusCodes.INTERNAL_SERVER_ERROR, 'Failed to cut revenue');
-    }
+    // if (!revenue) {
+    //   throw new ApiError(StatusCodes.INTERNAL_SERVER_ERROR, 'Failed to cut revenue');
+    // }
 
     // ✅ Commit transaction
     await session.commitTransaction();
@@ -348,91 +349,6 @@ const acceptBookingToDB = async (id: string, userId: string): Promise<any> => {
     await session.abortTransaction();
     session.endSession();
     throw error;
-  }
-};
-
-// Accept booking to db
-const completeBookingToDB = async (userId: string, providerId: string): Promise<any> => {
-  const session = await mongoose.startSession();
-  session.startTransaction();
-
-  try {
-    const user = await UserModel.findById(userId).session(session);
-    if (!user) throw new ApiError(StatusCodes.NOT_FOUND, 'User not found');
-
-    const provider = await ProviderModel.findOne({ user: providerId }).session(session);
-    if (!provider) throw new ApiError(StatusCodes.NOT_FOUND, 'Provider not found');
-
-    const bookingCount = await BookingModel.countDocuments({
-      user: new Types.ObjectId(userId),
-      provider: new Types.ObjectId(provider._id),
-      status: BOOKING_STATUS.UPCOMING,
-    }).session(session);
-
-    // 1️⃣ Aggregation to find earliest booking
-    const earliest = await BookingModel.aggregate([
-      {
-        $match: {
-          user: new Types.ObjectId(userId),
-          provider: new Types.ObjectId(provider._id),
-          status: BOOKING_STATUS.UPCOMING,
-        }
-      },
-      {
-        $addFields: {
-          earliestSlotStart: { $min: "$slots.start" }
-        }
-      },
-      { $sort: { earliestSlotStart: 1, date: 1 } },
-      { $limit: 1 }
-    ]).session(session);
-
-    if (!earliest || earliest.length === 0)
-      throw new ApiError(StatusCodes.NOT_FOUND, "Booking not found");
-
-    // 2️⃣ Fetch the actual Mongoose document (so .save() works)
-    const booking = await BookingModel.findById(earliest[0]._id).session(session);
-    if (!booking) throw new ApiError(StatusCodes.NOT_FOUND, "Booking not found");
-
-    // 3️⃣ Delete chat if needed
-    if (bookingCount <= 1) {
-      const result = await ChatServices.deleteChatFromDB(
-        booking.chatId.toString(),
-        { session }
-      );
-      if (!result) throw new ApiError(StatusCodes.INTERNAL_SERVER_ERROR, 'Failed to delete chat');
-    }
-
-    // 4️⃣ Update booking
-    booking.status = BOOKING_STATUS.COMPLETED;
-    const updatedBooking = await booking.save({ session });
-
-    // 5️⃣ Update provider credits
-    await UserModel.findByIdAndUpdate(
-      providerId,
-      { $inc: { credits: booking.subTotal } },
-      { session }
-    );
-
-    // 6️⃣ Commit transaction
-    await session.commitTransaction();
-    session.endSession();
-
-    // 7️⃣ Notification after commit
-    sendNotifications({
-      type: NOTIFICATION_TYPE.BOOKING_STATUS,
-      title: 'Booking Completed Successfully. Please click here to give your review.',
-      receiver: booking.user,
-      referenceId: booking.providerId,
-    });
-
-    return updatedBooking;
-
-  } catch (error: any) {
-    await session.abortTransaction();
-    session.endSession();
-    console.error('Transaction failed:', error);
-    throw new ApiError(StatusCodes.INTERNAL_SERVER_ERROR, error.message);
   }
 };
 
@@ -543,15 +459,16 @@ const cancelBookingToDB = async (id: string, userId: string): Promise<any> => {
         await RevenueModel.create(
           [
             {
-              user: booking.user,
+              booking: booking._id,
               revenue: revenueAmount,
+              des: 'Booking cancelled',
             },
           ],
           { session }
         );
         sendNotifications({
           type: NOTIFICATION_TYPE.BOOKING_STATUS,
-          title: 'Booking Completed Successfully',
+          title: 'Booking Cancelled Successfully by user with penalty',
           receiver: booking?.providerId,
           referenceId: booking?.user,
         });
@@ -582,7 +499,7 @@ const cancelBookingToDB = async (id: string, userId: string): Promise<any> => {
       );
       sendNotifications({
         type: NOTIFICATION_TYPE.BOOKING_STATUS,
-        title: 'Booking Cancelled Successfully',
+        title: 'Booking Cancelled Successfully by Provider',
         receiver: booking?.user,
         referenceId: booking?.providerId,
       });
@@ -604,237 +521,106 @@ const cancelBookingToDB = async (id: string, userId: string): Promise<any> => {
   }
 };
 
-// Auto cancel unpaid booking after 5 min of creation
-export const autoCancelBookings = async () => {
-  // console.log("Auto Cancel Unpaid Bookings - Node Corn Working")
-  const currentTime = new Date();
-  currentTime.setMinutes(currentTime.getMinutes() - 5);
-
-  // Find bookings created more than 5 min ago and unpaid
-  const bookings = await BookingModel.find({
-    paymentStatus: BOOKING_PAYMENT_STATUS.UNPAID,
-    status: BOOKING_STATUS.PENDING,
-    createdAt: { $lt: currentTime }
-  });
-
-  // Check bookings length
-  if (bookings.length <= 0) {
-    return;
-  }
+// Accept booking to db
+const completeBookingToDB = async (userId: string, providerId: string): Promise<any> => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
 
   try {
-    for (const booking of bookings) {
+    const user = await UserModel.findById(userId).session(session);
+    if (!user) throw new ApiError(StatusCodes.NOT_FOUND, 'User not found');
 
-      // Update promo code usage if exist
-      // if (booking.promoCode) {
-      //   await PromoCodeModel.findOneAndUpdate(
-      //     {
-      //       code: booking.promoCode,
-      //       used: { $gt: 0 },
-      //     },
-      //     {
-      //       $inc: { used: -1 },
-      //     }
-      //   );
-      // }
+    const provider = await ProviderModel.findOne({ user: providerId }).session(session);
+    if (!provider) throw new ApiError(StatusCodes.NOT_FOUND, 'Provider not found');
 
-      const provider = await ProviderModel.findById(booking.provider);
-      if (!provider) {
-        continue;
-      }
+    const bookingCount = await BookingModel.countDocuments({
+      user: new Types.ObjectId(userId),
+      provider: new Types.ObjectId(provider._id),
+      status: BOOKING_STATUS.UPCOMING,
+    }).session(session);
 
-      const schedule = await ScheduleModel.findById(booking.schedule);
-      if (!schedule) {
-        continue;
-      }
-
-      // ⏳ Restore slots
-      schedule.available_slots.push(...booking.slots);
-      schedule.count = Math.max(schedule.count - 1, 0);
-      await schedule.save();
-
-
-      await UserModel.findByIdAndUpdate(booking.user, {
-        $inc: { 'credits': booking?.useCredits }
-      });
-
-      // ❌ Delete booking
-      const result = await BookingModel.findByIdAndDelete(booking._id);
-      if (!result) {
-        continue;
-      }
-    }
-  } catch (error: any) {
-    throw new ApiError(StatusCodes.INTERNAL_SERVER_ERROR, error?.message ?? "Something went wrong in autoCancelBookings");
-  }
-};
-
-// Auto Send notifications for pending bookings before 1 hours
-export const sendNotificationsForPendingBookings = async () => {
-  console.log("Auto Delete Pending Bookings - Node Corn Working")
-  const currentTime = new Date();
-  const startTime = new Date(currentTime.getTime() - (1 * 60 * 60 * 1000 + 10 * 60 * 1000));
-  const endTime = new Date(currentTime.getTime() - 1 * 60 * 60 * 1000);
-  // const now = new Date();
-  // console.log("Current Time: ", now);
-
-  const pendingBookings = await BookingModel.aggregate([
-    {
-      $match: {
-        paymentStatus: BOOKING_PAYMENT_STATUS.PAID,
-        status: BOOKING_STATUS.PENDING,
-      },
-    },
-
-    // Filter only expired slots
-    {
-      $addFields: {
-        expiredSlots: {
-          $filter: {
-            input: "$slots",
-            as: "slot",
-            cond: {
-              $and: [
-                { $gte: ["$$slot.start", startTime] },
-                { $lte: ["$$slot.start", endTime] }
-              ]
-            }
-          }
+    // 1️⃣ Aggregation to find earliest booking
+    const earliest = await BookingModel.aggregate([
+      {
+        $match: {
+          user: new Types.ObjectId(userId),
+          provider: new Types.ObjectId(provider._id),
+          status: BOOKING_STATUS.UPCOMING,
         }
-      }
-    },
-
-    // Keep only bookings where expiredSlots is not empty
-    {
-      $match: {
-        "expiredSlots.0": { $exists: true },
       },
-    },
-  ]);
+      {
+        $addFields: {
+          earliestSlotStart: { $min: "$slots.start" }
+        }
+      },
+      { $sort: { earliestSlotStart: 1, date: 1 } },
+      { $limit: 1 }
+    ]).session(session);
 
-  if (!pendingBookings.length) return [];
+    if (!earliest || earliest.length === 0)
+      throw new ApiError(StatusCodes.NOT_FOUND, "Booking not found");
 
-  for (const booking of pendingBookings) {
-    const userId = booking?.user;
-    const providerId = booking?.providerId;
-    console.log("Booking : ", booking)
+    // 2️⃣ Fetch the actual Mongoose document (so .save() works)
+    const booking = await BookingModel.findById(earliest[0]._id).session(session);
+    if (!booking) throw new ApiError(StatusCodes.NOT_FOUND, "Booking not found");
 
+    // 3️⃣ Delete chat if needed
+    if (bookingCount <= 1) {
+      const result = await ChatServices.deleteChatFromDB(
+        booking.chatId.toString(),
+        { session }
+      );
+      if (!result) throw new ApiError(StatusCodes.INTERNAL_SERVER_ERROR, 'Failed to delete chat');
+    }
+
+    // 4️⃣ Update booking
+    booking.status = BOOKING_STATUS.COMPLETED;
+    const updatedBooking = await booking.save({ session });
+
+    // 5️⃣ Update provider credits
+    const total = booking.subTotal + booking.arrivalFee! + booking.arrivalFee!;
+    await UserModel.findByIdAndUpdate(
+      providerId,
+      { $inc: { credits: total } },
+      { session }
+    );
+
+    // ✅ Record revenue
+    const revenue = await RevenueModel.create(
+      [
+        {
+          booking: new mongoose.Types.ObjectId(booking._id),
+          revenue: booking.arrivalFee! - booking.discount!,
+          des: 'Booking completed',
+        },
+      ],
+      { session }
+    );
+
+    if (!revenue) {
+      throw new ApiError(StatusCodes.INTERNAL_SERVER_ERROR, 'Failed to cut revenue');
+    }
+
+    // 6️⃣ Commit transaction
+    await session.commitTransaction();
+    session.endSession();
+
+    // 7️⃣ Notification after commit
     sendNotifications({
       type: NOTIFICATION_TYPE.BOOKING_STATUS,
-      title: 'You have a pending booking. Please accept or cancel the the booking.',
-      receiver: providerId,
-      referenceId: userId,
+      title: 'Booking Completed Successfully. Please click here to give your review.',
+      receiver: booking.user,
+      referenceId: booking.providerId,
     });
+
+    return updatedBooking;
+
+  } catch (error: any) {
+    await session.abortTransaction();
+    session.endSession();
+    console.error('Transaction failed:', error);
+    throw new ApiError(StatusCodes.INTERNAL_SERVER_ERROR, error.message);
   }
-
-  return pendingBookings;
-};
-
-// Auto delete pending bookings
-export const autoDeletePendingBookings = async () => {
-  // console.log("Auto Delete Pending Bookings - Node Corn Working")
-  const currentTime = new Date();
-  const now = new Date(currentTime.getTime() + 1 * 60 * 1000);
-  // const now = new Date();
-  // console.log("Current Time: ", now);
-
-  const pendingBookings = await BookingModel.aggregate([
-    {
-      $match: {
-        paymentStatus: BOOKING_PAYMENT_STATUS.PAID,
-        status: BOOKING_STATUS.PENDING,
-      },
-    },
-
-    // Filter only expired slots
-    // {
-    //   $addFields: {
-    //     expiredSlots: {
-    //       $filter: {
-    //         input: "$slots",
-    //         as: "slot",
-    //         cond: {
-    //           $lt: ["$$slot.start", now],
-    //         },
-    //       },
-    //     },
-    //   },
-    // },
-    {
-      $addFields: {
-        expiredSlots: {
-          $cond: {
-            if: {
-              $eq: [
-                { $size: "$slots" },
-                {
-                  $size: {
-                    $filter: {
-                      input: "$slots",
-                      as: "slot",
-                      cond: { $lt: ["$$slot.start", now] }
-                    }
-                  }
-                }
-              ]
-            },
-            then: "$slots",
-            else: []
-          }
-        }
-      }
-    },
-
-    // Keep only bookings where expiredSlots is not empty
-    {
-      $match: {
-        "expiredSlots.0": { $exists: true },
-      },
-    },
-  ]);
-
-  if (!pendingBookings.length) return [];
-
-  for (const booking of pendingBookings) {
-    const userId = booking?.user;
-    const providerId = booking?.providerId;
-    console.log("Booking : ", booking)
-
-    // Update promo code usage if exist
-    if (booking.promoCode) {
-      await PromoCodeModel.findOneAndUpdate(
-        {
-          code: booking.promoCode,
-          used: { $gt: 0 },
-        },
-        {
-          $inc: { used: -1 },
-        },
-      );
-    }
-
-    await BookingModel.findByIdAndDelete(booking._id);
-
-    await UserModel.findByIdAndUpdate(providerId, {
-      $inc: { credits: await RsdCreditsTransformation.rsdToCredits(booking.subTotal) },
-    });
-
-    sendNotifications({
-      type: NOTIFICATION_TYPE.BOOKING_DELETED,
-      title: 'One pending booking has been deleted by the system due to not being accepted within the time limit',
-      receiver: userId,
-      referenceId: providerId,
-    });
-
-    sendNotifications({
-      type: NOTIFICATION_TYPE.BOOKING_DELETED,
-      title: 'One pending booking has been deleted by the system due to not being accepted within the time limit. And returned credits to you. Please check you profile',
-      receiver: providerId,
-      referenceId: userId,
-    });
-  }
-
-  return pendingBookings;
 };
 
 // get overview from db
@@ -1243,7 +1029,7 @@ const getBookingsToDB = async (id: string, query: any): Promise<any> => {
             $project: {
               name: 1,
               image: 1,
-              primaryLocation: 1,              
+              primaryLocation: 1,
               avgDuration: 1
             }
           }
@@ -1682,6 +1468,238 @@ const getBookingsDownloadDB = async (id: string, query: any): Promise<any> => {
   return { data: res ?? [] };
 }
 
+// Auto cancel unpaid booking after 5 min of creation
+export const autoCancelBookings = async () => {
+  // console.log("Auto Cancel Unpaid Bookings - Node Corn Working")
+  const currentTime = new Date();
+  currentTime.setMinutes(currentTime.getMinutes() - 5);
+
+  // Find bookings created more than 5 min ago and unpaid
+  const bookings = await BookingModel.find({
+    paymentStatus: BOOKING_PAYMENT_STATUS.UNPAID,
+    status: BOOKING_STATUS.PENDING,
+    createdAt: { $lt: currentTime }
+  });
+
+  // Check bookings length
+  if (bookings.length <= 0) {
+    return;
+  }
+
+  try {
+    for (const booking of bookings) {
+
+      // Update promo code usage if exist
+      // if (booking.promoCode) {
+      //   await PromoCodeModel.findOneAndUpdate(
+      //     {
+      //       code: booking.promoCode,
+      //       used: { $gt: 0 },
+      //     },
+      //     {
+      //       $inc: { used: -1 },
+      //     }
+      //   );
+      // }
+
+      const provider = await ProviderModel.findById(booking.provider);
+      if (!provider) {
+        continue;
+      }
+
+      const schedule = await ScheduleModel.findById(booking.schedule);
+      if (!schedule) {
+        continue;
+      }
+
+      // ⏳ Restore slots
+      schedule.available_slots.push(...booking.slots);
+      schedule.count = Math.max(schedule.count - 1, 0);
+      await schedule.save();
+
+
+      await UserModel.findByIdAndUpdate(booking.user, {
+        $inc: { 'credits': booking?.useCredits }
+      });
+
+      // ❌ Delete booking
+      const result = await BookingModel.findByIdAndDelete(booking._id);
+      if (!result) {
+        continue;
+      }
+    }
+  } catch (error: any) {
+    throw new ApiError(StatusCodes.INTERNAL_SERVER_ERROR, error?.message ?? "Something went wrong in autoCancelBookings");
+  }
+};
+
+// Auto Send notifications for pending bookings before 1 hours
+export const sendNotificationsForPendingBookings = async () => {
+  console.log("Auto Delete Pending Bookings - Node Corn Working")
+  const currentTime = new Date();
+  const startTime = new Date(currentTime.getTime() - (1 * 60 * 60 * 1000 + 10 * 60 * 1000));
+  const endTime = new Date(currentTime.getTime() - 1 * 60 * 60 * 1000);
+  // const now = new Date();
+  // console.log("Current Time: ", now);
+
+  const pendingBookings = await BookingModel.aggregate([
+    {
+      $match: {
+        paymentStatus: BOOKING_PAYMENT_STATUS.PAID,
+        status: BOOKING_STATUS.PENDING,
+      },
+    },
+
+    // Filter only expired slots
+    {
+      $addFields: {
+        expiredSlots: {
+          $filter: {
+            input: "$slots",
+            as: "slot",
+            cond: {
+              $and: [
+                { $gte: ["$$slot.start", startTime] },
+                { $lte: ["$$slot.start", endTime] }
+              ]
+            }
+          }
+        }
+      }
+    },
+
+    // Keep only bookings where expiredSlots is not empty
+    {
+      $match: {
+        "expiredSlots.0": { $exists: true },
+      },
+    },
+  ]);
+
+  if (!pendingBookings.length) return [];
+
+  for (const booking of pendingBookings) {
+    const userId = booking?.user;
+    const providerId = booking?.providerId;
+    console.log("Booking : ", booking)
+
+    sendNotifications({
+      type: NOTIFICATION_TYPE.BOOKING_STATUS,
+      title: 'You have a pending booking. Please accept or cancel the the booking.',
+      receiver: providerId,
+      referenceId: userId,
+    });
+  }
+
+  return pendingBookings;
+};
+
+// Auto delete pending bookings
+export const autoDeletePendingBookings = async () => {
+  // console.log("Auto Delete Pending Bookings - Node Corn Working")
+  const currentTime = new Date();
+  const now = new Date(currentTime.getTime() + 1 * 60 * 1000);
+  // const now = new Date();
+  // console.log("Current Time: ", now);
+
+  const pendingBookings = await BookingModel.aggregate([
+    {
+      $match: {
+        paymentStatus: BOOKING_PAYMENT_STATUS.PAID,
+        status: BOOKING_STATUS.PENDING,
+      },
+    },
+
+    // Filter only expired slots
+    // {
+    //   $addFields: {
+    //     expiredSlots: {
+    //       $filter: {
+    //         input: "$slots",
+    //         as: "slot",
+    //         cond: {
+    //           $lt: ["$$slot.start", now],
+    //         },
+    //       },
+    //     },
+    //   },
+    // },
+    {
+      $addFields: {
+        expiredSlots: {
+          $cond: {
+            if: {
+              $eq: [
+                { $size: "$slots" },
+                {
+                  $size: {
+                    $filter: {
+                      input: "$slots",
+                      as: "slot",
+                      cond: { $lt: ["$$slot.start", now] }
+                    }
+                  }
+                }
+              ]
+            },
+            then: "$slots",
+            else: []
+          }
+        }
+      }
+    },
+
+    // Keep only bookings where expiredSlots is not empty
+    {
+      $match: {
+        "expiredSlots.0": { $exists: true },
+      },
+    },
+  ]);
+
+  if (!pendingBookings.length) return [];
+
+  for (const booking of pendingBookings) {
+    const userId = booking?.user;
+    const providerId = booking?.providerId;
+    console.log("Booking : ", booking)
+
+    // Update promo code usage if exist
+    if (booking.promoCode) {
+      await PromoCodeModel.findOneAndUpdate(
+        {
+          code: booking.promoCode,
+          used: { $gt: 0 },
+        },
+        {
+          $inc: { used: -1 },
+        },
+      );
+    }
+
+    await BookingModel.findByIdAndDelete(booking._id);
+
+    await UserModel.findByIdAndUpdate(providerId, {
+      $inc: { credits: await RsdCreditsTransformation.rsdToCredits(booking.subTotal) },
+    });
+
+    sendNotifications({
+      type: NOTIFICATION_TYPE.BOOKING_DELETED,
+      title: 'One pending booking has been deleted by the system due to not being accepted within the time limit',
+      receiver: userId,
+      referenceId: providerId,
+    });
+
+    sendNotifications({
+      type: NOTIFICATION_TYPE.BOOKING_DELETED,
+      title: 'One pending booking has been deleted by the system due to not being accepted within the time limit. And returned credits to you. Please check you profile',
+      receiver: providerId,
+      referenceId: userId,
+    });
+  }
+
+  return pendingBookings;
+};
 
 
 export const BookingService = {

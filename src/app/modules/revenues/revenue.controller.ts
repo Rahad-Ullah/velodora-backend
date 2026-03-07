@@ -22,7 +22,7 @@ const getRevenues = catchAsync(async (req: Request, res: Response) => {
 
 // get general state controller
 const generalState = catchAsync(async (req: Request, res: Response) => {
-  const year = Number(req.query.year) || new Date().getFullYear();
+  // const year = Number(req.query.year) || new Date().getFullYear();
 
   // Call service
   const result = await RevenueService.generalStateFromDB();
