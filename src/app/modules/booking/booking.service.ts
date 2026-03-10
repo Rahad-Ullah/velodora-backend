@@ -685,7 +685,7 @@ const getOverviewFromDB = async (
                   { $eq: ["$status", "Completed"] },
                 ],
               },
-              "$amount",
+              {$sum: ["$subTotal", "$arrivalFee", "$weatherFee"]},
               0,
             ],
           },
