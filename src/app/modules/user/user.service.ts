@@ -423,7 +423,13 @@ const approveUpdateProfileToDB = async (
     throw new ApiError(StatusCodes.BAD_REQUEST, "Original User doesn't exist!");
   }
 
-  isExistUser.image && isOriginalUser.image && unlinkFile(isOriginalUser.image);
+  if (
+    isExistUser.image &&
+    isOriginalUser.image &&
+    isExistUser.image !== isOriginalUser.image
+  ) {
+    unlinkFile(isOriginalUser.image);
+  }
 
   const { name, email, contact, countryCode, location, coordinates, image } = isExistUser;
   const updateUser = await UserModel.findOneAndUpdate({ _id: isExistUser.ref }, { name, email, contact, countryCode, location, coordinates, image }, {
@@ -495,7 +501,7 @@ const updateUserStatusToDB = async (
 //     throw new ApiError(StatusCodes.BAD_REQUEST, "Oops! Failed to delete user.");
 //   }
 // };
-const deleteUserFromDB = async (id: string, password?: string ): Promise<Partial<IUser | null>> => {
+const deleteUserFromDB = async (id: string, password?: string): Promise<Partial<IUser | null>> => {
   // console.log("id and password : ", id, password)
   if (!password) {
     throw new ApiError(StatusCodes.BAD_REQUEST, "Password is required!");
@@ -511,7 +517,7 @@ const deleteUserFromDB = async (id: string, password?: string ): Promise<Partial
       throw new ApiError(StatusCodes.BAD_REQUEST, "User doesn't exist!");
     }
 
-    const isMatchPassword = await UserModel.isMatchPassword( password, isExistUser.password);
+    const isMatchPassword = await UserModel.isMatchPassword(password, isExistUser.password);
 
     if (!isMatchPassword) {
       // console.log("Password is incorrect!")
@@ -542,7 +548,7 @@ const deleteUserFromDB = async (id: string, password?: string ): Promise<Partial
     await session.abortTransaction();
     session.endSession();
 
-    throw new ApiError( StatusCodes.BAD_REQUEST, error.message || "Oops! Failed to delete user.");
+    throw new ApiError(StatusCodes.BAD_REQUEST, error.message || "Oops! Failed to delete user.");
   }
 };
 
