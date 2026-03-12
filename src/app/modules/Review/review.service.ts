@@ -17,6 +17,11 @@ const createReviewToDB = async (userId: string, payload: Partial<IReview>): Prom
     throw new ApiError(StatusCodes.BAD_REQUEST, "Provider doesn't exist!");
   }
 
+  const user = await UserModel.findById(userId)
+  if (!user) {
+    throw new ApiError(StatusCodes.BAD_REQUEST, "User doesn't exist!");
+  }
+
   const isReviewExist = await ReviewModel.findOne({ userId: new Types.ObjectId(userId), providerId: new Types.ObjectId(payload.providerId) });
 
   const newReview = {
@@ -40,7 +45,7 @@ const createReviewToDB = async (userId: string, payload: Partial<IReview>): Prom
 
   sendNotifications({
     type: NOTIFICATION_TYPE.REVIEW,
-    title: 'You get a new review from ' + provider.name,
+    title: 'You get a new review from ' + user.name,
     receiver: provider._id,
     referenceId: new Types.ObjectId(userId),
   })
