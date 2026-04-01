@@ -28,7 +28,7 @@ const stripePaymentToDB = async (): Promise<any> => {
 
     // ✅ Create price object
     const price = await stripe.prices.create({
-      unit_amount: Number(50) * 100,
+      unit_amount: Number(10) * 100,
       currency: "usd",
       product_data: {
         name: "Booking Payment",

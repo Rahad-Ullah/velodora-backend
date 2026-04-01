@@ -68,6 +68,7 @@ router.get('/order-history-all-download',
 )
 
 router.post('/stripe-payment',
+  auth(USER_ROLES.SUPER_ADMIN, USER_ROLES.ADMIN),
   BookingController.stripePayment
 )
 
