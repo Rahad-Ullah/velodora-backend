@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { AuthProviderEnum } from '../authProvider/authProvider.constants';
 
 const createVerifyEmailZodSchema = z.object({
   body: z.object({
@@ -41,10 +42,21 @@ const createChangePasswordZodSchema = z.object({
   }),
 });
 
+// social login schema
+const socialLoginZodSchema = z.object({
+  body: z.object({
+    provider: z.nativeEnum(AuthProviderEnum),
+    providerUserId: z.string().nonempty('Provider User ID is required'),
+    name: z.string().optional(),
+    email: z.string().email('Invalid email!').optional(),
+  }),
+});
+
 export const AuthValidation = {
   createVerifyEmailZodSchema,
   createForgetPasswordZodSchema,
   createLoginZodSchema,
   createResetPasswordZodSchema,
   createChangePasswordZodSchema,
+  socialLoginZodSchema,
 };

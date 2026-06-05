@@ -5,3 +5,7 @@ public/exports
 
 /winston
 /uploads
+
+.vscode
+
+yarn.lock

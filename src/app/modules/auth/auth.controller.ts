@@ -3,6 +3,8 @@ import { StatusCodes } from 'http-status-codes';
 import catchAsync from '../../../shared/catchAsync';
 import sendResponse from '../../../shared/sendResponse';
 import { AuthService } from './auth.service';
+import { AuthProviderEnum } from '../authProvider/authProvider.constants';
+import { AuthHelper } from '../../../helpers/authHelper';
 
 // Login user controller
 const loginUser = catchAsync(async (req: Request, res: Response) => {
@@ -106,6 +108,36 @@ const refreshToken = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+// social login
+const socialLogin = catchAsync(async (req: Request, res: Response) => {
+  const payload = req.body;
+  let providerVerifiedData: any;
+  if (payload.provider === AuthProviderEnum.GOOGLE) {
+    providerVerifiedData = await AuthHelper.verifyGoogleToken(
+      payload.providerUserId,
+    );
+  } else if (payload.provider === AuthProviderEnum.APPLE) {
+    providerVerifiedData = await AuthHelper.verifyAppleToken(
+      payload.providerUserId,
+    );
+  }
+
+  const result = await AuthService.socialLogin({
+    provider: payload.provider,
+    providerUserId: providerVerifiedData.providerUserId,
+    email: providerVerifiedData.email || '',
+    name: providerVerifiedData.name || '',
+  });
+
+  sendResponse(res, {
+    success: true,
+    statusCode: StatusCodes.OK,
+    message: 'User logged in successfully.',
+    data: result,
+  });
+});
+
+
 export const AuthController = {
   verifyAccount,
   verifyOtp,
@@ -114,4 +146,5 @@ export const AuthController = {
   resetPassword,
   changePassword,
   refreshToken,
+  socialLogin
 };

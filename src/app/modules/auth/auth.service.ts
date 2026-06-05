@@ -18,7 +18,8 @@ import { UserModel } from '../user/user.model';
 import cryptoToken from '../../../util/cryptoToken';
 import e from 'cors';
 import { ProviderModel } from '../provider/provider.model';
-import { USER_ROLES } from '../../../enums/user';
+import { USER_ROLES, USER_STATUS } from '../../../enums/user';
+import { AuthProvider } from '../authProvider/authProvider.model';
 
 //login
 const loginUserFromDB = async (payload: ILoginData) => {
@@ -382,6 +383,108 @@ const refreshTokenToDB = async (token: string) => {
   };
 };
 
+// -------------- social login --------------
+const socialLogin = async ({
+  provider,
+  providerUserId,
+  email,
+  name,
+}: {
+  provider: 'google' | 'apple';
+  providerUserId: string;
+  email?: string;
+  name?: string;
+}) => {
+  // 1️⃣ Check social identity
+  const providerDoc = await AuthProvider.findOne({
+    provider,
+    providerUserId,
+  }).populate('user');
+
+  if (providerDoc) {
+    const user = providerDoc.user as any;
+
+    // update missing info
+    if (!user.email && email) user.email = email;
+    if (!user.name && name) user.name = name;
+
+    await user.save();
+
+    // check user status
+    if (user && (user.isDeleted || !user.isActive)) {
+      throw new ApiError(
+        StatusCodes.BAD_REQUEST,
+        'It looks like your account has been deleted or deactivated.',
+      );
+    }
+
+    // create access token
+    const accessToken = jwtHelper.createToken(
+      {
+        id: user._id,
+        role: user.role,
+      },
+      config.jwt.jwt_secret as Secret,
+      config.jwt.jwt_expire_in as string,
+    );
+
+    return { accessToken, role: user.role, user };
+  }
+
+  // 2️⃣ Check email
+  let user = null;
+  if (email) {
+    user = await UserModel.findOne({ email });
+  }
+
+  // check user status
+  if (user && (user.isDeleted || !user.isActive)) {
+    throw new ApiError(
+      StatusCodes.BAD_REQUEST,
+      'It looks like your account has been deleted or deactivated.',
+    );
+  }
+
+  // 3️⃣ Create user if needed
+  if (!user) {
+    user = await UserModel.create({
+      name: name || 'User',
+      email: email || '',
+      role: USER_ROLES.USER,
+      isVerified: Boolean(email),
+    });
+  }
+
+  // 4️⃣ Link provider
+  await AuthProvider.create({
+    user: user._id,
+    provider,
+    providerUserId,
+  });
+
+  // 5️⃣ create access token
+  const accessToken = jwtHelper.createToken(
+    {
+      id: user._id,
+      role: user.role,
+    },
+    config.jwt.jwt_secret as Secret,
+    config.jwt.jwt_expire_in as string,
+  );
+
+  // 6️⃣ create refresh token
+  const refreshToken = jwtHelper.createToken(
+    {
+      id: user._id,
+      role: user.role,
+    },
+    config.jwt.jwt_refresh_secret as Secret,
+    config.jwt.jwt_refresh_expire_in as string,
+  );
+
+  return { accessToken, refreshToken, role: user.role, id: user._id, name: user.name };
+};
+
 export const AuthService = {
   verifyAccountToDB,
   verifyOtpToDB,
@@ -390,4 +493,5 @@ export const AuthService = {
   resetPasswordToDB,
   changePasswordToDB,
   refreshTokenToDB,
+  socialLogin,
 };
