@@ -9,3 +9,6 @@ public/exports
 .vscode
 
 yarn.lock
+
+# firebase
+firebase-service-account.json
