@@ -2,6 +2,7 @@ import { OAuth2Client } from 'google-auth-library';
 import config from '../config';
 import jwt from 'jsonwebtoken';
 import jwksClient from 'jwks-rsa';
+import admin from 'firebase-admin';
 
 const googleClient = new OAuth2Client();
 
@@ -86,7 +87,23 @@ export async function verifyAppleToken(identityToken: string, userRole: string) 
   });
 }
 
+
+// --------------- firebase token verification ---------------
+export async function verifyFirebaseToken(idToken: string) {
+  try {
+    const decodedToken = await admin.auth().verifyIdToken(idToken);
+    return {
+      providerUserId: decodedToken.uid,
+      email: decodedToken.email,
+      emailVerified: decodedToken.email_verified || false,
+    };
+  } catch (error) {
+    throw new Error(`Firebase token verification failed: ${error}`);
+  }
+}
+
 export const AuthHelper = {
   verifyGoogleToken,
   verifyAppleToken,
+  verifyFirebaseToken,
 };
