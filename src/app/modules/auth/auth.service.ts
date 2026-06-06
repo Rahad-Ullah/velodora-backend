@@ -428,7 +428,17 @@ const socialLogin = async ({
       config.jwt.jwt_expire_in as string
     );
 
-    return { accessToken, role: user.role, user };
+    // create refresh token
+    const refreshToken = jwtHelper.createToken(
+      {
+        id: user._id,
+        role: user.role,
+      },
+      config.jwt.jwt_refresh_secret as Secret,
+      config.jwt.jwt_refresh_expire_in as string
+    );
+
+    return { accessToken, refreshToken, role: user.role, id: user._id, name: user.name };
   }
 
   // 2️⃣ Check email
