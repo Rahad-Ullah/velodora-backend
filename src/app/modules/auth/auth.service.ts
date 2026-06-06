@@ -414,7 +414,7 @@ const socialLogin = async ({
     if (user && (user.isDeleted || !user.isActive)) {
       throw new ApiError(
         StatusCodes.BAD_REQUEST,
-        'It looks like your account has been deleted or deactivated.',
+        'It looks like your account has been deleted or deactivated.'
       );
     }
 
@@ -425,7 +425,7 @@ const socialLogin = async ({
         role: user.role,
       },
       config.jwt.jwt_secret as Secret,
-      config.jwt.jwt_expire_in as string,
+      config.jwt.jwt_expire_in as string
     );
 
     return { accessToken, role: user.role, user };
@@ -441,18 +441,19 @@ const socialLogin = async ({
   if (user && (user.isDeleted || !user.isActive)) {
     throw new ApiError(
       StatusCodes.BAD_REQUEST,
-      'It looks like your account has been deleted or deactivated.',
+      'It looks like your account has been deleted or deactivated.'
     );
   }
 
-  // 3️⃣ Create user if needed
+  // 3️⃣ if user not found
   if (!user) {
-    user = await UserModel.create({
-      name: name || 'User',
-      email: email || '',
-      role: USER_ROLES.USER,
-      isVerified: Boolean(email),
-    });
+    // user = await UserModel.create({
+    //   name: name || 'User',
+    //   email: email || '',
+    //   role: USER_ROLES.USER,
+    //   isVerified: Boolean(email),
+    // });
+    throw new ApiError(StatusCodes.BAD_REQUEST, 'Account not found. Please sign up first.');
   }
 
   // 4️⃣ Link provider
@@ -469,7 +470,7 @@ const socialLogin = async ({
       role: user.role,
     },
     config.jwt.jwt_secret as Secret,
-    config.jwt.jwt_expire_in as string,
+    config.jwt.jwt_expire_in as string
   );
 
   // 6️⃣ create refresh token
@@ -479,7 +480,7 @@ const socialLogin = async ({
       role: user.role,
     },
     config.jwt.jwt_refresh_secret as Secret,
-    config.jwt.jwt_refresh_expire_in as string,
+    config.jwt.jwt_refresh_expire_in as string
   );
 
   return { accessToken, refreshToken, role: user.role, id: user._id, name: user.name };
