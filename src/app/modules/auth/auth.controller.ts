@@ -117,9 +117,7 @@ const socialLogin = catchAsync(async (req: Request, res: Response) => {
       payload.providerUserId,
     );
   } else if (payload.provider === AuthProviderEnum.APPLE) {
-    providerVerifiedData = await AuthHelper.verifyAppleToken(
-      payload.providerUserId,
-    );
+    providerVerifiedData = await AuthHelper.verifyAppleToken(payload.providerUserId, payload.role);
   }
 
   const result = await AuthService.socialLogin({

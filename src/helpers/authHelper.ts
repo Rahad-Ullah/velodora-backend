@@ -41,7 +41,16 @@ function getAppleKey(header: any, callback: any) {
   });
 }
 
-export async function verifyAppleToken(identityToken: string) {
+export async function verifyAppleToken(identityToken: string, userRole: string) {
+  // 1. Define a map for your multiple Apple Client IDs
+  const APPLE_CLIENT_IDS: Record<string, string> = {
+    USER: config.apple.client_id_user as string,
+    PROVIDER: config.apple.client_id_provider as string,
+  };
+
+  // 2. Get the Apple Client ID based on the user's role
+  const clientID = APPLE_CLIENT_IDS[userRole];
+
   return new Promise<{
     providerUserId: string;
     email?: string;
@@ -51,7 +60,7 @@ export async function verifyAppleToken(identityToken: string) {
       identityToken,
       getAppleKey,
       {
-        audience: config.apple.client_id,
+        audience: clientID,
         issuer: 'https://appleid.apple.com',
       },
       (err, decoded: any) => {

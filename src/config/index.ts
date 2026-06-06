@@ -33,11 +33,12 @@ export default {
     webhook_secret_payment: process.env.STRIPE_WEBHOOK_SECRET_PAYMENT,
     webhook_secret_withdraw: process.env.STRIPE_WEBHOOK_SECRET_WITHDRAW,
   },
-    google: {
+  google: {
     package_name: process.env.GOOGLE_PACKAGE_NAME,
     client_id_web: process.env.GOOGLE_CLIENT_ID_WEB,
   },
   apple: {
-    client_id: process.env.APPLE_CLIENT_ID,
+    client_id_user: process.env.APPLE_CLIENT_ID_USER,
+    client_id_provider: process.env.APPLE_CLIENT_ID_PROVIDER,
   },
 };

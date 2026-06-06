@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { AuthProviderEnum } from '../authProvider/authProvider.constants';
+import { USER_ROLES } from '../../../enums/user';
 
 const createVerifyEmailZodSchema = z.object({
   body: z.object({
@@ -47,6 +48,7 @@ const socialLoginZodSchema = z.object({
   body: z.object({
     provider: z.nativeEnum(AuthProviderEnum),
     providerUserId: z.string().nonempty('Provider User ID is required'),
+    role: z.enum([USER_ROLES.USER, USER_ROLES.PROVIDER]),
     name: z.string().optional(),
     email: z.string().email('Invalid email!').optional(),
   }),
