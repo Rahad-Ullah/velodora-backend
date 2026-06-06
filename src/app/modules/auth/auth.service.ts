@@ -463,7 +463,7 @@ const socialLogin = async ({
     //   role: USER_ROLES.USER,
     //   isVerified: Boolean(email),
     // });
-    throw new ApiError(StatusCodes.BAD_REQUEST, 'Account not found. Please sign up first.');
+    throw new ApiError(StatusCodes.NOT_FOUND, 'Account not found. Please sign up first.');
   }
 
   // 4️⃣ Link provider
