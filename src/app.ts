@@ -9,6 +9,7 @@ import "./util/cleanupDaily";
 import stripePaymentWebhook from './webhook/stripePaymentWebhook';
 import stripeConnectedAccountWebhook from './webhook/stripeConnectedAccountWebhook';
 import path from 'path';
+import '../firebase-service-account.json';
 
 
 
