@@ -32,10 +32,20 @@ export async function verifyGoogleToken(idToken: string) {
 // --------------- apple token verification ---------------
 const appleClient = jwksClient({
   jwksUri: 'https://appleid.apple.com/auth/keys',
+  cache: true,
+  rateLimit: true,
 });
 
 function getAppleKey(header: any, callback: any) {
+  if (!header || !header.kid) {
+    return callback(new Error('JWT header is missing "kid" (Key ID)'));
+  }
+
   appleClient.getSigningKey(header.kid, function (err, key) {
+    if (err) {
+      return callback(err);
+    }
+
     const signingKey = key?.getPublicKey();
     callback(null, signingKey);
   });
