@@ -123,6 +123,7 @@ const socialLogin = catchAsync(async (req: Request, res: Response) => {
   const result = await AuthService.socialLogin({
     provider: payload.provider,
     providerUserId: providerVerifiedData.providerUserId,
+    role: payload.role,
     email: providerVerifiedData.email || '',
     name: providerVerifiedData.name || '',
   });

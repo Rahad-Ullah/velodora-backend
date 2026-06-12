@@ -387,11 +387,13 @@ const refreshTokenToDB = async (token: string) => {
 const socialLogin = async ({
   provider,
   providerUserId,
+  role,
   email,
   name,
 }: {
   provider: 'google' | 'apple';
   providerUserId: string;
+  role: USER_ROLES;
   email?: string;
   name?: string;
 }) => {
@@ -409,6 +411,14 @@ const socialLogin = async ({
     if (!user.name && name) user.name = name;
 
     await user.save();
+
+    // check user role
+    if (user.role !== role) {
+      throw new ApiError(
+        StatusCodes.BAD_REQUEST,
+        `You are not allowed to login with ${role} role.`
+      );
+    }
 
     // check user status
     if (user && (user.isDeleted || !user.isActive)) {
