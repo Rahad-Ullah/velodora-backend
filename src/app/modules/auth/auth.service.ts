@@ -413,12 +413,12 @@ const socialLogin = async ({
     await user.save();
 
     // check user role
-    if (user.role !== role) {
-      throw new ApiError(
-        StatusCodes.BAD_REQUEST,
-        `This email is already in use for another role. Please use a different email address.`
-      );
-    }
+    // if (user.role !== role) {
+    //   throw new ApiError(
+    //     StatusCodes.BAD_REQUEST,
+    //     `This email is already in use for another role. Please use a different email address.`
+    //   );
+    // }
 
     // check user status
     if (user && (user.isDeleted || !user.isActive)) {
@@ -467,13 +467,13 @@ const socialLogin = async ({
 
   // 3️⃣ if user not found
   if (!user) {
-    user = await UserModel.create({
-      name: name || 'User',
-      email: email || '',
-      role: USER_ROLES.USER,
-      isVerified: Boolean(email),
-    });
-    // throw new ApiError(StatusCodes.NOT_FOUND, 'Account not found. Please sign up first.');
+    // user = await UserModel.create({
+    //   name: name || 'User',
+    //   email: email || '',
+    //   role: USER_ROLES.USER,
+    //   isVerified: Boolean(email),
+    // });
+    throw new ApiError(StatusCodes.NOT_FOUND, 'Account not found. Please sign up first.');
   }
 
   // 4️⃣ Link provider
