@@ -416,7 +416,7 @@ const socialLogin = async ({
     if (user.role !== role) {
       throw new ApiError(
         StatusCodes.BAD_REQUEST,
-        `This account is already registered with another role.`
+        `This email is already in use for another role. Please use a different email address.`
       );
     }
 
