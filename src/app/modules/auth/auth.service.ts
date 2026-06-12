@@ -413,12 +413,12 @@ const socialLogin = async ({
     await user.save();
 
     // check user role
-    // if (user.role !== role) {
-    //   throw new ApiError(
-    //     StatusCodes.BAD_REQUEST,
-    //     `This email is already in use for another role. Please use a different email address.`
-    //   );
-    // }
+    if (user.role !== role) {
+      throw new ApiError(
+        StatusCodes.BAD_REQUEST,
+        `This email is already in use for another role. Please use a different email address.`
+      );
+    }
 
     // check user status
     if (user && (user.isDeleted || !user.isActive)) {
