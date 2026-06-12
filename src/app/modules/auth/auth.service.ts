@@ -416,7 +416,7 @@ const socialLogin = async ({
     if (user.role !== role) {
       throw new ApiError(
         StatusCodes.BAD_REQUEST,
-        `You are not allowed to login with ${role} role.`
+        `This account is already registered with another role.`
       );
     }
 
