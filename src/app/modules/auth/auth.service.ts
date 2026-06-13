@@ -467,13 +467,13 @@ const socialLogin = async ({
 
   // 3️⃣ if user not found
   if (!user) {
-    // user = await UserModel.create({
-    //   name: name || 'User',
-    //   email: email || '',
-    //   role: USER_ROLES.USER,
-    //   isVerified: Boolean(email),
-    // });
-    throw new ApiError(StatusCodes.NOT_FOUND, 'Account not found. Please sign up first.');
+    user = await UserModel.create({
+      name: name || 'User',
+      email: email || '',
+      role: USER_ROLES.USER,
+      isVerified: Boolean(email),
+    });
+    // throw new ApiError(StatusCodes.NOT_FOUND, 'Account not found. Please sign up first.');
   }
 
   // 4️⃣ Link provider
