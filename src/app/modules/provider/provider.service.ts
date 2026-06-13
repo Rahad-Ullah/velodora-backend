@@ -268,34 +268,34 @@ const getProviderFromDB = async (id: string, user: any): Promise<any> => {
 
   const isExistUser = await UserModel.findById(user.id);
 
-  const userLng = isExistUser?.coordinates?.[0] || 0;
-  const userLat = isExistUser?.coordinates?.[1] || 0;
+  const userLng = isExistUser?.coordinates?.[0];
+  const userLat = isExistUser?.coordinates?.[1];
 
-  // if (!userLng || !userLat) {
-  //   throw new ApiError(StatusCodes.BAD_REQUEST, "User location missing");
-  // }
-
-  const providers = await ProviderModel.aggregate([
-
-    // ✅ MUST BE FIRST
+  // 1. Initialize the pipeline with the $match stage for the provider ID
+  const pipeline: any[] = [
     {
+      $match: { _id: new Types.ObjectId(id) },
+    },
+  ];
+
+  // 2. Conditionally unshift $geoNear to the START of the pipeline if coordinates exist
+  if (userLng !== undefined && userLat !== undefined) {
+    pipeline.unshift({
       $geoNear: {
         near: {
           type: "Point",
           coordinates: [Number(userLng), Number(userLat)],
         },
-        key: "location", // <-- provider location field
+        key: "location", 
         distanceField: "distance",
         spherical: true,
         distanceMultiplier: 0.001, // meters -> km
       },
-    },
+    });
+  }
 
-    // match specific provider
-    {
-      $match: { _id: new Types.ObjectId(id) },
-    },
-
+  // 3. Append the remaining lookup and formatting stages
+  pipeline.push(
     // provider -> user
     {
       $lookup: {
@@ -327,7 +327,6 @@ const getProviderFromDB = async (id: string, user: any): Promise<any> => {
             },
           },
           { $unwind: "$category" },
-
           {
             $lookup: {
               from: "subcategories",
@@ -341,13 +340,16 @@ const getProviderFromDB = async (id: string, user: any): Promise<any> => {
       },
     },
 
-    // optional fallback
+    // Fallback if distance wasn't calculated
     {
       $addFields: {
         distance: { $ifNull: ["$distance", null] },
       },
-    },
-  ]);
+    }
+  );
+
+  // 4. Run the dynamically constructed pipeline
+  const providers = await ProviderModel.aggregate(pipeline);
 
   if (!providers.length) {
     throw new ApiError(StatusCodes.BAD_REQUEST, "Service doesn't exist!");
