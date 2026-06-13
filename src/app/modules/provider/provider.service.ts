@@ -271,9 +271,9 @@ const getProviderFromDB = async (id: string, user: any): Promise<any> => {
   const userLng = isExistUser?.coordinates?.[0] || 0;
   const userLat = isExistUser?.coordinates?.[1] || 0;
 
-  if (!userLng || !userLat) {
-    throw new ApiError(StatusCodes.BAD_REQUEST, "User location missing");
-  }
+  // if (!userLng || !userLat) {
+  //   throw new ApiError(StatusCodes.BAD_REQUEST, "User location missing");
+  // }
 
   const providers = await ProviderModel.aggregate([
 
