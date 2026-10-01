@@ -16,20 +16,21 @@ export default {
     jwt_refresh_secret: process.env.JWT_REFRESH_SECRET,
     jwt_refresh_expire_in: process.env.JWT_REFRESH_EXPIRE_IN,
   },
-  email: {
-    from: process.env.EMAIL_FROM,
-    port: process.env.EMAIL_PORT,
-    host: process.env.EMAIL_HOST,
-    pass: process.env.EMAIL_PASS,
-  },
   super_admin: {
     email: process.env.SUPER_ADMIN_EMAIL,
     email_second: process.env.SUPER_ADMIN_EMAIL_SECOND,
     password: process.env.SUPER_ADMIN_PASSWORD,
   },
+  email: {
+    host: process.env.EMAIL_HOST,
+    port: process.env.EMAIL_PORT,
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS,
+    from: process.env.EMAIL_FROM,
+  },
   stripe: {
-    secret_key: process.env.STRIPE_SECRET_KEY,
     public_key: process.env.STRIPE_PUBLIC_KEY,
+    secret_key: process.env.STRIPE_SECRET_KEY,
     webhook_secret_payment: process.env.STRIPE_WEBHOOK_SECRET_PAYMENT,
     webhook_secret_withdraw: process.env.STRIPE_WEBHOOK_SECRET_WITHDRAW,
   },
